@@ -18975,31 +18975,58 @@ Return ONLY valid JSON array, no markdown.`;
                 },
               },
               {
-                text: `Analyze this food image and identify all visible food items. For each item, provide:
-1. The most specific name possible (e.g., "grilled chicken breast" not just "chicken")
-2. An estimated portion size in grams or common units
-3. Complete nutritional estimates
+                text: `Analyze this food image and identify all visible food items. For each item, provide complete nutritional estimates.
 
 Respond in JSON format only:
 {
   "foods": [
     { 
-      "name": "food name", 
+      "name": "food name (be specific)",
       "portion": "1 medium (118g)",
-      "calories": 105,
-      "protein": 1.3,
-      "carbs": 27,
-      "fat": 0.4,
-      "fiber": 3.1,
-      "sugar": 14,
-      "sodium": 1,
-      "saturatedFat": 0.1,
-      "cholesterol": 0
+      "energyKcal": 105,
+      "proteinG": 1.3,
+      "carbohydratesG": 27,
+      "fatTotalG": 0.4,
+      "fatSaturatedG": 0.1,
+      "fatPolyunsaturatedG": 0,
+      "fatMonounsaturatedG": 0.1,
+      "cholesterolMg": 0,
+      "fiberG": 3.1,
+      "sugarG": 14,
+      "vitaminAMcg": 3,
+      "vitaminB6Mg": 0.4,
+      "vitaminB12Mcg": 0,
+      "vitaminCMg": 10,
+      "vitaminDMcg": 0,
+      "vitaminEMg": 0.1,
+      "vitaminKMcg": 0.5,
+      "thiaminMg": 0.03,
+      "riboflavinMg": 0.07,
+      "niacinMg": 0.7,
+      "folateMcg": 20,
+      "biotinMcg": 0.1,
+      "pantothenicAcidMg": 0.3,
+      "calciumMg": 5,
+      "chlorideMg": 1,
+      "chromiumMcg": 0,
+      "copperMg": 0.08,
+      "iodineMcg": 0,
+      "ironMg": 0.3,
+      "magnesiumMg": 27,
+      "manganeseMg": 0.3,
+      "molybdenumMcg": 0,
+      "phosphorusMg": 22,
+      "potassiumMg": 358,
+      "seleniumMcg": 1,
+      "sodiumMg": 1,
+      "zincMg": 0.2,
+      "caffeineMg": 0,
+      "waterMl": 88
     }
   ]
 }
 
-Be accurate with your estimates based on typical portion sizes. If no food is visible, respond with: { "foods": [] }`,
+Be accurate based on typical portion sizes and USDA nutrient data. If no food is visible, respond with: { "foods": [] }`,
               },
             ],
           },
@@ -19016,19 +19043,53 @@ Be accurate with your estimates based on typical portion sizes. If no food is vi
         responsePreview: responseText?.substring(0, 200)
       });
       
-      // Parse the AI response
+      // Parse the AI response - matches nutrition_daily_metrics schema
       interface GeminiFoodItem {
         name: string;
         portion: string;
-        calories?: number;
-        protein?: number;
-        carbs?: number;
-        fat?: number;
-        fiber?: number;
-        sugar?: number;
-        sodium?: number;
-        saturatedFat?: number;
-        cholesterol?: number;
+        // Macros
+        energyKcal?: number;
+        proteinG?: number;
+        carbohydratesG?: number;
+        fatTotalG?: number;
+        fatSaturatedG?: number;
+        fatPolyunsaturatedG?: number;
+        fatMonounsaturatedG?: number;
+        cholesterolMg?: number;
+        fiberG?: number;
+        sugarG?: number;
+        // Vitamins
+        vitaminAMcg?: number;
+        vitaminB6Mg?: number;
+        vitaminB12Mcg?: number;
+        vitaminCMg?: number;
+        vitaminDMcg?: number;
+        vitaminEMg?: number;
+        vitaminKMcg?: number;
+        thiaminMg?: number;
+        riboflavinMg?: number;
+        niacinMg?: number;
+        folateMcg?: number;
+        biotinMcg?: number;
+        pantothenicAcidMg?: number;
+        // Minerals
+        calciumMg?: number;
+        chlorideMg?: number;
+        chromiumMcg?: number;
+        copperMg?: number;
+        iodineMcg?: number;
+        ironMg?: number;
+        magnesiumMg?: number;
+        manganeseMg?: number;
+        molybdenumMcg?: number;
+        phosphorusMg?: number;
+        potassiumMg?: number;
+        seleniumMcg?: number;
+        sodiumMg?: number;
+        zincMg?: number;
+        // Other
+        caffeineMg?: number;
+        waterMl?: number;
       }
       
       let identifiedFoods: GeminiFoodItem[] = [];
@@ -19047,22 +19108,61 @@ Be accurate with your estimates based on typical portion sizes. If no food is vi
       
       logger.info('[FoodRecognize] Parsed foods', { count: identifiedFoods.length, foods: identifiedFoods });
       
-      // Use Gemini's macro estimates directly (no FatSecret lookup for now)
+      // Map Gemini response to match database schema (nutrition_daily_metrics naming)
       const results = identifiedFoods.map((food, index) => ({
         id: `gemini-${Date.now()}-${index}`,
         name: food.name,
         type: 'AI Estimated',
         description: `${food.portion} - Estimated by AI`,
-        calories: food.calories || 0,
-        protein: food.protein || 0,
-        carbs: food.carbs || 0,
-        fat: food.fat || 0,
-        fiber: food.fiber || 0,
-        sugar: food.sugar || 0,
-        sodium: food.sodium || 0,
-        saturatedFat: food.saturatedFat || 0,
-        cholesterol: food.cholesterol || 0,
         servingDescription: food.portion,
+        // Macros (using database column names)
+        energyKcal: food.energyKcal || 0,
+        proteinG: food.proteinG || 0,
+        carbohydratesG: food.carbohydratesG || 0,
+        fatTotalG: food.fatTotalG || 0,
+        fatSaturatedG: food.fatSaturatedG || 0,
+        fatPolyunsaturatedG: food.fatPolyunsaturatedG || 0,
+        fatMonounsaturatedG: food.fatMonounsaturatedG || 0,
+        cholesterolMg: food.cholesterolMg || 0,
+        fiberG: food.fiberG || 0,
+        sugarG: food.sugarG || 0,
+        // Vitamins
+        vitaminAMcg: food.vitaminAMcg || 0,
+        vitaminB6Mg: food.vitaminB6Mg || 0,
+        vitaminB12Mcg: food.vitaminB12Mcg || 0,
+        vitaminCMg: food.vitaminCMg || 0,
+        vitaminDMcg: food.vitaminDMcg || 0,
+        vitaminEMg: food.vitaminEMg || 0,
+        vitaminKMcg: food.vitaminKMcg || 0,
+        thiaminMg: food.thiaminMg || 0,
+        riboflavinMg: food.riboflavinMg || 0,
+        niacinMg: food.niacinMg || 0,
+        folateMcg: food.folateMcg || 0,
+        biotinMcg: food.biotinMcg || 0,
+        pantothenicAcidMg: food.pantothenicAcidMg || 0,
+        // Minerals
+        calciumMg: food.calciumMg || 0,
+        chlorideMg: food.chlorideMg || 0,
+        chromiumMcg: food.chromiumMcg || 0,
+        copperMg: food.copperMg || 0,
+        iodineMcg: food.iodineMcg || 0,
+        ironMg: food.ironMg || 0,
+        magnesiumMg: food.magnesiumMg || 0,
+        manganeseMg: food.manganeseMg || 0,
+        molybdenumMcg: food.molybdenumMcg || 0,
+        phosphorusMg: food.phosphorusMg || 0,
+        potassiumMg: food.potassiumMg || 0,
+        seleniumMcg: food.seleniumMcg || 0,
+        sodiumMg: food.sodiumMg || 0,
+        zincMg: food.zincMg || 0,
+        // Other
+        caffeineMg: food.caffeineMg || 0,
+        waterMl: food.waterMl || 0,
+        // Legacy field mappings for frontend compatibility
+        calories: food.energyKcal || 0,
+        protein: food.proteinG || 0,
+        carbs: food.carbohydratesG || 0,
+        fat: food.fatTotalG || 0,
       }));
       
       logger.info('[FoodRecognize] Results prepared', { count: results.length });
