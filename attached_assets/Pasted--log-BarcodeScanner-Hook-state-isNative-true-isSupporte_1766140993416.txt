@@ -1,0 +1,39 @@
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] Checking ML Kit barcode scanner support...
+⚡️  To Native ->  BarcodeScanner isSupported 59343279
+⚡️  TO JS {"supported":true}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] ML Kit isSupported result: true
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+🎤 Media capture permission requested - type: WKMediaCaptureType(rawValue: 1)
+✅ Granting microphone permission
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [FoodLog] Voice recognition started
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [FoodLog] Voice transcript: Banana
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [FoodLog] Voice transcript: Banana
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [FoodLog] Voice recognition ended, transcript: Banana
+⚡️  [log] - [FoodLog] Searching for: Banana
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/food/search
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [FoodLog] Search response: {"results":[{"id":"ai-1766140952382-0","name":"Banana","type":"AI Estimate","description":"Per 1 medium - Calories: 105kcal | Fat: 0.4g | Carbs: 27g | Protein: 1.3g","calories":105,"protein":1.3,"carbs":27,"fat":0.4,"servingDescription":"1 medium"}]}
+⚡️  [log] - [FoodLog] Search success, results count: 1
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/food/log
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [API] Response received: 500 
+⚡️  [error] - [ERROR] API request failed {"status":500,"response":"{\"error\":\"Failed to log meal\"}"}
+⚡️  [error] - [API] Request failed: {}
+⚡️  [error] - [ERROR] API request failed {"error":{"message":"500: {\"error\":\"Failed to log meal\"}","stack":"Sz@https://get-flo.com/assets/index-DNjRctBx.js:48:57202"}}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios

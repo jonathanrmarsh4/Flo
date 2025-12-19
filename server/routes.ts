@@ -19071,7 +19071,8 @@ If no food is visible, respond with: { "foods": [] }`,
       ].filter(s => s.value > 0);
       
       // Insert into healthkit_samples via Supabase
-      const supabaseClient = (await import('./services/supabaseClient')).supabase;
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      const supabaseClient = getSupabaseClient();
       
       for (const sample of nutritionSamples) {
         const { error: insertError } = await supabaseClient.from('healthkit_samples').insert({
