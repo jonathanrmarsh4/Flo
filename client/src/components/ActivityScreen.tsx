@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2, Flame, Plus } from 'lucide-react';
+import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2, Flame, Plus, Pill, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BottomNav } from './BottomNav';
 import { CGMScreen } from './CGMScreen';
@@ -75,21 +75,49 @@ interface WorkoutsSummary {
 
 interface NutritionDaily {
   localDate: string;
+  // Macros (10)
   energyKcal: number | null;
   proteinG: number | null;
   carbohydratesG: number | null;
   fatTotalG: number | null;
+  fatSaturatedG: number | null;
+  fatPolyunsaturatedG: number | null;
+  fatMonounsaturatedG: number | null;
+  cholesterolMg: number | null;
   fiberG: number | null;
   sugarG: number | null;
+  // Vitamins (13)
+  vitaminAMcg: number | null;
+  vitaminB6Mg: number | null;
+  vitaminB12Mcg: number | null;
+  vitaminCMg: number | null;
+  vitaminDMcg: number | null;
+  vitaminEMg: number | null;
+  vitaminKMcg: number | null;
+  thiaminMg: number | null;
+  riboflavinMg: number | null;
+  niacinMg: number | null;
+  folateMcg: number | null;
+  biotinMcg: number | null;
+  pantothenicAcidMg: number | null;
+  // Minerals (14)
+  calciumMg: number | null;
+  chlorideMg: number | null;
+  chromiumMcg: number | null;
+  copperMg: number | null;
+  iodineMcg: number | null;
+  ironMg: number | null;
+  magnesiumMg: number | null;
+  manganeseMg: number | null;
+  molybdenumMcg: number | null;
+  phosphorusMg: number | null;
+  potassiumMg: number | null;
+  seleniumMcg: number | null;
   sodiumMg: number | null;
+  zincMg: number | null;
+  // Other (2)
   caffeineMg: number | null;
   waterMl: number | null;
-  vitaminDMcg: number | null;
-  magnesiumMg: number | null;
-  calciumMg: number | null;
-  ironMg: number | null;
-  potassiumMg: number | null;
-  zincMg: number | null;
 }
 
 interface GlucoseDaily {
@@ -1206,40 +1234,145 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
         </div>
       </div>
       
-      <button className={`w-full backdrop-blur-xl rounded-3xl border p-6 transition-all text-left ${
-        isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
+      <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
       }`}>
         <div className="flex items-center justify-between mb-4">
           <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Watch Items</h3>
-          <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
         </div>
         
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Caffeine</div>
-            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{caffeine.toFixed(1)}mg</div>
+            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{caffeine.toFixed(0)}mg</div>
             <div className={`text-xs ${caffeine <= 400 ? isDark ? 'text-green-400' : 'text-green-600' : isDark ? 'text-orange-400' : 'text-orange-600'}`}>
-              {caffeine <= 400 ? 'Within limit' : 'Above limit'}
+              {caffeine <= 400 ? 'Within limit' : 'Above limit'} (≤400mg)
             </div>
           </div>
           
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Sodium</div>
-            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{sodium.toFixed(1)}mg</div>
+            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{sodium.toFixed(0)}mg</div>
             <div className={`text-xs ${sodium <= 2300 ? isDark ? 'text-green-400' : 'text-green-600' : isDark ? 'text-orange-400' : 'text-orange-600'}`}>
-              {sodium <= 2300 ? 'Within limit' : 'Above limit'}
+              {sodium <= 2300 ? 'Within limit' : 'Above limit'} (≤2300mg)
             </div>
           </div>
           
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Sugar</div>
-            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{sugar.toFixed(1)}g</div>
+            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{sugar.toFixed(0)}g</div>
             <div className={`text-xs ${sugar <= 50 ? isDark ? 'text-green-400' : 'text-green-600' : isDark ? 'text-orange-400' : 'text-orange-600'}`}>
-              {sugar <= 50 ? 'Moderate' : 'High'}
+              {sugar <= 50 ? 'Moderate' : 'High'} (≤50g)
+            </div>
+          </div>
+          
+          <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+            <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Cholesterol</div>
+            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{(today.cholesterolMg ?? 0).toFixed(0)}mg</div>
+            <div className={`text-xs ${(today.cholesterolMg ?? 0) <= 300 ? isDark ? 'text-green-400' : 'text-green-600' : isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+              {(today.cholesterolMg ?? 0) <= 300 ? 'Within limit' : 'Above limit'} (≤300mg)
+            </div>
+          </div>
+          
+          <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+            <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Saturated Fat</div>
+            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{(today.fatSaturatedG ?? 0).toFixed(1)}g</div>
+            <div className={`text-xs ${(today.fatSaturatedG ?? 0) <= 20 ? isDark ? 'text-green-400' : 'text-green-600' : isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+              {(today.fatSaturatedG ?? 0) <= 20 ? 'Within limit' : 'Above limit'} (≤20g)
+            </div>
+          </div>
+          
+          <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+            <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Fiber</div>
+            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{fiber.toFixed(1)}g</div>
+            <div className={`text-xs ${fiber >= 25 ? isDark ? 'text-green-400' : 'text-green-600' : isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+              {fiber >= 25 ? 'Good' : 'Need more'} (≥25g)
             </div>
           </div>
         </div>
-      </button>
+      </div>
+      
+      <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+      }`}>
+        <div className="flex items-center gap-2 mb-4">
+          <Pill className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+          <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Vitamins</h3>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { name: 'Vit A', value: today.vitaminAMcg, unit: 'mcg', target: 900 },
+            { name: 'Vit B6', value: today.vitaminB6Mg, unit: 'mg', target: 1.7 },
+            { name: 'Vit B12', value: today.vitaminB12Mcg, unit: 'mcg', target: 2.4 },
+            { name: 'Vit C', value: today.vitaminCMg, unit: 'mg', target: 90 },
+            { name: 'Vit D', value: today.vitaminDMcg, unit: 'mcg', target: 20 },
+            { name: 'Vit E', value: today.vitaminEMg, unit: 'mg', target: 15 },
+            { name: 'Vit K', value: today.vitaminKMcg, unit: 'mcg', target: 120 },
+            { name: 'Thiamin', value: today.thiaminMg, unit: 'mg', target: 1.2 },
+            { name: 'Riboflavin', value: today.riboflavinMg, unit: 'mg', target: 1.3 },
+            { name: 'Niacin', value: today.niacinMg, unit: 'mg', target: 16 },
+            { name: 'Folate', value: today.folateMcg, unit: 'mcg', target: 400 },
+            { name: 'Biotin', value: today.biotinMcg, unit: 'mcg', target: 30 },
+          ].map((v) => {
+            const val = v.value ?? 0;
+            const pct = v.target > 0 ? Math.min((val / v.target) * 100, 100) : 0;
+            const isGood = pct >= 80;
+            return (
+              <div key={v.name} className={`p-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+                <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>{v.name}</div>
+                <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {val.toFixed(v.unit === 'mcg' ? 0 : 1)}{v.unit}
+                </div>
+                <div className={`h-1 rounded-full mt-1 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
+                  <div className={`h-full rounded-full ${isGood ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      
+      <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+      }`}>
+        <div className="flex items-center gap-2 mb-4">
+          <Gem className={`w-5 h-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+          <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Minerals</h3>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { name: 'Calcium', value: today.calciumMg, unit: 'mg', target: 1000 },
+            { name: 'Iron', value: today.ironMg, unit: 'mg', target: 18 },
+            { name: 'Magnesium', value: today.magnesiumMg, unit: 'mg', target: 400 },
+            { name: 'Phosphorus', value: today.phosphorusMg, unit: 'mg', target: 700 },
+            { name: 'Potassium', value: today.potassiumMg, unit: 'mg', target: 4700 },
+            { name: 'Zinc', value: today.zincMg, unit: 'mg', target: 11 },
+            { name: 'Copper', value: today.copperMg, unit: 'mg', target: 0.9 },
+            { name: 'Manganese', value: today.manganeseMg, unit: 'mg', target: 2.3 },
+            { name: 'Selenium', value: today.seleniumMcg, unit: 'mcg', target: 55 },
+            { name: 'Chromium', value: today.chromiumMcg, unit: 'mcg', target: 35 },
+            { name: 'Iodine', value: today.iodineMcg, unit: 'mcg', target: 150 },
+            { name: 'Molybdenum', value: today.molybdenumMcg, unit: 'mcg', target: 45 },
+          ].map((m) => {
+            const val = m.value ?? 0;
+            const pct = m.target > 0 ? Math.min((val / m.target) * 100, 100) : 0;
+            const isGood = pct >= 80;
+            return (
+              <div key={m.name} className={`p-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+                <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>{m.name}</div>
+                <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {val.toFixed(m.unit === 'mcg' ? 0 : 1)}{m.unit}
+                </div>
+                <div className={`h-1 rounded-full mt-1 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
+                  <div className={`h-full rounded-full ${isGood ? 'bg-green-500' : 'bg-teal-500'}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
       
       <TodaysMealsCard
         isDark={isDark}
