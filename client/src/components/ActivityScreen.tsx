@@ -1054,13 +1054,52 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
   const todayLocalDate = new Date().toLocaleDateString('en-CA'); // Returns YYYY-MM-DD
   
   // Find today's nutrition record - don't assume [0] is today!
-  // If no record for today exists, use empty data
+  // If no record for today exists, use empty values (not yesterday's data)
   const todayRecord = nutritionData?.find(r => r.localDate === todayLocalDate);
-  const today = todayRecord || null;
   
-  if (!today) {
-    return <EmptyState isDark={isDark} message="No nutrition data available. Start logging your meals to see insights." />;
-  }
+  // Create empty record for today if none exists
+  const today: NutritionDaily = todayRecord || {
+    localDate: todayLocalDate,
+    energyKcal: 0,
+    proteinG: 0,
+    carbohydratesG: 0,
+    fatTotalG: 0,
+    fatSaturatedG: 0,
+    fatPolyunsaturatedG: 0,
+    fatMonounsaturatedG: 0,
+    cholesterolMg: 0,
+    fiberG: 0,
+    sugarG: 0,
+    vitaminAMcg: null,
+    vitaminB6Mg: null,
+    vitaminB12Mcg: null,
+    vitaminCMg: null,
+    vitaminDMcg: null,
+    vitaminEMg: null,
+    vitaminKMcg: null,
+    thiaminMg: null,
+    riboflavinMg: null,
+    niacinMg: null,
+    folateMcg: null,
+    biotinMcg: null,
+    pantothenicAcidMg: null,
+    calciumMg: null,
+    chlorideMg: null,
+    chromiumMcg: null,
+    copperMg: null,
+    iodineMcg: null,
+    ironMg: null,
+    magnesiumMg: null,
+    manganeseMg: null,
+    molybdenumMcg: null,
+    phosphorusMg: null,
+    potassiumMg: null,
+    seleniumMcg: null,
+    sodiumMg: 0,
+    zincMg: null,
+    caffeineMg: 0,
+    waterMl: 0,
+  };
 
   const calories = today.energyKcal ?? 0;
   const protein = today.proteinG ?? 0;
