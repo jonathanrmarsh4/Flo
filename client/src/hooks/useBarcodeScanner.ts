@@ -1,5 +1,9 @@
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { useState, useEffect, useRef } from 'react';
+import { 
+  BarcodeScanner, 
+  BarcodeFormat
+} from '@capacitor-mlkit/barcode-scanning';
 
 interface ScanResult {
   barcode: string;
@@ -14,30 +18,10 @@ interface BarcodeScannerHook {
   requestPermissions: () => Promise<boolean>;
 }
 
-interface BarcodeScannerPlugin {
-  isSupported(): Promise<{ supported: boolean }>;
-  checkCameraPermission(): Promise<{ camera: string }>;
-  requestCameraPermission(): Promise<{ camera: string }>;
-  scan(options: { formats: string[] }): Promise<{ barcodes: Array<{ rawValue: string; format: string }> }>;
-}
-
-const BarcodeFormats = {
-  UpcA: 'UPC_A',
-  UpcE: 'UPC_E', 
-  Ean8: 'EAN_8',
-  Ean13: 'EAN_13',
-  Code128: 'CODE_128',
-  Code39: 'CODE_39',
-  Code93: 'CODE_93',
-  Itf: 'ITF',
-  DataMatrix: 'DATA_MATRIX',
-  QrCode: 'QR_CODE',
-};
-
 export function useBarcodeScanner(): BarcodeScannerHook {
   const isNative = Capacitor.isNativePlatform();
   const [isSupported, setIsSupported] = useState(false);
-  const scannerRef = useRef<BarcodeScannerPlugin | null>(null);
+  const initRef = useRef(false);
   
   useEffect(() => {
     const loadAndCheckSupport = async () => {
@@ -47,17 +31,16 @@ export function useBarcodeScanner(): BarcodeScannerHook {
         return;
       }
       
+      if (initRef.current) return;
+      initRef.current = true;
+      
       try {
-        console.log('[BarcodeScanner] Registering BarcodeScanner plugin...');
-        const scanner = registerPlugin<BarcodeScannerPlugin>('BarcodeScanner');
-        scannerRef.current = scanner;
-        console.log('[BarcodeScanner] Plugin registered:', scanner);
-        
-        const { supported } = await scanner.isSupported();
-        console.log('[BarcodeScanner] isSupported result:', supported);
+        console.log('[BarcodeScanner] Checking ML Kit barcode scanner support...');
+        const { supported } = await BarcodeScanner.isSupported();
+        console.log('[BarcodeScanner] ML Kit isSupported result:', supported);
         setIsSupported(supported);
       } catch (error) {
-        console.error('[BarcodeScanner] Error registering/checking support:', error);
+        console.error('[BarcodeScanner] Error checking ML Kit support:', error);
         setIsSupported(false);
       }
     };
@@ -67,26 +50,16 @@ export function useBarcodeScanner(): BarcodeScannerHook {
   
   console.log('[BarcodeScanner] Hook state - isNative:', isNative, 'isSupported:', isSupported, 'platform:', Capacitor.getPlatform());
 
-  const getScanner = (): BarcodeScannerPlugin => {
-    if (scannerRef.current) {
-      return scannerRef.current;
-    }
-    const scanner = registerPlugin<BarcodeScannerPlugin>('BarcodeScanner');
-    scannerRef.current = scanner;
-    return scanner;
-  };
-
   const checkPermissions = async (): Promise<boolean> => {
     if (!isNative) return false;
     
     try {
-      console.log('[BarcodeScanner] Checking permissions...');
-      const scanner = getScanner();
-      const { camera } = await scanner.checkCameraPermission();
-      console.log('[BarcodeScanner] Permission status:', camera);
+      console.log('[BarcodeScanner] Checking ML Kit permissions...');
+      const { camera } = await BarcodeScanner.checkPermissions();
+      console.log('[BarcodeScanner] ML Kit permission status:', camera);
       return camera === 'granted';
     } catch (error) {
-      console.error('[BarcodeScanner] Permission check failed:', error);
+      console.error('[BarcodeScanner] ML Kit permission check failed:', error);
       return false;
     }
   };
@@ -95,13 +68,12 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     if (!isNative) return false;
     
     try {
-      console.log('[BarcodeScanner] Requesting permissions...');
-      const scanner = getScanner();
-      const { camera } = await scanner.requestCameraPermission();
-      console.log('[BarcodeScanner] Permission request result:', camera);
+      console.log('[BarcodeScanner] Requesting ML Kit permissions...');
+      const { camera } = await BarcodeScanner.requestPermissions();
+      console.log('[BarcodeScanner] ML Kit permission request result:', camera);
       return camera === 'granted';
     } catch (error) {
-      console.error('[BarcodeScanner] Permission request failed:', error);
+      console.error('[BarcodeScanner] ML Kit permission request failed:', error);
       return false;
     }
   };
@@ -115,14 +87,12 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     }
 
     try {
-      const scanner = getScanner();
-      
-      console.log('[BarcodeScanner] Checking/requesting permissions...');
-      const { camera } = await scanner.checkCameraPermission();
+      console.log('[BarcodeScanner] Checking/requesting ML Kit permissions...');
+      const { camera } = await BarcodeScanner.checkPermissions();
       console.log('[BarcodeScanner] Has permission:', camera);
       
       if (camera !== 'granted') {
-        const result = await scanner.requestCameraPermission();
+        const result = await BarcodeScanner.requestPermissions();
         console.log('[BarcodeScanner] Permission granted after request:', result.camera);
         if (result.camera !== 'granted') {
           console.log('[BarcodeScanner] Camera permission denied');
@@ -130,19 +100,19 @@ export function useBarcodeScanner(): BarcodeScannerHook {
         }
       }
 
-      console.log('[BarcodeScanner] Calling BarcodeScanner.scan()...');
-      const { barcodes } = await scanner.scan({
+      console.log('[BarcodeScanner] Calling ML Kit scan()...');
+      const { barcodes } = await BarcodeScanner.scan({
         formats: [
-          BarcodeFormats.UpcA,
-          BarcodeFormats.UpcE,
-          BarcodeFormats.Ean8,
-          BarcodeFormats.Ean13,
-          BarcodeFormats.Code128,
-          BarcodeFormats.Code39,
-          BarcodeFormats.Code93,
-          BarcodeFormats.Itf,
-          BarcodeFormats.DataMatrix,
-          BarcodeFormats.QrCode,
+          BarcodeFormat.UpcA,
+          BarcodeFormat.UpcE,
+          BarcodeFormat.Ean8,
+          BarcodeFormat.Ean13,
+          BarcodeFormat.Code128,
+          BarcodeFormat.Code39,
+          BarcodeFormat.Code93,
+          BarcodeFormat.Itf,
+          BarcodeFormat.DataMatrix,
+          BarcodeFormat.QrCode,
         ],
       });
 
