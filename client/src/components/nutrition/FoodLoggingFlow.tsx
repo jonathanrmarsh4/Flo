@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { X, Mic, Camera, Barcode, Search, Loader2, Check, ChevronLeft, Plus, Minus, AlertCircle } from 'lucide-react';
+import { X, Mic, Camera, Barcode, Search, Loader2, Check, ChevronLeft, Plus, Minus, AlertCircle, Scan } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { FloIcon } from '../FloLogo';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 
 type InputMode = 'select' | 'voice' | 'photo' | 'barcode' | 'search';
 type FlowStep = 'input' | 'results' | 'confirm';
@@ -50,8 +51,14 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
   const [isSearching, setIsSearching] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [showManualBarcode, setShowManualBarcode] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Use same barcode scanner as supplements
+  const { isAvailable: isCameraAvailable, isSupported: isScannerSupported, scanBarcode } = useBarcodeScanner();
 
   const determineMealType = (): string => {
     const hour = new Date().getHours();
@@ -273,6 +280,42 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
       barcodeLookupMutation.mutate(barcode.trim());
     }
   }, [barcodeLookupMutation]);
+
+  // Camera barcode scan handler (same as supplement scanner)
+  const handleCameraScan = useCallback(async () => {
+    console.log('[FoodLog] handleCameraScan called');
+    console.log('[FoodLog] isCameraAvailable:', isCameraAvailable);
+    console.log('[FoodLog] isScannerSupported:', isScannerSupported);
+    
+    if (!isCameraAvailable) {
+      console.log('[FoodLog] Camera not available (not native platform), showing manual input');
+      setShowManualBarcode(true);
+      return;
+    }
+    
+    setIsScanning(true);
+    console.log('[FoodLog] Starting scan...');
+    try {
+      const result = await scanBarcode();
+      console.log('[FoodLog] Scan result:', result);
+      if (result?.barcode) {
+        setBarcodeInput(result.barcode);
+        barcodeLookupMutation.mutate(result.barcode);
+      } else {
+        console.log('[FoodLog] No barcode in result, user may have cancelled');
+      }
+    } catch (error: any) {
+      console.error('[FoodLog] Scan error:', error);
+      toast({
+        title: "Scanner Error",
+        description: error.message || "Failed to scan barcode. Try manual entry.",
+        variant: "destructive",
+      });
+      setShowManualBarcode(true);
+    } finally {
+      setIsScanning(false);
+    }
+  }, [isCameraAvailable, isScannerSupported, scanBarcode, barcodeLookupMutation, toast]);
 
   const addFood = useCallback((food: FoodSearchResult) => {
     const selected: SelectedFood = {
@@ -532,32 +575,129 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
             </div>
           )}
 
-          {/* Barcode Input */}
+          {/* Barcode Input - Same style as supplement scanner */}
           {step === 'input' && mode === 'barcode' && (
             <div className="space-y-4">
-              <div className="text-center mb-6">
-                <Barcode className={`w-16 h-16 mx-auto mb-3 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
-                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  Enter the barcode number
-                </p>
-              </div>
-              <input
-                type="text"
-                placeholder="Enter barcode..."
-                className={`w-full px-4 py-4 rounded-2xl border text-base text-center tracking-widest ${
-                  isDark 
-                    ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40' 
-                    : 'bg-white border-black/10 text-gray-900 placeholder:text-gray-400'
-                }`}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '');
-                  e.target.value = value;
-                  if (value.length >= 8) {
-                    handleBarcodeInput(value);
-                  }
-                }}
-                data-testid="input-barcode"
-              />
+              {!showManualBarcode ? (
+                <>
+                  {/* Camera Scan - Primary Option */}
+                  <button
+                    className={`w-full p-6 rounded-2xl border transition-all ${
+                      isDark 
+                        ? 'bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-emerald-500/30 hover:border-emerald-500/50' 
+                        : 'bg-gradient-to-br from-emerald-100 to-teal-100 border-emerald-300 hover:border-emerald-400'
+                    }`}
+                    onClick={handleCameraScan}
+                    data-testid="button-camera-scan"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                        isDark ? 'bg-emerald-500/30' : 'bg-emerald-200'
+                      }`}>
+                        {isScanning || barcodeLookupMutation.isPending ? (
+                          <Loader2 className={`w-7 h-7 animate-spin ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`} />
+                        ) : (
+                          <Scan className={`w-7 h-7 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`} />
+                        )}
+                      </div>
+                      <div className="text-left flex-1">
+                        <p className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {isScanning ? 'Opening Camera...' : barcodeLookupMutation.isPending ? 'Looking up...' : 'Scan Barcode'}
+                        </p>
+                        <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                          {isScannerSupported 
+                            ? 'Use camera to scan product barcode' 
+                            : 'Checking scanner availability...'}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Manual Entry - Secondary Option */}
+                  <button
+                    className={`w-full p-3 text-sm ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => setShowManualBarcode(true)}
+                    data-testid="button-manual-barcode"
+                  >
+                    Or enter barcode manually
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Manual Barcode Input */}
+                  <div className={`p-4 rounded-2xl border ${
+                    isDark ? 'bg-white/5 border-white/10' : 'bg-white border-black/10'
+                  }`}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <Barcode className={`w-5 h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                      <div className="flex-1">
+                        <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Enter Barcode (UPC)</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowManualBarcode(false);
+                          setBarcodeInput('');
+                        }}
+                        className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}
+                        data-testid="button-cancel-manual"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={barcodeInput}
+                      onChange={(e) => setBarcodeInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Enter barcode number..."
+                      className={`w-full px-4 py-3 rounded-xl border text-center tracking-widest ${
+                        isDark 
+                          ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40' 
+                          : 'bg-gray-50 border-black/10 text-gray-900 placeholder:text-gray-400'
+                      }`}
+                      onKeyDown={(e) => e.key === 'Enter' && barcodeInput.trim() && handleBarcodeInput(barcodeInput.trim())}
+                      autoFocus
+                      data-testid="input-barcode"
+                    />
+                    <button
+                      onClick={() => handleBarcodeInput(barcodeInput.trim())}
+                      disabled={!barcodeInput.trim() || barcodeLookupMutation.isPending}
+                      className={`w-full mt-3 py-3 rounded-xl font-medium transition-all ${
+                        barcodeInput.trim() && !barcodeLookupMutation.isPending
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
+                          : isDark 
+                            ? 'bg-white/10 text-white/40' 
+                            : 'bg-gray-200 text-gray-400'
+                      }`}
+                      data-testid="button-lookup-barcode"
+                    >
+                      {barcodeLookupMutation.isPending ? (
+                        <Loader2 className="w-5 h-5 mx-auto animate-spin" />
+                      ) : 'Look Up'}
+                    </button>
+                  </div>
+
+                  {/* Back to Camera Option */}
+                  {isCameraAvailable && (
+                    <button
+                      className={`w-full p-3 text-sm ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
+                      onClick={() => {
+                        setShowManualBarcode(false);
+                        handleCameraScan();
+                      }}
+                      data-testid="button-back-to-camera"
+                    >
+                      Use camera instead
+                    </button>
+                  )}
+                </>
+              )}
+
+              {barcodeLookupMutation.isPending && (
+                <div className={`text-center py-4 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" />
+                  <p className="text-sm">Looking up product...</p>
+                </div>
+              )}
             </div>
           )}
 
