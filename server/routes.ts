@@ -19089,7 +19089,8 @@ If no food is visible, respond with: { "foods": [] }`,
       end.setHours(23, 59, 59, 999);
       
       // Query nutrition samples from healthkit_samples
-      const supabaseClient = (await import('./services/supabaseClient')).supabase;
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      const supabaseClient = getSupabaseClient();
       
       const { data: samples, error } = await supabaseClient
         .from('healthkit_samples')
@@ -19167,8 +19168,12 @@ If no food is visible, respond with: { "foods": [] }`,
       
       res.json({ meals });
     } catch (error: any) {
-      logger.error('[FoodMeals] Error:', error);
-      res.status(500).json({ error: 'Failed to fetch meals' });
+      logger.error('[FoodMeals] Error:', { 
+        message: error?.message, 
+        stack: error?.stack?.split('\n').slice(0, 5).join('\n')
+      });
+      // Return empty array to not block the UI
+      res.json({ meals: [] });
     }
   });
 
