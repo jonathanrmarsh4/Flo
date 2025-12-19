@@ -120,6 +120,7 @@ import {
   getMindfulnessSummary, 
   getNutritionSummary 
 } from "./services/nutritionMindfulnessAggregator";
+import { fatSecretService } from "./services/fatSecretService";
 import {
   createMedicalDocument,
   getMedicalDocuments,
@@ -18839,5 +18840,328 @@ ${healthContext}`;
     }
   }
   
+  // ==================== FOOD LOGGING API ====================
+  
+  // POST /api/food/search - Search for foods using FatSecret API
+  app.post('/api/food/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const { query } = req.body;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Query is required' });
+      }
+      
+      const results = await fatSecretService.searchFoods(query, 20);
+      logger.info('[FoodSearch] Found foods', { query, count: results.length });
+      
+      res.json({ results });
+    } catch (error: any) {
+      logger.error('[FoodSearch] Error:', error);
+      res.status(500).json({ error: 'Failed to search foods' });
+    }
+  });
+  
+  // POST /api/food/barcode - Lookup food by barcode
+  app.post('/api/food/barcode', isAuthenticated, async (req: any, res) => {
+    try {
+      const { barcode } = req.body;
+      
+      if (!barcode || typeof barcode !== 'string') {
+        return res.status(400).json({ error: 'Barcode is required' });
+      }
+      
+      const food = await fatSecretService.findByBarcode(barcode);
+      logger.info('[FoodBarcode] Lookup', { barcode, found: !!food });
+      
+      res.json({ food });
+    } catch (error: any) {
+      logger.error('[FoodBarcode] Error:', error);
+      res.status(500).json({ error: 'Failed to lookup barcode' });
+    }
+  });
+  
+  // POST /api/food/recognize - Recognize food from photo using AI
+  app.post('/api/food/recognize', isAuthenticated, requireAIConsent, async (req: any, res) => {
+    try {
+      const { image } = req.body;
+      
+      if (!image || typeof image !== 'string') {
+        return res.status(400).json({ error: 'Image is required' });
+      }
+      
+      // Use Gemini to analyze the food image
+      const { GoogleGenAI } = await import('@google/genai');
+      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      // Extract base64 data from data URL
+      const base64Match = image.match(/^data:image\/\w+;base64,(.+)$/);
+      const imageData = base64Match ? base64Match[1] : image;
+      
+      const result = await genAI.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: imageData,
+                },
+              },
+              {
+                text: `Analyze this food image and identify all visible food items. For each item, provide:
+1. The most specific name possible (e.g., "grilled chicken breast" not just "chicken")
+2. An estimated portion size
+
+Respond in JSON format only:
+{
+  "foods": [
+    { "name": "food name", "portion": "portion estimate" }
+  ]
+}
+
+If no food is visible, respond with: { "foods": [] }`,
+              },
+            ],
+          },
+        ],
+      });
+      
+      const responseText = result.text || '';
+      
+      // Parse the AI response
+      let identifiedFoods: Array<{ name: string; portion: string }> = [];
+      try {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          identifiedFoods = parsed.foods || [];
+        }
+      } catch (parseError) {
+        logger.error('[FoodRecognize] Failed to parse AI response:', parseError);
+      }
+      
+      // Search FatSecret for each identified food
+      const searchPromises = identifiedFoods.slice(0, 5).map(async (food) => {
+        const results = await fatSecretService.searchFoods(food.name, 3);
+        return results.map(r => ({
+          ...r,
+          suggestedPortion: food.portion,
+        }));
+      });
+      
+      const searchResults = await Promise.all(searchPromises);
+      const flatResults = searchResults.flat();
+      
+      logger.info('[FoodRecognize] Identified foods', { count: identifiedFoods.length, results: flatResults.length });
+      
+      res.json({ 
+        results: flatResults,
+        identified: identifiedFoods,
+      });
+    } catch (error: any) {
+      logger.error('[FoodRecognize] Error:', error);
+      res.status(500).json({ error: 'Failed to recognize food' });
+    }
+  });
+  
+  // POST /api/food/log - Log a meal with food items
+  app.post('/api/food/log', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { mealType, foods } = req.body;
+      
+      if (!mealType || !foods || !Array.isArray(foods) || foods.length === 0) {
+        return res.status(400).json({ error: 'Meal type and foods are required' });
+      }
+      
+      // Get user's health_id from Supabase
+      const userProfile = await supabaseHealthStorage.getHealthProfile(userId);
+      if (!userProfile?.health_id) {
+        return res.status(400).json({ error: 'Health profile not found' });
+      }
+      
+      const healthId = userProfile.health_id;
+      const now = new Date();
+      const mealId = crypto.randomUUID();
+      
+      // Calculate totals
+      const totals = foods.reduce((acc: { calories: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number }, food: any) => {
+        const qty = food.quantity || 1;
+        return {
+          calories: acc.calories + ((food.calories || 0) * qty),
+          protein: acc.protein + ((food.protein || 0) * qty),
+          carbs: acc.carbs + ((food.carbs || 0) * qty),
+          fat: acc.fat + ((food.fat || 0) * qty),
+          fiber: acc.fiber + ((food.fiber || 0) * qty),
+          sugar: acc.sugar + ((food.sugar || 0) * qty),
+        };
+      }, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 });
+      
+      // Store as nutrition samples in healthkit_samples for compatibility with existing meal-glucose correlator
+      const nutritionSamples = [
+        { data_type: 'dietary_calories', value: totals.calories, unit: 'kcal' },
+        { data_type: 'dietary_protein', value: totals.protein, unit: 'g' },
+        { data_type: 'dietary_carbohydrates', value: totals.carbs, unit: 'g' },
+        { data_type: 'dietary_fat', value: totals.fat, unit: 'g' },
+        { data_type: 'dietary_fiber', value: totals.fiber, unit: 'g' },
+        { data_type: 'dietary_sugar', value: totals.sugar, unit: 'g' },
+      ].filter(s => s.value > 0);
+      
+      // Insert into healthkit_samples via Supabase
+      const supabaseClient = (await import('./services/supabaseClient')).supabase;
+      
+      for (const sample of nutritionSamples) {
+        await supabaseClient.from('healthkit_samples').insert({
+          id: crypto.randomUUID(),
+          health_id: healthId,
+          data_type: sample.data_type,
+          value: sample.value,
+          unit: sample.unit,
+          start_date: now.toISOString(),
+          end_date: now.toISOString(),
+          source_name: 'Flō Food Log',
+          source_bundle_id: 'com.flo.healthapp',
+          metadata: JSON.stringify({
+            meal_id: mealId,
+            meal_type: mealType,
+            foods: foods.map((f: any) => ({
+              id: f.id,
+              name: f.name,
+              brand: f.brand,
+              portion: f.portion,
+              quantity: f.quantity,
+            })),
+          }),
+        });
+      }
+      
+      // Also update daily nutrition metrics
+      const dateStr = format(now, 'yyyy-MM-dd');
+      await upsertNutritionDaily(healthId, dateStr, {
+        calories: totals.calories,
+        protein: totals.protein,
+        carbs: totals.carbs,
+        fat: totals.fat,
+        fiber: totals.fiber,
+        sugar: totals.sugar,
+      });
+      
+      logger.info('[FoodLog] Meal logged', { 
+        userId, 
+        healthId,
+        mealType, 
+        itemCount: foods.length,
+        calories: totals.calories,
+      });
+      
+      res.json({ 
+        success: true, 
+        mealId,
+        totals,
+      });
+    } catch (error: any) {
+      logger.error('[FoodLog] Error:', error);
+      res.status(500).json({ error: 'Failed to log meal' });
+    }
+  });
+
+  // GET /api/food/meals - Get logged meals for a date range
+  app.get('/api/food/meals', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { startDate, endDate } = req.query;
+      
+      // Get user's health_id
+      const userProfile = await supabaseHealthStorage.getHealthProfile(userId);
+      if (!userProfile?.health_id) {
+        return res.json({ meals: [] });
+      }
+      
+      const healthId = userProfile.health_id;
+      const start = startDate ? new Date(startDate as string) : new Date();
+      start.setHours(0, 0, 0, 0);
+      
+      const end = endDate ? new Date(endDate as string) : new Date();
+      end.setHours(23, 59, 59, 999);
+      
+      // Query nutrition samples from healthkit_samples
+      const supabaseClient = (await import('./services/supabaseClient')).supabase;
+      
+      const { data: samples, error } = await supabaseClient
+        .from('healthkit_samples')
+        .select('*')
+        .eq('health_id', healthId)
+        .eq('source_name', 'Flō Food Log')
+        .gte('start_date', start.toISOString())
+        .lte('start_date', end.toISOString())
+        .order('start_date', { ascending: true });
+      
+      if (error) {
+        logger.error('[FoodMeals] Query error:', error);
+        return res.status(500).json({ error: 'Failed to fetch meals' });
+      }
+      
+      // Group samples by meal_id
+      const mealMap = new Map<string, any>();
+      
+      for (const sample of samples || []) {
+        try {
+          const metadata = typeof sample.metadata === 'string' 
+            ? JSON.parse(sample.metadata) 
+            : sample.metadata;
+          
+          if (metadata?.meal_id) {
+            if (!mealMap.has(metadata.meal_id)) {
+              mealMap.set(metadata.meal_id, {
+                id: metadata.meal_id,
+                meal: metadata.meal_type || 'Meal',
+                dateTime: new Date(sample.start_date),
+                items: (metadata.foods || []).map((f: any, idx: number) => ({
+                  id: f.id || `item-${idx}`,
+                  name: f.name || 'Unknown',
+                  confidence: 'high' as const,
+                  portion: f.portion || '1 serving',
+                  calories: 0,
+                  protein: 0,
+                  carbs: 0,
+                  fats: 0,
+                })),
+                totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+              });
+            }
+            
+            const meal = mealMap.get(metadata.meal_id);
+            if (sample.data_type === 'dietary_calories') meal.totals.calories = sample.value;
+            if (sample.data_type === 'dietary_protein') meal.totals.protein = sample.value;
+            if (sample.data_type === 'dietary_carbohydrates') meal.totals.carbs = sample.value;
+            if (sample.data_type === 'dietary_fat') meal.totals.fat = sample.value;
+          }
+        } catch (parseError) {
+          // Skip samples with invalid metadata
+        }
+      }
+      
+      // Distribute totals to items (approximate)
+      const meals = Array.from(mealMap.values()).map(meal => {
+        const itemCount = meal.items.length || 1;
+        meal.items = meal.items.map((item: any) => ({
+          ...item,
+          calories: Math.round(meal.totals.calories / itemCount),
+          protein: Math.round(meal.totals.protein / itemCount),
+          carbs: Math.round(meal.totals.carbs / itemCount),
+          fats: Math.round(meal.totals.fat / itemCount),
+        }));
+        return meal;
+      });
+      
+      res.json({ meals });
+    } catch (error: any) {
+      logger.error('[FoodMeals] Error:', error);
+      res.status(500).json({ error: 'Failed to fetch meals' });
+    }
+  });
+
   return httpServer;
 }

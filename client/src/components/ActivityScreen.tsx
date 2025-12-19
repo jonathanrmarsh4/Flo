@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2, Flame } from 'lucide-react';
+import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2, Flame, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BottomNav } from './BottomNav';
 import { CGMScreen } from './CGMScreen';
 import { DataSourceBadge } from '@/components/DataSourceBadge';
 import { RecoveryTab, type RecoverySession, type RecoveryStats, type SaunaSessionData, type IceBathSessionData } from '@/components/recovery';
+import { TodaysMealsCard } from '@/components/nutrition/TodaysMealsCard';
+import { FoodLoggingFlow } from '@/components/nutrition/FoodLoggingFlow';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
@@ -948,12 +950,53 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
   );
 }
 
+interface LoggedMeal {
+  id: string;
+  meal: string;
+  dateTime: Date;
+  items: Array<{
+    id: string;
+    name: string;
+    confidence: 'high' | 'medium' | 'low';
+    portion: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+  }>;
+  totals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+}
+
 function NutritionTabContent({ isDark }: { isDark: boolean }) {
   const [showMacrosDetails, setShowMacrosDetails] = useState(false);
+  const [showMealDetails, setShowMealDetails] = useState<Date | null>(null);
+  const [showFoodLogging, setShowFoodLogging] = useState(false);
   
   const { data: nutritionData, isLoading } = useQuery<NutritionDaily[]>({
     queryKey: ['/api/nutrition/daily'],
   });
+
+  // Fetch today's logged meals
+  const { data: mealsData } = useQuery<{ meals: LoggedMeal[] }>({
+    queryKey: ['/api/food/meals'],
+  });
+  
+  const todaysMeals = (mealsData?.meals || []).map(m => ({
+    ...m,
+    dateTime: new Date(m.dateTime),
+  }));
+  
+  const todaysTotals = todaysMeals.reduce((acc, meal) => ({
+    calories: acc.calories + (meal.totals?.calories || 0),
+    protein: acc.protein + (meal.totals?.protein || 0),
+    carbs: acc.carbs + (meal.totals?.carbs || 0),
+    fats: acc.fats + (meal.totals?.fat || 0),
+  }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
 
   if (isLoading) {
     return <LoadingSpinner isDark={isDark} />;
@@ -1177,6 +1220,33 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
           </div>
         </div>
       </button>
+      
+      <TodaysMealsCard
+        isDark={isDark}
+        todaysMeals={todaysMeals}
+        todaysTotals={todaysTotals}
+        onMealClick={(date) => setShowMealDetails(date)}
+      />
+      
+      <Button
+        onClick={() => setShowFoodLogging(true)}
+        className="w-full gap-2"
+        data-testid="button-log-food"
+      >
+        <Plus className="w-4 h-4" />
+        Log a Meal
+      </Button>
+      
+      {showFoodLogging && (
+        <FoodLoggingFlow
+          isDark={isDark}
+          onClose={() => setShowFoodLogging(false)}
+          onMealLogged={() => {
+            queryClient.invalidateQueries({ queryKey: ['/api/food/meals'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/nutrition/daily'] });
+          }}
+        />
+      )}
     </div>
   );
 }
