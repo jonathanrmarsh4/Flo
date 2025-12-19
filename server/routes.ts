@@ -19074,7 +19074,7 @@ If no food is visible, respond with: { "foods": [] }`,
       const { startDate, endDate } = req.query;
       
       // Get user's health_id
-      const userProfile = await supabaseHealthStorage.getHealthProfile(userId);
+      const userProfile = await supabaseHealthStorage.getProfile(userId);
       if (!userProfile?.health_id) {
         return res.json({ meals: [] });
       }
