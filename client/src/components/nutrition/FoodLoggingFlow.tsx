@@ -440,6 +440,7 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                 How would you like to log your food?
               </p>
               
+              {/* Voice and Photo options - using Gemini 3 Pro for recognition */}
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => {
@@ -483,6 +484,7 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                   />
                 </label>
                 
+                {/* HIDDEN: Barcode option - uncomment when barcode service is confirmed
                 <button
                   onClick={() => setMode('barcode')}
                   className={`p-6 rounded-2xl border flex flex-col items-center gap-3 transition-all ${
@@ -496,7 +498,9 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                   <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>Barcode</span>
                   <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Scan product</span>
                 </button>
+                */}
                 
+                {/* HIDDEN: Search option - using Gemini photo/voice instead
                 <button
                   onClick={() => {
                     setMode('search');
@@ -513,6 +517,7 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                   <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>Search</span>
                   <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Type food name</span>
                 </button>
+                */}
               </div>
               
             </div>
