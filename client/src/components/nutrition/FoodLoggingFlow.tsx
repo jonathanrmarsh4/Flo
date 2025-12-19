@@ -460,8 +460,14 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                 
                 <button
                   onClick={() => {
+                    console.log('[FoodLog] Photo button clicked, fileInputRef:', !!fileInputRef.current);
                     setMode('photo');
-                    fileInputRef.current?.click();
+                    if (fileInputRef.current) {
+                      console.log('[FoodLog] Triggering file input click');
+                      fileInputRef.current.click();
+                    } else {
+                      console.log('[FoodLog] ERROR: fileInputRef not available');
+                    }
                   }}
                   className={`p-6 rounded-2xl border flex flex-col items-center gap-3 transition-all ${
                     isDark 
@@ -512,8 +518,12 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                 type="file"
                 accept="image/*"
                 capture="environment"
-                className="hidden"
-                onChange={handlePhotoCapture}
+                className="absolute opacity-0 w-0 h-0 overflow-hidden"
+                style={{ position: 'absolute', left: '-9999px' }}
+                onChange={(e) => {
+                  console.log('[FoodLog] File input onChange fired, files:', e.target.files?.length);
+                  handlePhotoCapture(e);
+                }}
               />
             </div>
           )}
