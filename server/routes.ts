@@ -19101,8 +19101,15 @@ If no food is visible, respond with: { "foods": [] }`,
         .order('start_date', { ascending: true });
       
       if (error) {
-        logger.error('[FoodMeals] Query error:', error);
-        return res.status(500).json({ error: 'Failed to fetch meals' });
+        logger.error('[FoodMeals] Query error:', { 
+          code: error.code, 
+          message: error.message, 
+          details: error.details,
+          hint: error.hint,
+          healthId 
+        });
+        // Return empty array instead of 500 for query failures
+        return res.json({ meals: [] });
       }
       
       // Group samples by meal_id
