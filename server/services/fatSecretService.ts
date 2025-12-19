@@ -169,7 +169,10 @@ class FatSecretService {
       format: 'json',
     });
 
-    const response = await fetch(`${this.apiUrl}?${searchParams.toString()}`, {
+    const url = `${this.apiUrl}?${searchParams.toString()}`;
+    logger.debug('[FatSecret] API request:', { method: params.method, url: url.substring(0, 150) });
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -178,11 +181,13 @@ class FatSecretService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error('[FatSecret] API request failed:', errorText);
+      logger.error('[FatSecret] API request failed:', { status: response.status, error: errorText });
       throw new Error(`FatSecret API error: ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    logger.debug('[FatSecret] API response received:', { keys: Object.keys(data || {}) });
+    return data;
   }
 
   private parseDescription(description: string): { calories?: number; protein?: number; carbs?: number; fat?: number; serving?: string } {
@@ -208,10 +213,12 @@ class FatSecretService {
 
   async searchFoods(query: string, maxResults: number = 20): Promise<ParsedFoodItem[]> {
     if (!query || query.trim().length === 0) {
+      logger.warn('[FatSecret] Empty query provided');
       return [];
     }
 
     try {
+      logger.info('[FatSecret] Searching for:', { query, maxResults });
       const response = await this.apiRequest<FoodSearchResponse>({
         method: 'foods.search',
         search_expression: query,
@@ -219,7 +226,14 @@ class FatSecretService {
         page_number: '0',
       });
 
+      logger.info('[FatSecret] Raw response:', { 
+        hasFoods: !!response.foods, 
+        totalResults: response.foods?.total_results,
+        foodCount: response.foods?.food ? (Array.isArray(response.foods.food) ? response.foods.food.length : 1) : 0
+      });
+
       if (!response.foods?.food) {
+        logger.warn('[FatSecret] No foods in response');
         return [];
       }
 
