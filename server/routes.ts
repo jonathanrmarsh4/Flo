@@ -19109,14 +19109,35 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       logger.info('[FoodRecognize] Parsed foods', { count: identifiedFoods.length, foods: identifiedFoods });
       
       // Map Gemini response to match database schema (nutrition_daily_metrics naming)
-      const results = identifiedFoods.map((food, index) => ({
+      // IMPORTANT: Calculate calories from macros to ensure accuracy (protein×4 + carbs×4 + fat×9)
+      const results = identifiedFoods.map((food, index) => {
+        // Calculate calories from macros for accuracy
+        const proteinG = food.proteinG || 0;
+        const carbohydratesG = food.carbohydratesG || 0;
+        const fatTotalG = food.fatTotalG || 0;
+        const calculatedCalories = Math.round((proteinG * 4) + (carbohydratesG * 4) + (fatTotalG * 9));
+        
+        // Use calculated calories if Gemini's estimate differs significantly (>20% off)
+        const geminiCalories = food.energyKcal || 0;
+        const useMacroCalories = calculatedCalories > 0 && 
+          (geminiCalories === 0 || Math.abs(geminiCalories - calculatedCalories) / calculatedCalories > 0.2);
+        const finalCalories = useMacroCalories ? calculatedCalories : (geminiCalories || calculatedCalories);
+        
+        logger.debug('[FoodRecognize] Calorie calc', { 
+          name: food.name, 
+          gemini: geminiCalories, 
+          calculated: calculatedCalories, 
+          final: finalCalories 
+        });
+        
+        return {
         id: `gemini-${Date.now()}-${index}`,
         name: food.name,
         type: 'AI Estimated',
         description: `${food.portion} - Estimated by AI`,
         servingDescription: food.portion,
-        // Macros (using database column names)
-        energyKcal: food.energyKcal || 0,
+        // Macros (using database column names) - use calculated calories
+        energyKcal: finalCalories,
         proteinG: food.proteinG || 0,
         carbohydratesG: food.carbohydratesG || 0,
         fatTotalG: food.fatTotalG || 0,
@@ -19158,12 +19179,13 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         // Other
         caffeineMg: food.caffeineMg || 0,
         waterMl: food.waterMl || 0,
-        // Legacy field mappings for frontend compatibility
-        calories: food.energyKcal || 0,
-        protein: food.proteinG || 0,
-        carbs: food.carbohydratesG || 0,
-        fat: food.fatTotalG || 0,
-      }));
+        // Legacy field mappings for frontend compatibility (use calculated calories)
+        calories: finalCalories,
+        protein: proteinG,
+        carbs: carbohydratesG,
+        fat: fatTotalG,
+      };
+      });
       
       logger.info('[FoodRecognize] Results prepared', { count: results.length });
       
