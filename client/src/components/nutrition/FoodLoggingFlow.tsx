@@ -69,16 +69,26 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
 
   const searchFoodsMutation = useMutation({
     mutationFn: async (query: string) => {
+      console.log('[FoodLog] Searching for:', query);
       const response = await apiRequest('POST', '/api/food/search', { query });
-      return response.json();
+      const data = await response.json();
+      console.log('[FoodLog] Search response:', data);
+      return data;
     },
     onSuccess: (data) => {
+      console.log('[FoodLog] Search success, results count:', data.results?.length || 0);
       setSearchResults(data.results || []);
       if (data.results?.length > 0) {
         setStep('results');
+      } else {
+        toast({
+          title: 'No results found',
+          description: 'Try a different search term',
+        });
       }
     },
     onError: (error: Error) => {
+      console.error('[FoodLog] Search error:', error);
       toast({
         title: 'Search failed',
         description: error.message,
@@ -183,28 +193,35 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
+    
+    let finalTranscript = '';
 
     recognition.onstart = () => {
       setIsListening(true);
+      console.log('[FoodLog] Voice recognition started');
     };
 
     recognition.onresult = (event: any) => {
       const transcript = Array.from(event.results)
         .map((result: any) => result[0].transcript)
         .join('');
+      finalTranscript = transcript;
       setVoiceTranscript(transcript);
+      console.log('[FoodLog] Voice transcript:', transcript);
     };
 
     recognition.onend = () => {
       setIsListening(false);
-      if (voiceTranscript) {
-        setSearchQuery(voiceTranscript);
-        searchFoodsMutation.mutate(voiceTranscript);
+      console.log('[FoodLog] Voice recognition ended, transcript:', finalTranscript);
+      if (finalTranscript) {
+        setSearchQuery(finalTranscript);
+        searchFoodsMutation.mutate(finalTranscript);
       }
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event: any) => {
       setIsListening(false);
+      console.error('[FoodLog] Voice recognition error:', event.error);
       toast({
         title: 'Voice input failed',
         description: 'Please try again or type your search',
@@ -213,7 +230,7 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
     };
 
     recognition.start();
-  }, [voiceTranscript, searchFoodsMutation, toast]);
+  }, [searchFoodsMutation, toast]);
 
   const handlePhotoCapture = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

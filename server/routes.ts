@@ -18846,17 +18846,19 @@ ${healthContext}`;
   app.post('/api/food/search', isAuthenticated, async (req: any, res) => {
     try {
       const { query } = req.body;
+      logger.info('[FoodSearch] Request received', { query, userId: req.user?.claims?.sub });
       
       if (!query || typeof query !== 'string') {
+        logger.warn('[FoodSearch] Invalid query', { query });
         return res.status(400).json({ error: 'Query is required' });
       }
       
       const results = await fatSecretService.searchFoods(query, 20);
-      logger.info('[FoodSearch] Found foods', { query, count: results.length });
+      logger.info('[FoodSearch] Found foods', { query, count: results.length, firstResult: results[0]?.name });
       
       res.json({ results });
     } catch (error: any) {
-      logger.error('[FoodSearch] Error:', error);
+      logger.error('[FoodSearch] Error:', { message: error?.message, stack: error?.stack?.split('\n').slice(0, 3).join('\n') });
       res.status(500).json({ error: 'Failed to search foods' });
     }
   });
