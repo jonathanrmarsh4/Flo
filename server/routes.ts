@@ -19073,8 +19073,8 @@ If no food is visible, respond with: { "foods": [] }`,
       const supabaseClient = (await import('./services/supabaseClient')).supabase;
       
       for (const sample of nutritionSamples) {
-        await supabaseClient.from('healthkit_samples').insert({
-          id: crypto.randomUUID(),
+        const { error: insertError } = await supabaseClient.from('healthkit_samples').insert({
+          uuid: crypto.randomUUID(),
           health_id: healthId,
           data_type: sample.data_type,
           value: sample.value,
@@ -19083,7 +19083,7 @@ If no food is visible, respond with: { "foods": [] }`,
           end_date: now.toISOString(),
           source_name: 'Flō Food Log',
           source_bundle_id: 'com.flo.healthapp',
-          metadata: JSON.stringify({
+          metadata: {
             meal_id: mealId,
             meal_type: mealType,
             foods: foods.map((f: any) => ({
@@ -19093,8 +19093,13 @@ If no food is visible, respond with: { "foods": [] }`,
               portion: f.portion,
               quantity: f.quantity,
             })),
-          }),
+          },
         });
+        
+        if (insertError) {
+          logger.error('[FoodLog] Insert error:', insertError);
+          throw insertError;
+        }
       }
       
       // Also update daily nutrition metrics
