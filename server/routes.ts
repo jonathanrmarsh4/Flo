@@ -19073,13 +19073,15 @@ If no food is visible, respond with: { "foods": [] }`,
       const userId = req.user.claims.sub;
       const { startDate, endDate } = req.query;
       
-      // Get user's health_id
-      const userProfile = await supabaseHealthStorage.getProfile(userId);
-      if (!userProfile?.health_id) {
+      // Get user's health_id - handle case where user doesn't have one yet
+      let healthId: string;
+      try {
+        healthId = await supabaseHealthStorage.getHealthId(userId);
+      } catch (err) {
+        // User doesn't exist or has no health_id yet
         return res.json({ meals: [] });
       }
       
-      const healthId = userProfile.health_id;
       const start = startDate ? new Date(startDate as string) : new Date();
       start.setHours(0, 0, 0, 0);
       
