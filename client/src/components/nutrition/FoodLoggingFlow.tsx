@@ -458,18 +458,8 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                   <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Describe your meal</span>
                 </button>
                 
-                <button
-                  onClick={() => {
-                    console.log('[FoodLog] Photo button clicked, fileInputRef:', !!fileInputRef.current);
-                    setMode('photo');
-                    if (fileInputRef.current) {
-                      console.log('[FoodLog] Triggering file input click');
-                      fileInputRef.current.click();
-                    } else {
-                      console.log('[FoodLog] ERROR: fileInputRef not available');
-                    }
-                  }}
-                  className={`p-6 rounded-2xl border flex flex-col items-center gap-3 transition-all ${
+                <label
+                  className={`p-6 rounded-2xl border flex flex-col items-center gap-3 transition-all cursor-pointer ${
                     isDark 
                       ? 'bg-white/5 border-white/10 hover:bg-white/10' 
                       : 'bg-white border-black/10 hover:bg-gray-50'
@@ -479,7 +469,19 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                   <Camera className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                   <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>Photo</span>
                   <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Take a picture</span>
-                </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={(e) => {
+                      console.log('[FoodLog] File input onChange fired, files:', e.target.files?.length);
+                      setMode('photo');
+                      handlePhotoCapture(e);
+                    }}
+                  />
+                </label>
                 
                 <button
                   onClick={() => setMode('barcode')}
@@ -513,18 +515,6 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                 </button>
               </div>
               
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="absolute opacity-0 w-0 h-0 overflow-hidden"
-                style={{ position: 'absolute', left: '-9999px' }}
-                onChange={(e) => {
-                  console.log('[FoodLog] File input onChange fired, files:', e.target.files?.length);
-                  handlePhotoCapture(e);
-                }}
-              />
             </div>
           )}
 

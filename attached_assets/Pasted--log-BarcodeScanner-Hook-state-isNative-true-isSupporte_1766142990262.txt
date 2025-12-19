@@ -1,0 +1,30 @@
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] Checking ML Kit barcode scanner support...
+⚡️  To Native ->  BarcodeScanner isSupported 2440012
+⚡️  TO JS {"supported":true}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] ML Kit isSupported result: true
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [FoodLog] Photo button clicked, fileInputRef: true
+⚡️  [log] - [FoodLog] Triggering file input click
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+Attempted to change to mode Portrait with an unsupported device (BackTriple). Auto device for both positions unsupported, returning Auto device for same position anyway (BackAuto).
+Attempted to change to mode Portrait with an unsupported device (BackTriple). Auto device for both positions unsupported, returning Auto device for same position anyway (BackAuto).
+Attempted to change to mode Portrait with an unsupported device (BackAuto). Auto device for both positions unsupported, returning Auto device for same position anyway (BackAuto).
+Attempted to change to mode Portrait with an unsupported device (BackTriple). Auto device for both positions unsupported, returning Auto device for same position anyway (BackAuto).
+(Fig) signalled err=-12710 at <>:601
+(Fig) signalled err=-12710 at <>:601
+(Fig) signalled err=-12710 at <>:601
+<<<< FigXPCUtilities >>>> signalled err=-17281 at <>:308
+<<<< FigCaptureSourceRemote >>>> Fig assert: "err == 0 " at bail (FigCaptureSourceRemote.m:569) - (err=-17281)
+Unexpected constituent device type (null) for device (null)
+Unexpected constituent device type (null) for device (null)
+<<<< FigXPCUtilities >>>> signalled err=-17281 at <>:308
+<<<< FigCaptureSourceRemote >>>> Fig assert: "err == 0 " at bail (FigCaptureSourceRemote.m:569) - (err=-17281)
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+<<<< FigXPCUtilities >>>> signalled err=-17281 at <>:308
+<<<< FigCaptureSourceRemote >>>> Fig assert: "err == 0 " at bail (FigCaptureSourceRemote.m:569) - (err=-17281)
