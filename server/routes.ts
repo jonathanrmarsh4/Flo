@@ -19102,16 +19102,11 @@ If no food is visible, respond with: { "foods": [] }`,
         }
       }
       
-      // Also update daily nutrition metrics
+      // Also update daily nutrition metrics by re-aggregating from healthkit_samples
       const dateStr = format(now, 'yyyy-MM-dd');
-      await upsertNutritionDaily(healthId, dateStr, {
-        calories: totals.calories,
-        protein: totals.protein,
-        carbs: totals.carbs,
-        fat: totals.fat,
-        fiber: totals.fiber,
-        sugar: totals.sugar,
-      });
+      // Get user's timezone from profile or default to UTC
+      const timezone = userProfile?.timezone || 'UTC';
+      await upsertNutritionDaily(userId, dateStr, timezone);
       
       logger.info('[FoodLog] Meal logged', { 
         userId, 
