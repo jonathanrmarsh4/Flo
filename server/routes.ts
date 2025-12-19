@@ -18951,7 +18951,7 @@ Return ONLY valid JSON array, no markdown.`;
       
       // Use Gemini to analyze the food image
       const { GoogleGenAI } = await import('@google/genai');
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
       
       // Extract base64 data from data URL
       const base64Match = image.match(/^data:image\/\w+;base64,(.+)$/);
