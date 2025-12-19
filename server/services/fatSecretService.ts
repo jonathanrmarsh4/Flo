@@ -71,6 +71,35 @@ interface BarcodeResponse {
   };
 }
 
+interface ImageRecognitionFood {
+  food_id: number;
+  food_entry_name: string;
+  eaten?: {
+    food_name_singular: string;
+    units: number;
+    total_nutritional_content: {
+      calories: string;
+      carbohydrate: string;
+      protein: string;
+      fat: string;
+      fiber?: string;
+      sugar?: string;
+    };
+  };
+  suggested_serving?: {
+    serving_description: string;
+    custom_serving_description?: string;
+  };
+}
+
+interface ImageRecognitionResponse {
+  food_response?: ImageRecognitionFood[];
+  error?: {
+    code: number;
+    message: string;
+  };
+}
+
 export interface ParsedFoodItem {
   id: string;
   name: string;
