@@ -306,11 +306,17 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
       }
     } catch (error: any) {
       console.error('[FoodLog] Scan error:', error);
-      toast({
-        title: "Scanner Error",
-        description: error.message || "Failed to scan barcode. Try manual entry.",
-        variant: "destructive",
-      });
+      // Check if it's a "not implemented" error - silently fall back to manual entry
+      const errorMsg = error?.message?.toLowerCase() || '';
+      if (errorMsg.includes('not implemented') || errorMsg.includes('unimplemented')) {
+        console.log('[FoodLog] Scanner not implemented on this device, falling back to manual');
+      } else {
+        toast({
+          title: "Scanner Error",
+          description: "Failed to scan barcode. Try manual entry.",
+          variant: "destructive",
+        });
+      }
       setShowManualBarcode(true);
     } finally {
       setIsScanning(false);

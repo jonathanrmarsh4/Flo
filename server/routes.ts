@@ -18867,7 +18867,7 @@ ${healthContext}`;
         logger.info('[FoodSearch] Using AI fallback for:', query);
         try {
           const { GoogleGenAI } = await import('@google/genai');
-          const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
           
           const prompt = `Parse this food description and provide nutrition estimates: "${query}"
 
