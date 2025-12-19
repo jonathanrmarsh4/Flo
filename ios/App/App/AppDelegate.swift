@@ -29,11 +29,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
                     bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
                     bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
-                    bridgeVC.bridge?.registerPluginInstance(BarcodeScannerBridge())
+                    // Note: BarcodeScannerBridge removed - using @capacitor-mlkit/barcode-scanning instead
                     print("✅ HealthSyncPlugin registered manually")
                     print("✅ WebViewCachePlugin registered manually")
                     print("✅ NativeMicrophonePlugin registered manually")
-                    print("✅ BarcodeScannerBridge registered manually")
                 }
                 // Fallback: direct CAPBridgeViewController
                 else if let bridgeVC = window.rootViewController as? CAPBridgeViewController {
@@ -42,11 +41,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
                     bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
                     bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
-                    bridgeVC.bridge?.registerPluginInstance(BarcodeScannerBridge())
+                    // Note: BarcodeScannerBridge removed - using @capacitor-mlkit/barcode-scanning instead
                     print("✅ HealthSyncPlugin registered manually")
                     print("✅ WebViewCachePlugin registered manually")
                     print("✅ NativeMicrophonePlugin registered manually")
-                    print("✅ BarcodeScannerBridge registered manually")
                 }
             }
         }
