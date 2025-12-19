@@ -1,0 +1,72 @@
+2025-12-19 17:19:13.51
+6d2cb766
+User
+[2025-12-19T09:19:13.513Z] [INFO] [WeightForecastSchema] [WeightForecastSchema] Created raw_body_comp_events table
+2025-12-19 17:19:13.55
+6d2cb766
+User
+[2025-12-19T09:19:13.555Z] [WARN] [APNs] No active device tokens found for user test_insights_user {"userId":"test_insights_user","userIdLength":18,"userIdType":"short","inactiveTokensForUser":0,"totalTokensInDb":7,"inactiveTokenDetails":[]}
+2025-12-19 17:19:13.55
+6d2cb766
+User
+[2025-12-19T09:19:13.556Z] [WARN] [ReminderDelivery] No devices reached for user test_insights_user {"error":"No active devices"}
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.700Z] [INFO] [InsightsEngineV2] Generating RAG-based insights using vector search + GPT-4o
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.700Z] [INFO] [InsightsEngineV2] Found 0 active experiments for insight correlation
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.701Z] [INFO] [InsightsEngineV2] Running Layer D (Out-of-Range Biomarkers - Safety Net)
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.701Z] [INFO] [InsightsEngineV2] Generated 0 RAG insights
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.701Z] [INFO] [RAG] No significant changes and no activity data, skipping insight generation
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.702Z] [INFO] [Layer D] No significant metric deviations detected
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.703Z] [INFO] [InsightsEngineV2] Generated 0 safety-net insight candidates (D:0)
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.702Z] [INFO] [Layer D] Generated 0 out-of-range biomarker insights
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.703Z] [INFO] [Layer D] No stale-lab warnings detected
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.703Z] [INFO] [InsightsEngineV2] Applying anti-junk safeguards
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.704Z] [INFO] [InsightsV2Scheduler] Insights generation check complete (31577ms)
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.704Z] [INFO] [InsightsEngineV2] User context: Age null, Sex null, Body fat null%
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.704Z] [INFO] [InsightsV2Scheduler] No new insights generated for user f731f5a7-9790-4732-b9df-b75e1630aced (may have already run today)
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.704Z] [INFO] [InsightsEngineV2] Selected 0 top insights
+2025-12-19 17:19:13.70
+6d2cb766
+User
+[2025-12-19T09:19:13.704Z] [INFO] [InsightsEngineV2] Successfully generated 0 insights for user f731f5a7-9790-4732-b9df-b75e1630aced

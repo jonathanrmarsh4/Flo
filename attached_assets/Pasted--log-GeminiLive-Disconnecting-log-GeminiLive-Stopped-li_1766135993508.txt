@@ -1,0 +1,130 @@
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] Registering BarcodeScanner plugin...
+⚡️  [log] - [BarcodeScanner] Plugin registered: {}
+⚡️  To Native ->  BarcodeScanner isSupported 121017990
+(Fig) signalled err=-12710 at <>:601
+(Fig) signalled err=-12710 at <>:601
+(Fig) signalled err=-12710 at <>:601
+⚡️  TO JS {"supported":true}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] isSupported result: true
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [FoodLog] handleCameraScan called
+⚡️  [log] - [FoodLog] isCameraAvailable: true
+⚡️  [log] - [FoodLog] isScannerSupported: true
+⚡️  [log] - [FoodLog] Starting scan...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"} message: "BarcodeScanner.checkCameraPermission()" is not implemented on ios
+⚡️  [error] - [BarcodeScanner] Scan failed: {"code":"UNIMPLEMENTED"}
+⚡️  [error] - [FoodLog] Scan error: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [FoodLog] Scanner not implemented on this device, falling back to manual
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+Reporter disconnected. { function=sendMessage, reporterID=48734993907714 }
+Reporter disconnected. { function=sendMessage, reporterID=48734993907714 }
+Reporter disconnected. { function=sendMessage, reporterID=48734993907714 }
+Reporter disconnected. { function=sendMessage, reporterID=48734993907714 }
+Reporter disconnected. { function=sendMessage, reporterID=48734993907714 }
+Reporter disconnected. { function=sendMessage, reporterID=48734993907714 }
+Reporter disconnected. { function=sendMessage, reporterID=48734993907714 }
+Reporter disconnected. { function=sendMessage, reporterID=48734993907714 }
+Reporter disconnected. { function=sendMessage, reporterID=48734993907714 }
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 21BE6CF8-4FF8-4493-AC5A-15F959195535
+⚡️  [log] - [FoodLog] handleCameraScan called
+⚡️  [log] - [FoodLog] isCameraAvailable: true
+⚡️  [log] - [FoodLog] isScannerSupported: true
+⚡️  [log] - [FoodLog] Starting scan...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"} message: "BarcodeScanner.checkCameraPermission()" is not implemented on ios
+⚡️  [error] - [BarcodeScanner] Scan failed: {"code":"UNIMPLEMENTED"}
+⚡️  [error] - [FoodLog] Scan error: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [FoodLog] Scanner not implemented on this device, falling back to manual
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 21BE6CF8-4FF8-4493-AC5A-15F959195535
+⚡️  [log] - [FoodLog] handleCameraScan called
+⚡️  [log] - [FoodLog] isCameraAvailable: true
+⚡️  [log] - [FoodLog] isScannerSupported: true
+⚡️  [log] - [FoodLog] Starting scan...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"} message: "BarcodeScanner.checkCameraPermission()" is not implemented on ios
+⚡️  [error] - [BarcodeScanner] Scan failed: {"code":"UNIMPLEMENTED"}
+⚡️  [error] - [FoodLog] Scan error: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [FoodLog] Scanner not implemented on this device, falling back to manual
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 21BE6CF8-4FF8-4493-AC5A-15F959195535
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] Registering BarcodeScanner plugin...
+⚡️  [warn] - Capacitor plugin "BarcodeScanner" already registered. Cannot register plugins twice.
+⚡️  [log] - [BarcodeScanner] Plugin registered: {}
+⚡️  To Native ->  BarcodeScanner isSupported 121017991
+⚡️  TO JS {"supported":true}
+⚡️  [log] - [BarcodeScanner] isSupported result: true
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] handleCameraScan called
+⚡️  [log] - [BarcodeScanner] isCameraAvailable: true
+⚡️  [log] - [BarcodeScanner] isScannerSupported: true
+⚡️  [log] - [BarcodeScanner] Starting scan (bypassing isSupported check)...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"} message: "BarcodeScanner.checkCameraPermission()" is not implemented on ios
+⚡️  [error] - [BarcodeScanner] Scan failed: {"code":"UNIMPLEMENTED"}
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+⚡️  [log] - [BarcodeScanner] handleCameraScan called
+⚡️  [log] - [BarcodeScanner] isCameraAvailable: true
+⚡️  [log] - [BarcodeScanner] isScannerSupported: true
+⚡️  [log] - [BarcodeScanner] Starting scan (bypassing isSupported check)...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"} message: "BarcodeScanner.checkCameraPermission()" is not implemented on ios
+⚡️  [error] - [BarcodeScanner] Scan failed: {"code":"UNIMPLEMENTED"}
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] handleCameraScan called
+⚡️  [log] - [BarcodeScanner] isCameraAvailable: true
+⚡️  [log] - [BarcodeScanner] isScannerSupported: true
+⚡️  [log] - [BarcodeScanner] Starting scan (bypassing isSupported check)...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"} message: "BarcodeScanner.checkCameraPermission()" is not implemented on ios
+⚡️  [error] - [BarcodeScanner] Scan failed: {"code":"UNIMPLEMENTED"}
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] handleCameraScan called
+⚡️  [log] - [BarcodeScanner] isCameraAvailable: true
+⚡️  [log] - [BarcodeScanner] isScannerSupported: true
+⚡️  [log] - [BarcodeScanner] Starting scan (bypassing isSupported check)...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"} message: "BarcodeScanner.checkCameraPermission()" is not implemented on ios
+⚡️  [error] - [BarcodeScanner] Scan failed: {"code":"UNIMPLEMENTED"}
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
