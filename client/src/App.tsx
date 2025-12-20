@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/useAuth";
 import { useHealthKitAutoSync } from "@/hooks/useHealthKitAutoSync";
 import { useTimezoneAutoSync } from "@/hooks/useTimezoneAutoSync";
@@ -307,17 +308,19 @@ function App() {
   
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <TokenMismatchHandler />
-        {isNative ? (
-          <WouterRouter hook={useHashLocation}>
+      <ThemeProvider defaultTheme="dark" storageKey="flo-ui-theme">
+        <TooltipProvider>
+          <Toaster />
+          <TokenMismatchHandler />
+          {isNative ? (
+            <WouterRouter hook={useHashLocation}>
+              <Router />
+            </WouterRouter>
+          ) : (
             <Router />
-          </WouterRouter>
-        ) : (
-          <Router />
-        )}
-      </TooltipProvider>
+          )}
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
