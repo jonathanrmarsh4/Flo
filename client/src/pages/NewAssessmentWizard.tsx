@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useTheme } from "@/components/theme-provider";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { 
   ArrowLeft, 
@@ -108,6 +109,7 @@ const STEPS: { id: WizardStep; label: string; icon: typeof Target }[] = [
 export default function NewAssessmentWizard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { isDark } = useTheme();
   const { isAvailable: isCameraAvailable, isSupported: isScannerSupported, scanBarcode } = useBarcodeScanner();
   const [currentStep, setCurrentStep] = useState<WizardStep>('intent');
   const [config, setConfig] = useState<AssessmentConfig>({
@@ -357,23 +359,32 @@ export default function NewAssessmentWizard() {
     : null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+    <div className={`fixed inset-0 z-50 ${
+      isDark 
+        ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+        : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+    }`}>
       {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl border-b bg-white/5 border-white/10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="px-4 py-3">
           <div className="flex items-center gap-3">
             <Button
               size="icon"
               variant="ghost"
               onClick={handleBack}
-              className="text-white/70 hover:text-white hover:bg-white/10"
+              className={isDark 
+                ? 'text-white/70 hover:text-white hover:bg-white/10' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
+              }
               data-testid="button-back"
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg text-white font-medium">New Assessment</h1>
-              <p className="text-xs text-white/50">
+              <h1 className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>New Assessment</h1>
+              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                 Step {currentStepIndex + 1} of {STEPS.length}: {STEPS[currentStepIndex].label}
               </p>
             </div>
@@ -381,7 +392,7 @@ export default function NewAssessmentWizard() {
           
           {/* Progress Bar */}
           <div className="mt-3">
-            <Progress value={progress} className="h-1.5 bg-white/10" />
+            <Progress value={progress} className={`h-1.5 ${isDark ? 'bg-white/10' : 'bg-black/10'}`} />
           </div>
         </div>
       </header>

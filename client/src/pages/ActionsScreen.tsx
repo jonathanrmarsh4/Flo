@@ -9,6 +9,7 @@ import { ReportTile } from "@/components/ReportTile";
 import { OverdueLabWorkTile } from "@/components/OverdueLabWorkTile";
 import { FloBottomNav } from "@/components/FloBottomNav";
 import { usePlan } from "@/hooks/usePlan";
+import { useTheme } from "@/components/theme-provider";
 import { ListChecks, Filter, Sparkles, Plus, FlaskConical, Play, Pause, CheckCircle, Clock, X, AlertCircle } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
 import { Card } from "@/components/ui/card";
@@ -128,6 +129,7 @@ function AssessmentCard({ assessment, onClick }: { assessment: N1Assessment; onC
 export default function ActionsScreen() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { isDark } = useTheme();
   
   // Read tab from URL params (e.g., /actions?tab=assessments)
   const getInitialTab = (): TabFilter => {
@@ -242,15 +244,21 @@ export default function ActionsScreen() {
   const headerText = getHeaderText();
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+    <div className={`fixed inset-0 z-50 ${
+      isDark 
+        ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+        : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+    }`}>
       {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl border-b bg-white/5 border-white/10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="px-4 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-xl text-white" data-testid="heading-actions">
+            <h1 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="heading-actions">
               {headerText.title}
             </h1>
-            <p className="text-xs text-white/50">
+            <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
               {headerText.subtitle}
             </p>
           </div>
@@ -271,7 +279,7 @@ export default function ActionsScreen() {
         {/* Tab Pills */}
         <div className="px-4 pb-2">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <Filter className="w-4 h-4 text-white/40 flex-shrink-0" />
+            <Filter className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
             {tabOptions.map((option) => (
               <button
                 key={option.value}
@@ -279,7 +287,9 @@ export default function ActionsScreen() {
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
                   selectedTab === option.value
                     ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg'
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    : isDark 
+                      ? 'bg-white/10 text-white/70 hover:bg-white/20'
+                      : 'bg-black/5 text-gray-600 hover:bg-black/10'
                 }`}
                 data-testid={`tab-${option.value}`}
               >

@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useTheme } from "@/components/theme-provider";
 import { 
   ArrowLeft,
   Play, 
@@ -101,6 +102,7 @@ export default function AssessmentDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { isDark } = useTheme();
   const [showCheckinForm, setShowCheckinForm] = useState(false);
   const [checkinRatings, setCheckinRatings] = useState<Record<string, number>>({});
   const [checkinNotes, setCheckinNotes] = useState('');
@@ -540,20 +542,30 @@ export default function AssessmentDetail() {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-cyan-400 rounded-full" />
+      <div className={`fixed inset-0 z-50 flex items-center justify-center ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+          : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+      }`}>
+        <div className={`animate-spin w-8 h-8 border-2 rounded-full ${
+          isDark ? 'border-white/30 border-t-cyan-400' : 'border-gray-300 border-t-cyan-500'
+        }`} />
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-center gap-4 p-4">
+      <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 p-4 ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+          : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+      }`}>
         <p className="text-red-400">Failed to load assessment</p>
-        <p className="text-white/40 text-sm text-center">{(error as any)?.message || 'Unknown error'}</p>
+        <p className={`text-sm text-center ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{(error as any)?.message || 'Unknown error'}</p>
         <Button
           variant="outline"
-          className="border-white/20 text-white"
+          className={isDark ? 'border-white/20 text-white' : ''}
           onClick={() => setLocation('/actions?tab=assessments')}
         >
           Go Back
@@ -564,8 +576,12 @@ export default function AssessmentDetail() {
 
   if (!experimentData) {
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
-        <p className="text-white/60">Assessment not found</p>
+      <div className={`fixed inset-0 z-50 flex items-center justify-center ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+          : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+      }`}>
+        <p className={isDark ? 'text-white/60' : 'text-gray-500'}>Assessment not found</p>
       </div>
     );
   }
@@ -649,23 +665,32 @@ export default function AssessmentDetail() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+    <div className={`fixed inset-0 z-50 ${
+      isDark 
+        ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+        : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+    }`}>
       {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl border-b bg-white/5 border-white/10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="px-4 py-3">
           <div className="flex items-center gap-3">
             <Button
               size="icon"
               variant="ghost"
               onClick={() => setLocation('/actions?tab=assessments')}
-              className="text-white/70 hover:text-white hover:bg-white/10"
+              className={isDark 
+                ? 'text-white/70 hover:text-white hover:bg-white/10' 
+                : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
+              }
               data-testid="button-back"
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg text-white font-medium truncate">{experiment.product_name}</h1>
-              <p className="text-xs text-white/50">
+              <h1 className={`text-lg font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{experiment.product_name}</h1>
+              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                 {supplementConfig?.name}
               </p>
             </div>
