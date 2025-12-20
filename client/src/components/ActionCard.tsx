@@ -15,38 +15,33 @@ interface ActionCardProps {
 
 const categoryColors = {
   sleep_quality: {
-    bg: 'from-indigo-500/20 to-purple-500/20',
-    text: 'text-indigo-400',
-    border: 'border-indigo-500/30'
+    dark: 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-400 border-indigo-500/30',
+    light: 'bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 border-indigo-200'
   },
   activity_sleep: {
-    bg: 'from-orange-500/20 to-red-500/20',
-    text: 'text-orange-400',
-    border: 'border-orange-500/30'
+    dark: 'bg-gradient-to-r from-orange-500/20 to-red-500/20 text-orange-400 border-orange-500/30',
+    light: 'bg-gradient-to-r from-orange-100 to-red-100 text-orange-700 border-orange-200'
   },
   biomarkers: {
-    bg: 'from-teal-500/20 to-cyan-500/20',
-    text: 'text-teal-400',
-    border: 'border-teal-500/30'
+    dark: 'bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-teal-400 border-teal-500/30',
+    light: 'bg-gradient-to-r from-teal-100 to-cyan-100 text-teal-700 border-teal-200'
   },
   recovery_hrv: {
-    bg: 'from-green-500/20 to-emerald-500/20',
-    text: 'text-green-400',
-    border: 'border-green-500/30'
+    dark: 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/30',
+    light: 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border-green-200'
   },
   nutrition: {
-    bg: 'from-amber-500/20 to-yellow-500/20',
-    text: 'text-amber-400',
-    border: 'border-amber-500/30'
+    dark: 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-400 border-amber-500/30',
+    light: 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 border-amber-200'
   }
 };
 
-const getCategoryColor = (category: string) => {
+const getCategoryColor = (category: string, isDark: boolean) => {
   const colors = categoryColors[category as keyof typeof categoryColors];
   if (colors) {
-    return `bg-gradient-to-r ${colors.bg} ${colors.text} ${colors.border}`;
+    return isDark ? colors.dark : colors.light;
   }
-  return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+  return isDark ? 'bg-gray-500/10 text-gray-400 border-gray-500/20' : 'bg-gray-100 text-gray-700 border-gray-200';
 };
 
 const getCategoryLabel = (category: string) => {
@@ -102,7 +97,7 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
           {/* Badge and Expand Button */}
           <div className="flex items-center gap-2">
             <Badge
-              className={`${getCategoryColor(item.category)} flex-shrink-0`}
+              className={`${getCategoryColor(item.category, isDark)} flex-shrink-0`}
               data-testid={`badge-category-${item.id}`}
             >
               {getCategoryLabel(item.category)}

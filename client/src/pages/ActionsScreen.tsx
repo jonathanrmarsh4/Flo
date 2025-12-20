@@ -40,19 +40,47 @@ function AssessmentCard({ assessment, onClick, isDark }: { assessment: N1Assessm
   const getStatusInfo = () => {
     switch (assessment.status) {
       case 'pending':
-        return { label: 'Ready to Start', color: 'bg-yellow-500/20 text-yellow-400', icon: Clock };
+        return { 
+          label: 'Ready to Start', 
+          color: isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700', 
+          icon: Clock 
+        };
       case 'baseline':
-        return { label: 'Collecting Baseline', color: 'bg-blue-500/20 text-blue-400', icon: Clock };
+        return { 
+          label: 'Collecting Baseline', 
+          color: isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700', 
+          icon: Clock 
+        };
       case 'active':
-        return { label: 'Active', color: 'bg-green-500/20 text-green-400', icon: Play };
+        return { 
+          label: 'Active', 
+          color: isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700', 
+          icon: Play 
+        };
       case 'paused':
-        return { label: 'Paused', color: 'bg-orange-500/20 text-orange-400', icon: Pause };
+        return { 
+          label: 'Paused', 
+          color: isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700', 
+          icon: Pause 
+        };
       case 'completed':
-        return { label: 'Completed', color: 'bg-cyan-500/20 text-cyan-400', icon: CheckCircle };
+        return { 
+          label: 'Completed', 
+          color: isDark ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-700', 
+          icon: CheckCircle 
+        };
       case 'cancelled':
-        return { label: 'Cancelled', color: 'bg-red-500/20 text-red-400', icon: X };
+        return { 
+          label: 'Cancelled', 
+          color: isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700', 
+          icon: X 
+        };
       default:
-        return { label: assessment.status, color: 'bg-white/20 text-white', icon: Clock };
+        return { 
+          label: assessment.status, 
+          color: isDark ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700', 
+          icon: Clock 
+        };
     }
   };
   
