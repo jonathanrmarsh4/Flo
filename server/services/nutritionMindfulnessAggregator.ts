@@ -16,20 +16,27 @@ import { TZDate } from '@date-fns/tz';
 import * as healthRouter from './healthStorageRouter';
 
 // HealthKit nutrition data type identifiers mapped to our field names
+// Includes both camelCase (from iOS HealthKit) and snake_case (from Flō Food Log) formats
 const NUTRITION_TYPE_MAPPING: Record<string, string> = {
   // Macronutrients
   'dietaryEnergyConsumed': 'energyKcal',
   'HKQuantityTypeIdentifierDietaryEnergyConsumed': 'energyKcal',
+  'dietary_calories': 'energyKcal',
   'dietaryProtein': 'proteinG',
   'HKQuantityTypeIdentifierDietaryProtein': 'proteinG',
+  'dietary_protein': 'proteinG',
   'dietaryCarbohydrates': 'carbohydratesG',
   'HKQuantityTypeIdentifierDietaryCarbohydrates': 'carbohydratesG',
+  'dietary_carbohydrates': 'carbohydratesG',
   'dietaryFatTotal': 'fatTotalG',
   'HKQuantityTypeIdentifierDietaryFatTotal': 'fatTotalG',
+  'dietary_fat': 'fatTotalG',
   'dietaryFiber': 'fiberG',
   'HKQuantityTypeIdentifierDietaryFiber': 'fiberG',
+  'dietary_fiber': 'fiberG',
   'dietarySugar': 'sugarG',
   'HKQuantityTypeIdentifierDietarySugar': 'sugarG',
+  'dietary_sugar': 'sugarG',
   
   // Fat types
   'dietaryFatSaturated': 'fatSaturatedG',
@@ -40,22 +47,30 @@ const NUTRITION_TYPE_MAPPING: Record<string, string> = {
   'HKQuantityTypeIdentifierDietaryFatPolyunsaturated': 'fatPolyunsaturatedG',
   'dietaryCholesterol': 'cholesterolMg',
   'HKQuantityTypeIdentifierDietaryCholesterol': 'cholesterolMg',
+  'dietary_cholesterol': 'cholesterolMg',
   
   // Minerals
   'dietarySodium': 'sodiumMg',
   'HKQuantityTypeIdentifierDietarySodium': 'sodiumMg',
+  'dietary_sodium': 'sodiumMg',
   'dietaryPotassium': 'potassiumMg',
   'HKQuantityTypeIdentifierDietaryPotassium': 'potassiumMg',
+  'dietary_potassium': 'potassiumMg',
   'dietaryCalcium': 'calciumMg',
   'HKQuantityTypeIdentifierDietaryCalcium': 'calciumMg',
+  'dietary_calcium': 'calciumMg',
   'dietaryIron': 'ironMg',
   'HKQuantityTypeIdentifierDietaryIron': 'ironMg',
+  'dietary_iron': 'ironMg',
   'dietaryMagnesium': 'magnesiumMg',
   'HKQuantityTypeIdentifierDietaryMagnesium': 'magnesiumMg',
+  'dietary_magnesium': 'magnesiumMg',
   'dietaryPhosphorus': 'phosphorusMg',
   'HKQuantityTypeIdentifierDietaryPhosphorus': 'phosphorusMg',
+  'dietary_phosphorus': 'phosphorusMg',
   'dietaryZinc': 'zincMg',
   'HKQuantityTypeIdentifierDietaryZinc': 'zincMg',
+  'dietary_zinc': 'zincMg',
   'dietaryCopper': 'copperMg',
   'HKQuantityTypeIdentifierDietaryCopper': 'copperMg',
   'dietaryManganese': 'manganeseMg',
@@ -102,8 +117,10 @@ const NUTRITION_TYPE_MAPPING: Record<string, string> = {
   // Other
   'dietaryCaffeine': 'caffeineMg',
   'HKQuantityTypeIdentifierDietaryCaffeine': 'caffeineMg',
+  'dietary_caffeine': 'caffeineMg',
   'dietaryWater': 'waterMl',
   'HKQuantityTypeIdentifierDietaryWater': 'waterMl',
+  'dietary_water': 'waterMl',
 };
 
 // All nutrition fields (all are summed for daily totals)
