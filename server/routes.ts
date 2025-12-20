@@ -19365,6 +19365,10 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
               brand: f.brand,
               portion: f.portion,
               quantity: f.quantity,
+              calories: f.calories || 0,
+              protein: f.protein || 0,
+              carbs: f.carbs || 0,
+              fat: f.fat || 0,
             })),
           },
         });
@@ -19466,12 +19470,13 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
                   name: f.name || 'Unknown',
                   confidence: 'high' as const,
                   portion: f.portion || '1 serving',
-                  calories: 0,
-                  protein: 0,
-                  carbs: 0,
-                  fats: 0,
+                  calories: (f.calories || 0) * (f.quantity || 1),
+                  protein: (f.protein || 0) * (f.quantity || 1),
+                  carbs: (f.carbs || 0) * (f.quantity || 1),
+                  fats: (f.fat || 0) * (f.quantity || 1),
                 })),
                 totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+                hasPerItemNutrition: (metadata.foods || []).some((f: any) => f.calories !== undefined),
               });
             }
             
@@ -19486,16 +19491,20 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         }
       }
       
-      // Distribute totals to items (approximate)
+      // Only distribute totals evenly for OLD meals that don't have per-item nutrition stored
       const meals = Array.from(mealMap.values()).map(meal => {
-        const itemCount = meal.items.length || 1;
-        meal.items = meal.items.map((item: any) => ({
-          ...item,
-          calories: Math.round(meal.totals.calories / itemCount),
-          protein: Math.round(meal.totals.protein / itemCount),
-          carbs: Math.round(meal.totals.carbs / itemCount),
-          fats: Math.round(meal.totals.fat / itemCount),
-        }));
+        if (!meal.hasPerItemNutrition) {
+          // Legacy data: divide totals evenly (approximate)
+          const itemCount = meal.items.length || 1;
+          meal.items = meal.items.map((item: any) => ({
+            ...item,
+            calories: Math.round(meal.totals.calories / itemCount),
+            protein: Math.round(meal.totals.protein / itemCount),
+            carbs: Math.round(meal.totals.carbs / itemCount),
+            fats: Math.round(meal.totals.fat / itemCount),
+          }));
+        }
+        delete meal.hasPerItemNutrition;
         return meal;
       });
       
