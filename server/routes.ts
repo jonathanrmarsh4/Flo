@@ -18844,19 +18844,45 @@ ${healthContext}`;
           const { GoogleGenAI } = await import('@google/genai');
           const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
           
-          const prompt = `Parse this food description and provide nutrition estimates: "${query}"
+          const prompt = `Parse this food/supplement description and provide nutrition estimates: "${query}"
 
-Return a JSON array of foods mentioned. For each food item, provide:
-- name: the food name (capitalized properly)
-- type: "Generic" 
-- description: a brief serving description like "Per 1 medium - Calories: 105kcal | Fat: 0.4g | Carbs: 27g | Protein: 1.3g"
-- calories: estimated calories per serving (number)
-- protein: grams of protein (number)
-- carbs: grams of carbs (number)  
-- fat: grams of fat (number)
-- servingDescription: typical serving size like "1 medium" or "1 cup"
+IMPORTANT: Include supplements, seasonings, and zero-calorie items like salt, creatine, vitamins, etc.
 
-Use typical USDA values. If multiple foods mentioned, return multiple items.
+Return a JSON array of items mentioned. For each item provide ALL fields (use 0 or null for unknown values):
+
+{
+  "name": "Item Name (capitalized properly)",
+  "type": "Generic",
+  "description": "Brief description with key nutrients",
+  "servingDescription": "amount like '1g' or '1 tsp'",
+  "calories": 0,
+  "protein": 0,
+  "carbs": 0,
+  "fat": 0,
+  "fiber": 0,
+  "sugar": 0,
+  "sodiumMg": 0,
+  "potassiumMg": 0,
+  "calciumMg": 0,
+  "ironMg": 0,
+  "magnesiumMg": 0,
+  "zincMg": 0,
+  "phosphorusMg": 0,
+  "cholesterolMg": 0,
+  "caffeineMg": 0,
+  "waterMl": 0
+}
+
+REFERENCE VALUES for common supplements/seasonings:
+- Sea salt (1g): 0 calories, ~388mg sodium
+- Table salt (1g): 0 calories, ~387mg sodium  
+- Creatine monohydrate (5g): 0 calories, no macros (amino acid derivative)
+- Protein powder whey (30g): ~120 kcal, 25g protein, 2g carbs, 1g fat
+- Fish oil (1 softgel/1g): 9 kcal, 0 protein, 0 carbs, 1g fat (omega-3)
+- Magnesium supplement (1 capsule): 0 calories, ~200-400mg magnesium
+- Vitamin D (1000 IU): 0 calories
+
+Use typical USDA values. If multiple items mentioned, return multiple items.
 Return ONLY valid JSON array, no markdown.`;
 
           const result = await genAI.models.generateContent({
@@ -18867,22 +18893,40 @@ Return ONLY valid JSON array, no markdown.`;
           const responseText = result.text || '';
           logger.debug('[FoodSearch] AI response:', responseText.substring(0, 200));
           
-          // Parse AI response
+          // Parse AI response with string-to-number coercion
           const jsonMatch = responseText.match(/\[[\s\S]*\]/);
           if (jsonMatch) {
             const aiFoods = JSON.parse(jsonMatch[0]);
+            // Helper to coerce strings/null to numbers
+            const toNum = (val: any): number => {
+              if (val === null || val === undefined) return 0;
+              const num = typeof val === 'string' ? parseFloat(val) : Number(val);
+              return isNaN(num) ? 0 : num;
+            };
             results = aiFoods.map((food: any, idx: number) => ({
               id: `ai-${Date.now()}-${idx}`,
               name: food.name || query,
               type: 'AI Estimate',
               description: food.description || '',
-              calories: food.calories || 0,
-              protein: food.protein || 0,
-              carbs: food.carbs || 0,
-              fat: food.fat || 0,
+              calories: toNum(food.calories),
+              protein: toNum(food.protein),
+              carbs: toNum(food.carbs),
+              fat: toNum(food.fat),
+              fiber: toNum(food.fiber),
+              sugar: toNum(food.sugar),
+              sodiumMg: toNum(food.sodiumMg),
+              potassiumMg: toNum(food.potassiumMg),
+              calciumMg: toNum(food.calciumMg),
+              ironMg: toNum(food.ironMg),
+              magnesiumMg: toNum(food.magnesiumMg),
+              zincMg: toNum(food.zincMg),
+              phosphorusMg: toNum(food.phosphorusMg),
+              cholesterolMg: toNum(food.cholesterolMg),
+              caffeineMg: toNum(food.caffeineMg),
+              waterMl: toNum(food.waterMl),
               servingDescription: food.servingDescription || '1 serving',
             }));
-            logger.info('[FoodSearch] AI generated foods', { count: results.length });
+            logger.info('[FoodSearch] AI generated foods', { count: results.length, foods: results.map((f: any) => ({ name: f.name, calories: f.calories, sodiumMg: f.sodiumMg })) });
           }
         } catch (aiError: any) {
           logger.error('[FoodSearch] AI fallback failed:', aiError.message);
@@ -19238,8 +19282,12 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       const now = new Date();
       const mealId = crypto.randomUUID();
       
-      // Calculate totals
-      const totals = foods.reduce((acc: { calories: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number }, food: any) => {
+      // Calculate totals including micronutrients
+      const totals = foods.reduce((acc: { 
+        calories: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number;
+        sodiumMg: number; potassiumMg: number; calciumMg: number; ironMg: number; magnesiumMg: number;
+        zincMg: number; phosphorusMg: number; cholesterolMg: number; caffeineMg: number; waterMl: number;
+      }, food: any) => {
         const qty = food.quantity || 1;
         return {
           calories: acc.calories + ((food.calories || 0) * qty),
@@ -19248,18 +19296,50 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
           fat: acc.fat + ((food.fat || 0) * qty),
           fiber: acc.fiber + ((food.fiber || 0) * qty),
           sugar: acc.sugar + ((food.sugar || 0) * qty),
+          sodiumMg: acc.sodiumMg + ((food.sodiumMg || 0) * qty),
+          potassiumMg: acc.potassiumMg + ((food.potassiumMg || 0) * qty),
+          calciumMg: acc.calciumMg + ((food.calciumMg || 0) * qty),
+          ironMg: acc.ironMg + ((food.ironMg || 0) * qty),
+          magnesiumMg: acc.magnesiumMg + ((food.magnesiumMg || 0) * qty),
+          zincMg: acc.zincMg + ((food.zincMg || 0) * qty),
+          phosphorusMg: acc.phosphorusMg + ((food.phosphorusMg || 0) * qty),
+          cholesterolMg: acc.cholesterolMg + ((food.cholesterolMg || 0) * qty),
+          caffeineMg: acc.caffeineMg + ((food.caffeineMg || 0) * qty),
+          waterMl: acc.waterMl + ((food.waterMl || 0) * qty),
         };
-      }, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0 });
+      }, { 
+        calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0,
+        sodiumMg: 0, potassiumMg: 0, calciumMg: 0, ironMg: 0, magnesiumMg: 0,
+        zincMg: 0, phosphorusMg: 0, cholesterolMg: 0, caffeineMg: 0, waterMl: 0 
+      });
       
       // Store as nutrition samples in healthkit_samples for compatibility with existing meal-glucose correlator
-      const nutritionSamples = [
+      // Include micronutrients and allow zero-calorie items with any nutrients
+      let nutritionSamples = [
         { data_type: 'dietary_calories', value: totals.calories, unit: 'kcal' },
         { data_type: 'dietary_protein', value: totals.protein, unit: 'g' },
         { data_type: 'dietary_carbohydrates', value: totals.carbs, unit: 'g' },
         { data_type: 'dietary_fat', value: totals.fat, unit: 'g' },
         { data_type: 'dietary_fiber', value: totals.fiber, unit: 'g' },
         { data_type: 'dietary_sugar', value: totals.sugar, unit: 'g' },
+        { data_type: 'dietary_sodium', value: totals.sodiumMg, unit: 'mg' },
+        { data_type: 'dietary_potassium', value: totals.potassiumMg, unit: 'mg' },
+        { data_type: 'dietary_calcium', value: totals.calciumMg, unit: 'mg' },
+        { data_type: 'dietary_iron', value: totals.ironMg, unit: 'mg' },
+        { data_type: 'dietary_magnesium', value: totals.magnesiumMg, unit: 'mg' },
+        { data_type: 'dietary_zinc', value: totals.zincMg, unit: 'mg' },
+        { data_type: 'dietary_phosphorus', value: totals.phosphorusMg, unit: 'mg' },
+        { data_type: 'dietary_cholesterol', value: totals.cholesterolMg, unit: 'mg' },
+        { data_type: 'dietary_caffeine', value: totals.caffeineMg, unit: 'mg' },
+        { data_type: 'dietary_water', value: totals.waterMl, unit: 'ml' },
       ].filter(s => s.value > 0);
+      
+      // For supplements with zero nutrients (like creatine), still create a dietary_calories entry
+      // so the meal is persisted and can be retrieved
+      if (nutritionSamples.length === 0) {
+        nutritionSamples = [{ data_type: 'dietary_calories', value: 0, unit: 'kcal' }];
+        logger.info('[FoodLog] Zero-nutrient supplement logged, creating placeholder sample');
+      }
       
       // Insert into healthkit_samples via Supabase
       const { getSupabaseClient } = await import('./services/supabaseClient');

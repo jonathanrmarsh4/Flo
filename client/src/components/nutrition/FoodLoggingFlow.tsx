@@ -19,6 +19,18 @@ interface FoodSearchResult {
   protein?: number;
   carbs?: number;
   fat?: number;
+  fiber?: number;
+  sugar?: number;
+  sodiumMg?: number;
+  potassiumMg?: number;
+  calciumMg?: number;
+  ironMg?: number;
+  magnesiumMg?: number;
+  zincMg?: number;
+  phosphorusMg?: number;
+  cholesterolMg?: number;
+  caffeineMg?: number;
+  waterMl?: number;
   servingDescription?: string;
 }
 
@@ -32,6 +44,18 @@ interface SelectedFood {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
+  sugar?: number;
+  sodiumMg?: number;
+  potassiumMg?: number;
+  calciumMg?: number;
+  ironMg?: number;
+  magnesiumMg?: number;
+  zincMg?: number;
+  phosphorusMg?: number;
+  cholesterolMg?: number;
+  caffeineMg?: number;
+  waterMl?: number;
 }
 
 interface FoodLoggingFlowProps {
@@ -334,6 +358,18 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
       protein: food.protein || 0,
       carbs: food.carbs || 0,
       fat: food.fat || 0,
+      fiber: food.fiber || 0,
+      sugar: food.sugar || 0,
+      sodiumMg: food.sodiumMg || 0,
+      potassiumMg: food.potassiumMg || 0,
+      calciumMg: food.calciumMg || 0,
+      ironMg: food.ironMg || 0,
+      magnesiumMg: food.magnesiumMg || 0,
+      zincMg: food.zincMg || 0,
+      phosphorusMg: food.phosphorusMg || 0,
+      cholesterolMg: food.cholesterolMg || 0,
+      caffeineMg: food.caffeineMg || 0,
+      waterMl: food.waterMl || 0,
     };
     setSelectedFoods(prev => [...prev, selected]);
   }, []);
@@ -369,7 +405,9 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
     protein: acc.protein + (food.protein * food.quantity),
     carbs: acc.carbs + (food.carbs * food.quantity),
     fat: acc.fat + (food.fat * food.quantity),
-  }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+    sodiumMg: acc.sodiumMg + ((food.sodiumMg || 0) * food.quantity),
+    caffeineMg: acc.caffeineMg + ((food.caffeineMg || 0) * food.quantity),
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0, sodiumMg: 0, caffeineMg: 0 });
 
   const isLoading = searchFoodsMutation.isPending || barcodeLookupMutation.isPending || photoRecognizeMutation.isPending;
 
@@ -914,7 +952,7 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
               <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
                 Total
               </span>
-              <div className="flex gap-4 text-sm">
+              <div className="flex gap-3 text-sm flex-wrap justify-end">
                 <span className={isDark ? 'text-white' : 'text-gray-900'}>
                   {Math.round(totals.calories)} cal
                 </span>
@@ -927,6 +965,16 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
                 <span className={isDark ? 'text-white/60' : 'text-gray-600'}>
                   F: {Math.round(totals.fat)}g
                 </span>
+                {totals.sodiumMg > 0 && (
+                  <span className={isDark ? 'text-orange-400' : 'text-orange-600'}>
+                    Na: {Math.round(totals.sodiumMg)}mg
+                  </span>
+                )}
+                {totals.caffeineMg > 0 && (
+                  <span className={isDark ? 'text-amber-400' : 'text-amber-600'}>
+                    Caffeine: {Math.round(totals.caffeineMg)}mg
+                  </span>
+                )}
               </div>
             </div>
             <button
