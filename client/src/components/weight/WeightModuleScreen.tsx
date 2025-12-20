@@ -1389,12 +1389,23 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
                       <AlertCircle className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                       <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Data Gaps</h3>
                     </div>
-                    {aiAnalysisData.data_gaps.map((gap, idx) => (
-                      <div key={idx} className={`p-3 rounded-xl ${isDark ? 'bg-gray-500/10 border border-gray-500/20' : 'bg-gray-50 border border-gray-200'}`}>
-                        <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{gap.missing}</p>
-                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{gap.how_to_capture}</p>
-                      </div>
-                    ))}
+                    {aiAnalysisData.data_gaps.map((gap, idx) => {
+                      const isLifeEvent = gap.missing.toLowerCase().includes('life event');
+                      return (
+                        <div key={idx} className={`p-3 rounded-xl ${isDark ? 'bg-gray-500/10 border border-gray-500/20' : 'bg-gray-50 border border-gray-200'}`}>
+                          <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{gap.missing}</p>
+                          <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{gap.how_to_capture}</p>
+                          {isLifeEvent && (
+                            <div className={`flex items-start gap-1.5 mt-2`}>
+                              <Lightbulb className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                              <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                                Tip: Chat with Flō to log life events. Try saying "I started a new job", "Feeling stressed today", or "Traveling this week".
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 

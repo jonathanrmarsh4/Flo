@@ -252,21 +252,41 @@ async function populateUserProfile(userId: string, context: WeightContextJson): 
       context.user_profile.preferences = goals;
     }
 
-    const aiPersonalization = (profile as any).ai_personalization || (profile as any).aiPersonalization;
-    if (aiPersonalization) {
-      if (aiPersonalization.activity_level) {
-        context.user_profile.typical_activity = aiPersonalization.activity_level;
+    // Check healthBaseline for activity level and diet type (primary location from onboarding)
+    const healthBaseline = (profile as any).healthBaseline || (profile as any).health_baseline;
+    if (healthBaseline) {
+      if (healthBaseline.activityLevel || healthBaseline.activity_level) {
+        context.user_profile.typical_activity = healthBaseline.activityLevel || healthBaseline.activity_level;
       }
-      if (aiPersonalization.dietary_preferences) {
-        context.user_profile.dietary_pattern = aiPersonalization.dietary_preferences;
-      }
-      if (Array.isArray(aiPersonalization.food_intolerances)) {
-        context.constraints.intolerances = aiPersonalization.food_intolerances;
-      }
-      if (Array.isArray(aiPersonalization.food_preferences)) {
-        context.constraints.food_preferences = aiPersonalization.food_preferences;
+      if (healthBaseline.dietType || healthBaseline.diet_type || healthBaseline.dietaryPattern) {
+        context.user_profile.dietary_pattern = healthBaseline.dietType || healthBaseline.diet_type || healthBaseline.dietaryPattern;
       }
     }
+
+    // Also check ai_personalization as fallback/override (settings page updates)
+    // Support both snake_case and camelCase field names
+    const aiPersonalization = (profile as any).ai_personalization || (profile as any).aiPersonalization;
+    if (aiPersonalization) {
+      // Override with ai_personalization if present (user may have updated later)
+      const activityLevel = aiPersonalization.activity_level || aiPersonalization.activityLevel;
+      if (activityLevel && !context.user_profile.typical_activity) {
+        context.user_profile.typical_activity = activityLevel;
+      }
+      const dietaryPrefs = aiPersonalization.dietary_preferences || aiPersonalization.dietaryPreferences || aiPersonalization.dietary_pattern || aiPersonalization.dietaryPattern;
+      if (dietaryPrefs && !context.user_profile.dietary_pattern) {
+        context.user_profile.dietary_pattern = dietaryPrefs;
+      }
+      const intolerances = aiPersonalization.food_intolerances || aiPersonalization.foodIntolerances;
+      if (Array.isArray(intolerances)) {
+        context.constraints.intolerances = intolerances;
+      }
+      const foodPrefs = aiPersonalization.food_preferences || aiPersonalization.foodPreferences;
+      if (Array.isArray(foodPrefs)) {
+        context.constraints.food_preferences = foodPrefs;
+      }
+    }
+
+    logger.debug(`[WeightManagementContext] User profile populated: activity=${context.user_profile.typical_activity}, diet=${context.user_profile.dietary_pattern}`);
   } catch (error) {
     logger.error('[WeightManagementContext] Error fetching user profile:', error);
   }
