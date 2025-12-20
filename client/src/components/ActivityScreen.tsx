@@ -1051,22 +1051,19 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
         fats: acc.fats + (item.fats || 0),
       }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
       
-      return apiRequest('/api/food/saved', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: meal.meal,
-          items: meal.items.map(item => ({
-            id: item.id,
-            name: item.name,
-            portion: item.portion,
-            calories: item.calories,
-            protein: item.protein,
-            carbs: item.carbs,
-            fats: item.fats,
-          })),
-          totals: mealTotals,
-          originalMealId: meal.id,
-        }),
+      return apiRequest('POST', '/api/food/saved', {
+        name: meal.meal,
+        items: meal.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          portion: item.portion,
+          calories: item.calories,
+          protein: item.protein,
+          carbs: item.carbs,
+          fats: item.fats,
+        })),
+        totals: mealTotals,
+        originalMealId: meal.id,
       });
     },
     onSuccess: () => {
@@ -1077,7 +1074,7 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
   
   // Remove saved meal mutation
   const removeSavedMealMutation = useMutation({
-    mutationFn: (mealId: string) => apiRequest(`/api/food/saved/${mealId}`, { method: 'DELETE' }),
+    mutationFn: (mealId: string) => apiRequest('DELETE', `/api/food/saved/${mealId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/food/saved'] });
       toast({ description: 'Meal removed from saved' });
@@ -1086,10 +1083,7 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
   
   // Log saved meal to today mutation
   const logSavedMealMutation = useMutation({
-    mutationFn: (meal: SavedMeal) => apiRequest(`/api/food/saved/${meal.id}/log`, { 
-      method: 'POST',
-      body: JSON.stringify({ mealType: meal.name }),
-    }),
+    mutationFn: (meal: SavedMeal) => apiRequest('POST', `/api/food/saved/${meal.id}/log`, { mealType: meal.name }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/food/meals'] });
       queryClient.invalidateQueries({ queryKey: ['/api/nutrition/daily'] });
