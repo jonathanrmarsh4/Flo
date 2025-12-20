@@ -3244,6 +3244,7 @@ export const savedMeals = pgTable("saved_meals", {
     carbs: number;
     fats: number;
   }>().notNull(),
+  originalMealId: varchar("original_meal_id"),
   savedAt: timestamp("saved_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({

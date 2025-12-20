@@ -19547,6 +19547,7 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         name,
         items,
         totals,
+        originalMealId,
       }).returning();
       
       logger.info('[SavedMeals] Meal saved', { userId, name, itemCount: items.length });
