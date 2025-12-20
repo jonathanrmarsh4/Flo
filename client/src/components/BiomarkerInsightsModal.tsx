@@ -5,6 +5,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 import { parseApiError } from '@/lib/utils';
+import { useTheme } from './theme-provider';
 
 interface BiomarkerInsight {
   lifestyleActions: string[];
@@ -131,6 +132,7 @@ export function BiomarkerInsightsModal({
   status,
 }: BiomarkerInsightsModalProps) {
   const { toast } = useToast();
+  const { isDark } = useTheme();
   
   const { data: insightsData, isLoading, error } = useQuery<any>({
     queryKey: ['/api/biomarkers', biomarkerId, 'insights'],
@@ -166,24 +168,28 @@ export function BiomarkerInsightsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg bg-[#0a0f1e] border-white/10 text-white p-0 overflow-hidden max-h-[85vh]">
+      <DialogContent className={`max-w-lg p-0 overflow-hidden max-h-[85vh] ${
+        isDark ? 'bg-[#0a0f1e] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'
+      }`}>
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#0a0f1e]/95 backdrop-blur-xl border-b border-white/10 px-5 py-4">
+        <div className={`sticky top-0 z-10 backdrop-blur-xl border-b px-5 py-4 ${
+          isDark ? 'bg-[#0a0f1e]/95 border-white/10' : 'bg-white/95 border-gray-200'
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
                 <Activity className="w-4 h-4 text-white" />
               </div>
-              <h2 className="text-xl font-semibold" data-testid="text-insights-title">
+              <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-insights-title">
                 {biomarkerName} Insights
               </h2>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
               data-testid="button-close-insights"
             >
-              <X className="w-5 h-5 text-white/70" />
+              <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-500'}`} />
             </button>
           </div>
         </div>
@@ -192,18 +198,20 @@ export function BiomarkerInsightsModal({
         <div className="overflow-y-auto px-5 pb-5" style={{ maxHeight: 'calc(85vh - 80px)' }}>
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full" />
+              <div className={`animate-spin w-8 h-8 border-4 border-t-transparent rounded-full ${isDark ? 'border-cyan-500' : 'border-cyan-600'}`} />
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-              <h3 className="text-lg font-medium text-white mb-2">Failed to Load Insights</h3>
-              <p className="text-white/60 text-sm max-w-sm">
+              <AlertCircle className={`w-12 h-12 mb-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
+              <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Failed to Load Insights</h3>
+              <p className={`text-sm max-w-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                 Unable to generate AI insights for this biomarker. This may be because no measurements are available or the AI service is temporarily unavailable.
               </p>
               <button
                 onClick={onClose}
-                className="mt-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors"
+                className={`mt-6 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                }`}
                 data-testid="button-close-error"
               >
                 Close
@@ -214,12 +222,16 @@ export function BiomarkerInsightsModal({
               {/* Lifestyle Actions */}
               {insights.lifestyleActions && insights.lifestyleActions.length > 0 && (
                 <div
-                  className="rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-5"
+                  className={`rounded-2xl bg-gradient-to-br border p-5 ${
+                    isDark 
+                      ? 'from-blue-500/10 to-blue-600/5 border-blue-500/20' 
+                      : 'from-blue-50 to-blue-100/50 border-blue-200'
+                  }`}
                   data-testid="section-lifestyle-actions"
                 >
                   <div className="flex items-center gap-2 mb-4">
-                    <Activity className="w-5 h-5 text-blue-400" />
-                    <h3 className="text-lg font-semibold text-blue-300">Lifestyle Actions</h3>
+                    <Activity className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                    <h3 className={`text-lg font-semibold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>Lifestyle Actions</h3>
                   </div>
                   <ul className="space-y-3">
                     {insights.lifestyleActions.map((action, index) => {
@@ -235,15 +247,19 @@ export function BiomarkerInsightsModal({
                               {keywords.map((keyword, i) => (
                                 <span 
                                   key={i}
-                                  className="px-2 py-0.5 rounded-full text-[10px] bg-blue-400/20 text-blue-300 border border-blue-400/30"
+                                  className={`px-2 py-0.5 rounded-full text-[10px] border ${
+                                    isDark 
+                                      ? 'bg-blue-400/20 text-blue-300 border-blue-400/30' 
+                                      : 'bg-blue-100 text-blue-700 border-blue-200'
+                                  }`}
                                 >
                                   {keyword}
                                 </span>
                               ))}
                             </div>
                           )}
-                          <span className="text-sm text-white/90 leading-relaxed flex items-start gap-2">
-                            <span className="text-blue-400 mt-0.5">•</span>
+                          <span className={`text-sm leading-relaxed flex items-start gap-2 ${isDark ? 'text-white/90' : 'text-gray-700'}`}>
+                            <span className={`mt-0.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>•</span>
                             <span>{action}</span>
                           </span>
                         </li>
@@ -256,12 +272,16 @@ export function BiomarkerInsightsModal({
               {/* Nutrition */}
               {insights.nutrition && insights.nutrition.length > 0 && (
                 <div
-                  className="rounded-2xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 p-5"
+                  className={`rounded-2xl bg-gradient-to-br border p-5 ${
+                    isDark 
+                      ? 'from-green-500/10 to-green-600/5 border-green-500/20' 
+                      : 'from-green-50 to-green-100/50 border-green-200'
+                  }`}
                   data-testid="section-nutrition"
                 >
                   <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="w-5 h-5 text-green-400" />
-                    <h3 className="text-lg font-semibold text-green-300">Nutrition</h3>
+                    <TrendingUp className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                    <h3 className={`text-lg font-semibold ${isDark ? 'text-green-300' : 'text-green-700'}`}>Nutrition</h3>
                   </div>
                   <ul className="space-y-3">
                     {insights.nutrition.map((item, index) => {
@@ -277,15 +297,19 @@ export function BiomarkerInsightsModal({
                               {keywords.map((keyword, i) => (
                                 <span 
                                   key={i}
-                                  className="px-2 py-0.5 rounded-full text-[10px] bg-green-400/20 text-green-300 border border-green-400/30"
+                                  className={`px-2 py-0.5 rounded-full text-[10px] border ${
+                                    isDark 
+                                      ? 'bg-green-400/20 text-green-300 border-green-400/30' 
+                                      : 'bg-green-100 text-green-700 border-green-200'
+                                  }`}
                                 >
                                   {keyword}
                                 </span>
                               ))}
                             </div>
                           )}
-                          <span className="text-sm text-white/90 leading-relaxed flex items-start gap-2">
-                            <span className="text-green-400 mt-0.5">•</span>
+                          <span className={`text-sm leading-relaxed flex items-start gap-2 ${isDark ? 'text-white/90' : 'text-gray-700'}`}>
+                            <span className={`mt-0.5 ${isDark ? 'text-green-400' : 'text-green-600'}`}>•</span>
                             <span>{item}</span>
                           </span>
                         </li>
@@ -298,12 +322,16 @@ export function BiomarkerInsightsModal({
               {/* Supplementation */}
               {insights.supplementation && insights.supplementation.length > 0 && (
                 <div
-                  className="rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-5"
+                  className={`rounded-2xl bg-gradient-to-br border p-5 ${
+                    isDark 
+                      ? 'from-purple-500/10 to-purple-600/5 border-purple-500/20' 
+                      : 'from-purple-50 to-purple-100/50 border-purple-200'
+                  }`}
                   data-testid="section-supplementation"
                 >
                   <div className="flex items-center gap-2 mb-4">
-                    <Pill className="w-5 h-5 text-purple-400" />
-                    <h3 className="text-lg font-semibold text-purple-300">Supplementation</h3>
+                    <Pill className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                    <h3 className={`text-lg font-semibold ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>Supplementation</h3>
                   </div>
                   <ul className="space-y-3">
                     {insights.supplementation.map((item, index) => {
@@ -319,15 +347,19 @@ export function BiomarkerInsightsModal({
                               {keywords.map((keyword, i) => (
                                 <span 
                                   key={i}
-                                  className="px-2 py-0.5 rounded-full text-[10px] bg-purple-400/20 text-purple-300 border border-purple-400/30"
+                                  className={`px-2 py-0.5 rounded-full text-[10px] border ${
+                                    isDark 
+                                      ? 'bg-purple-400/20 text-purple-300 border-purple-400/30' 
+                                      : 'bg-purple-100 text-purple-700 border-purple-200'
+                                  }`}
                                 >
                                   {keyword}
                                 </span>
                               ))}
                             </div>
                           )}
-                          <span className="text-sm text-white/90 leading-relaxed flex items-start gap-2">
-                            <span className="text-purple-400 mt-0.5">•</span>
+                          <span className={`text-sm leading-relaxed flex items-start gap-2 ${isDark ? 'text-white/90' : 'text-gray-700'}`}>
+                            <span className={`mt-0.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>•</span>
                             <span>{item}</span>
                           </span>
                         </li>
@@ -340,21 +372,25 @@ export function BiomarkerInsightsModal({
               {/* Medical Referral */}
               {insights.medicalReferral && (
                 <div
-                  className="rounded-2xl bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20 p-5"
+                  className={`rounded-2xl bg-gradient-to-br border p-5 ${
+                    isDark 
+                      ? 'from-red-500/10 to-red-600/5 border-red-500/20' 
+                      : 'from-red-50 to-red-100/50 border-red-200'
+                  }`}
                   data-testid="section-medical-referral"
                 >
                   <div className="flex items-center gap-2 mb-4">
-                    <Stethoscope className="w-5 h-5 text-red-400" />
-                    <h3 className="text-lg font-semibold text-red-300">Medical Referral</h3>
+                    <Stethoscope className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                    <h3 className={`text-lg font-semibold ${isDark ? 'text-red-300' : 'text-red-700'}`}>Medical Referral</h3>
                   </div>
-                  <p className="text-sm text-white/90 leading-relaxed" data-testid="text-medical-referral">
+                  <p className={`text-sm leading-relaxed ${isDark ? 'text-white/90' : 'text-gray-700'}`} data-testid="text-medical-referral">
                     {insights.medicalReferral}
                   </p>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-12 text-white/50">
+            <div className={`text-center py-12 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
               <p>No insights available</p>
             </div>
           )}
