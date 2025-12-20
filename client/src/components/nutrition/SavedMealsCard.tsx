@@ -1,6 +1,6 @@
 import { Star, Plus } from 'lucide-react';
 
-interface SavedMeal {
+export interface SavedMeal {
   id: string;
   name: string;
   items: Array<{
@@ -19,6 +19,7 @@ interface SavedMeal {
     fats: number;
   };
   savedAt: Date;
+  originalMealId?: string;
 }
 
 interface SavedMealsCardProps {

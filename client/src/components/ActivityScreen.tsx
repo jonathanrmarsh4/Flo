@@ -1103,9 +1103,13 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
     savedAt: new Date(m.savedAt),
   }));
   
-  // Track which meals are saved by name (for toggling star)
-  const savedMealNames = new Set(savedMeals.map(m => m.name));
-  const savedMealIds = new Set(todaysMeals.filter(m => savedMealNames.has(m.meal)).map(m => m.id));
+  // Track which meals are saved by their original meal ID (for toggling star)
+  // This ensures only the exact meal that was saved shows as saved, not all meals with the same name
+  const savedMealIds = new Set(
+    savedMeals
+      .map(m => m.originalMealId)
+      .filter((id): id is string => id !== undefined && id !== null)
+  );
   
   const todaysTotals = todaysMeals.reduce((acc, meal) => {
     const mealTotals = meal.items.reduce((a, item) => ({
@@ -1123,8 +1127,8 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
   }, { calories: 0, protein: 0, carbs: 0, fats: 0 });
   
   const handleSaveMeal = (meal: LoggedMeal) => {
-    // Toggle: if already saved, remove it
-    const existingSaved = savedMeals.find(sm => sm.name === meal.meal);
+    // Toggle: if already saved (by original meal ID), remove it
+    const existingSaved = savedMeals.find(sm => sm.originalMealId === meal.id);
     if (existingSaved) {
       removeSavedMealMutation.mutate(existingSaved.id);
     } else {
