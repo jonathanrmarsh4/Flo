@@ -19282,11 +19282,14 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       const now = new Date();
       const mealId = crypto.randomUUID();
       
-      // Calculate totals including micronutrients
+      // Calculate totals including micronutrients AND vitamins
       const totals = foods.reduce((acc: { 
         calories: number; protein: number; carbs: number; fat: number; fiber: number; sugar: number;
         sodiumMg: number; potassiumMg: number; calciumMg: number; ironMg: number; magnesiumMg: number;
         zincMg: number; phosphorusMg: number; cholesterolMg: number; caffeineMg: number; waterMl: number;
+        vitaminAMcg: number; vitaminB6Mg: number; vitaminB12Mcg: number; vitaminCMg: number;
+        vitaminDMcg: number; vitaminEMg: number; vitaminKMcg: number;
+        thiaminMg: number; riboflavinMg: number; niacinMg: number; folateMcg: number; biotinMcg: number;
       }, food: any) => {
         const qty = food.quantity || 1;
         return {
@@ -19306,15 +19309,31 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
           cholesterolMg: acc.cholesterolMg + ((food.cholesterolMg || 0) * qty),
           caffeineMg: acc.caffeineMg + ((food.caffeineMg || 0) * qty),
           waterMl: acc.waterMl + ((food.waterMl || 0) * qty),
+          // Vitamins
+          vitaminAMcg: acc.vitaminAMcg + ((food.vitaminAMcg || 0) * qty),
+          vitaminB6Mg: acc.vitaminB6Mg + ((food.vitaminB6Mg || 0) * qty),
+          vitaminB12Mcg: acc.vitaminB12Mcg + ((food.vitaminB12Mcg || 0) * qty),
+          vitaminCMg: acc.vitaminCMg + ((food.vitaminCMg || 0) * qty),
+          vitaminDMcg: acc.vitaminDMcg + ((food.vitaminDMcg || 0) * qty),
+          vitaminEMg: acc.vitaminEMg + ((food.vitaminEMg || 0) * qty),
+          vitaminKMcg: acc.vitaminKMcg + ((food.vitaminKMcg || 0) * qty),
+          thiaminMg: acc.thiaminMg + ((food.thiaminMg || 0) * qty),
+          riboflavinMg: acc.riboflavinMg + ((food.riboflavinMg || 0) * qty),
+          niacinMg: acc.niacinMg + ((food.niacinMg || 0) * qty),
+          folateMcg: acc.folateMcg + ((food.folateMcg || 0) * qty),
+          biotinMcg: acc.biotinMcg + ((food.biotinMcg || 0) * qty),
         };
       }, { 
         calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0,
         sodiumMg: 0, potassiumMg: 0, calciumMg: 0, ironMg: 0, magnesiumMg: 0,
-        zincMg: 0, phosphorusMg: 0, cholesterolMg: 0, caffeineMg: 0, waterMl: 0 
+        zincMg: 0, phosphorusMg: 0, cholesterolMg: 0, caffeineMg: 0, waterMl: 0,
+        vitaminAMcg: 0, vitaminB6Mg: 0, vitaminB12Mcg: 0, vitaminCMg: 0,
+        vitaminDMcg: 0, vitaminEMg: 0, vitaminKMcg: 0,
+        thiaminMg: 0, riboflavinMg: 0, niacinMg: 0, folateMcg: 0, biotinMcg: 0,
       });
       
       // Store as nutrition samples in healthkit_samples for compatibility with existing meal-glucose correlator
-      // Include micronutrients and allow zero-calorie items with any nutrients
+      // Include micronutrients, vitamins, and allow zero-calorie items with any nutrients
       let nutritionSamples = [
         { data_type: 'dietary_calories', value: totals.calories, unit: 'kcal' },
         { data_type: 'dietary_protein', value: totals.protein, unit: 'g' },
@@ -19332,6 +19351,19 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         { data_type: 'dietary_cholesterol', value: totals.cholesterolMg, unit: 'mg' },
         { data_type: 'dietary_caffeine', value: totals.caffeineMg, unit: 'mg' },
         { data_type: 'dietary_water', value: totals.waterMl, unit: 'ml' },
+        // Vitamins
+        { data_type: 'dietary_vitamin_a', value: totals.vitaminAMcg, unit: 'mcg' },
+        { data_type: 'dietary_vitamin_b6', value: totals.vitaminB6Mg, unit: 'mg' },
+        { data_type: 'dietary_vitamin_b12', value: totals.vitaminB12Mcg, unit: 'mcg' },
+        { data_type: 'dietary_vitamin_c', value: totals.vitaminCMg, unit: 'mg' },
+        { data_type: 'dietary_vitamin_d', value: totals.vitaminDMcg, unit: 'mcg' },
+        { data_type: 'dietary_vitamin_e', value: totals.vitaminEMg, unit: 'mg' },
+        { data_type: 'dietary_vitamin_k', value: totals.vitaminKMcg, unit: 'mcg' },
+        { data_type: 'dietary_thiamin', value: totals.thiaminMg, unit: 'mg' },
+        { data_type: 'dietary_riboflavin', value: totals.riboflavinMg, unit: 'mg' },
+        { data_type: 'dietary_niacin', value: totals.niacinMg, unit: 'mg' },
+        { data_type: 'dietary_folate', value: totals.folateMcg, unit: 'mcg' },
+        { data_type: 'dietary_biotin', value: totals.biotinMcg, unit: 'mcg' },
       ].filter(s => s.value > 0);
       
       // For supplements with zero nutrients (like creatine), still create a dietary_calories entry
