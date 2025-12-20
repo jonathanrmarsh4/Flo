@@ -32,6 +32,20 @@ interface FoodSearchResult {
   caffeineMg?: number;
   waterMl?: number;
   servingDescription?: string;
+  // Vitamins (from Gemini 2.0 Flash photo recognition)
+  vitaminAMcg?: number;
+  vitaminB6Mg?: number;
+  vitaminB12Mcg?: number;
+  vitaminCMg?: number;
+  vitaminDMcg?: number;
+  vitaminEMg?: number;
+  vitaminKMcg?: number;
+  thiaminMg?: number;
+  riboflavinMg?: number;
+  niacinMg?: number;
+  folateMcg?: number;
+  biotinMcg?: number;
+  pantothenicAcidMg?: number;
 }
 
 interface SelectedFood {
@@ -56,6 +70,20 @@ interface SelectedFood {
   cholesterolMg?: number;
   caffeineMg?: number;
   waterMl?: number;
+  // Vitamins
+  vitaminAMcg?: number;
+  vitaminB6Mg?: number;
+  vitaminB12Mcg?: number;
+  vitaminCMg?: number;
+  vitaminDMcg?: number;
+  vitaminEMg?: number;
+  vitaminKMcg?: number;
+  thiaminMg?: number;
+  riboflavinMg?: number;
+  niacinMg?: number;
+  folateMcg?: number;
+  biotinMcg?: number;
+  pantothenicAcidMg?: number;
 }
 
 interface FoodLoggingFlowProps {
@@ -370,6 +398,20 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
       cholesterolMg: food.cholesterolMg || 0,
       caffeineMg: food.caffeineMg || 0,
       waterMl: food.waterMl || 0,
+      // Vitamins from Gemini photo recognition
+      vitaminAMcg: food.vitaminAMcg || 0,
+      vitaminB6Mg: food.vitaminB6Mg || 0,
+      vitaminB12Mcg: food.vitaminB12Mcg || 0,
+      vitaminCMg: food.vitaminCMg || 0,
+      vitaminDMcg: food.vitaminDMcg || 0,
+      vitaminEMg: food.vitaminEMg || 0,
+      vitaminKMcg: food.vitaminKMcg || 0,
+      thiaminMg: food.thiaminMg || 0,
+      riboflavinMg: food.riboflavinMg || 0,
+      niacinMg: food.niacinMg || 0,
+      folateMcg: food.folateMcg || 0,
+      biotinMcg: food.biotinMcg || 0,
+      pantothenicAcidMg: food.pantothenicAcidMg || 0,
     };
     setSelectedFoods(prev => [...prev, selected]);
   }, []);

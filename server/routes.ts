@@ -19290,6 +19290,7 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         vitaminAMcg: number; vitaminB6Mg: number; vitaminB12Mcg: number; vitaminCMg: number;
         vitaminDMcg: number; vitaminEMg: number; vitaminKMcg: number;
         thiaminMg: number; riboflavinMg: number; niacinMg: number; folateMcg: number; biotinMcg: number;
+        pantothenicAcidMg: number;
       }, food: any) => {
         const qty = food.quantity || 1;
         return {
@@ -19322,6 +19323,7 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
           niacinMg: acc.niacinMg + ((food.niacinMg || 0) * qty),
           folateMcg: acc.folateMcg + ((food.folateMcg || 0) * qty),
           biotinMcg: acc.biotinMcg + ((food.biotinMcg || 0) * qty),
+          pantothenicAcidMg: acc.pantothenicAcidMg + ((food.pantothenicAcidMg || 0) * qty),
         };
       }, { 
         calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0,
@@ -19330,6 +19332,7 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         vitaminAMcg: 0, vitaminB6Mg: 0, vitaminB12Mcg: 0, vitaminCMg: 0,
         vitaminDMcg: 0, vitaminEMg: 0, vitaminKMcg: 0,
         thiaminMg: 0, riboflavinMg: 0, niacinMg: 0, folateMcg: 0, biotinMcg: 0,
+        pantothenicAcidMg: 0,
       });
       
       // Store as nutrition samples in healthkit_samples for compatibility with existing meal-glucose correlator
@@ -19364,6 +19367,7 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         { data_type: 'dietary_niacin', value: totals.niacinMg, unit: 'mg' },
         { data_type: 'dietary_folate', value: totals.folateMcg, unit: 'mcg' },
         { data_type: 'dietary_biotin', value: totals.biotinMcg, unit: 'mcg' },
+        { data_type: 'dietaryPantothenicAcid', value: totals.pantothenicAcidMg, unit: 'mg' },
       ].filter(s => s.value > 0);
       
       // For supplements with zero nutrients (like creatine), still create a dietary_calories entry
