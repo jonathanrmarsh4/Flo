@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { FloBottomNav } from "@/components/FloBottomNav";
+import { useTheme } from "@/components/theme-provider";
 import { Sparkles, TrendingUp, Plus, Check, Loader2, Filter, RefreshCw, AlertTriangle, X, Heart, Trash2 } from "lucide-react";
 
 interface DailyInsight {
@@ -27,40 +28,26 @@ interface CorrelationInsight {
   createdAt: string;
 }
 
-const categoryColors = {
-  sleep_quality: {
-    bg: 'from-indigo-500/20 to-purple-500/20',
-    text: 'text-indigo-400',
-    border: 'border-indigo-500/30'
-  },
-  activity_sleep: {
-    bg: 'from-orange-500/20 to-red-500/20',
-    text: 'text-orange-400',
-    border: 'border-orange-500/30'
-  },
-  biomarkers: {
-    bg: 'from-teal-500/20 to-cyan-500/20',
-    text: 'text-teal-400',
-    border: 'border-teal-500/30'
-  },
-  recovery_hrv: {
-    bg: 'from-green-500/20 to-emerald-500/20',
-    text: 'text-green-400',
-    border: 'border-green-500/30'
-  },
-  nutrition: {
-    bg: 'from-amber-500/20 to-yellow-500/20',
-    text: 'text-amber-400',
-    border: 'border-amber-500/30'
-  }
-};
-
-const getCategoryColor = (category: string) => {
-  const colors = categoryColors[category as keyof typeof categoryColors];
-  if (colors) {
-    return `bg-gradient-to-r ${colors.bg} ${colors.text} ${colors.border}`;
-  }
-  return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+const getCategoryColor = (category: string, isDark: boolean) => {
+  const categoryColors = {
+    sleep_quality: isDark 
+      ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+      : 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    activity_sleep: isDark 
+      ? 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+      : 'bg-orange-100 text-orange-700 border-orange-200',
+    biomarkers: isDark 
+      ? 'bg-teal-500/20 text-teal-400 border-teal-500/30'
+      : 'bg-teal-100 text-teal-700 border-teal-200',
+    recovery_hrv: isDark 
+      ? 'bg-green-500/20 text-green-400 border-green-500/30'
+      : 'bg-green-100 text-green-700 border-green-200',
+    nutrition: isDark 
+      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+      : 'bg-amber-100 text-amber-700 border-amber-200'
+  };
+  return categoryColors[category as keyof typeof categoryColors] 
+    || (isDark ? 'bg-gray-500/10 text-gray-400 border-gray-500/20' : 'bg-gray-100 text-gray-700 border-gray-200');
 };
 
 const getCategoryLabel = (category: string) => {
@@ -84,6 +71,7 @@ type CategoryFilter = 'deep_insights' | 'all' | 'sleep_quality' | 'activity_slee
 
 export default function InsightsScreen() {
   const { toast } = useToast();
+  const { isDark } = useTheme();
   const [addedInsights, setAddedInsights] = useState<Set<string>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
 
@@ -183,15 +171,21 @@ export default function InsightsScreen() {
   ];
 
   return (
-    <div className="relative h-full flex flex-col bg-gradient-to-br from-purple-900 via-slate-900 to-slate-800 overflow-hidden">
+    <div className={`relative h-full flex flex-col overflow-hidden ${
+      isDark 
+        ? 'bg-gradient-to-br from-purple-900 via-slate-900 to-slate-800' 
+        : 'bg-gradient-to-br from-slate-50 via-white to-gray-100'
+    }`}>
       <div className="flex flex-col h-full">
         {/* Header with iOS safe area padding */}
-        <div className="flex-shrink-0 px-6 py-6 pt-[env(safe-area-inset-top)] border-b border-white/10">
+        <div className={`flex-shrink-0 px-6 py-6 pt-[env(safe-area-inset-top)] border-b ${
+          isDark ? 'border-white/10' : 'border-gray-200'
+        }`}>
           <div className="mb-4 mt-4">
-            <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-insights">
+            <h1 className={`text-2xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="heading-insights">
               {selectedCategory === 'deep_insights' ? 'Deep Insights' : 'AI Insights'}
             </h1>
-            <p className="text-sm text-white/60">
+            <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
               {selectedCategory === 'deep_insights' 
                 ? `${correlationInsights.length} ML-detected pattern${correlationInsights.length !== 1 ? 's' : ''}`
                 : `${filteredInsights.length} personalized recommendation${filteredInsights.length !== 1 ? 's' : ''}`
@@ -201,7 +195,7 @@ export default function InsightsScreen() {
 
           {/* Category Filter Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-            <Filter className="w-4 h-4 text-white/40 flex-shrink-0" />
+            <Filter className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
             {categoryFilterOptions.map((option) => (
               <button
                 key={option.value}
@@ -209,7 +203,9 @@ export default function InsightsScreen() {
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
                   selectedCategory === option.value
                     ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg'
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    : isDark 
+                      ? 'bg-white/10 text-white/70 hover:bg-white/20' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
                 data-testid={`filter-${option.value}`}
               >
@@ -224,17 +220,17 @@ export default function InsightsScreen() {
           {/* Loading state */}
           {isLoading && (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400"></div>
+              <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDark ? 'border-purple-400' : 'border-purple-600'}`}></div>
             </div>
           )}
 
           {/* Empty state - different for Deep Insights vs regular */}
           {!isLoading && selectedCategory === 'deep_insights' && correlationInsights.length === 0 && (
             <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
-              <AlertTriangle className="w-16 h-16 text-white/20" />
+              <AlertTriangle className={`w-16 h-16 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
               <div>
-                <h3 className="text-lg font-semibold mb-2 text-white">No Deep Insights Yet</h3>
-                <p className="text-sm text-white/60">
+                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>No Deep Insights Yet</h3>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                   Our ML engine is analyzing your health data. Deep insights will appear here when patterns are detected.
                 </p>
               </div>
@@ -243,12 +239,12 @@ export default function InsightsScreen() {
           
           {!isLoading && selectedCategory !== 'deep_insights' && filteredInsights.length === 0 && (
             <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
-              <Sparkles className="w-16 h-16 text-white/20" />
+              <Sparkles className={`w-16 h-16 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
               <div>
-                <h3 className="text-lg font-semibold mb-2 text-white">
+                <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {selectedCategory === 'all' ? 'No Insights Available' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Insights`}
                 </h3>
-                <p className="text-sm text-white/60">
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                   {selectedCategory === 'all' 
                     ? 'Check back tomorrow for personalized AI insights based on your health data.'
                     : 'Try selecting a different category to see more insights.'
@@ -262,8 +258,8 @@ export default function InsightsScreen() {
           {!isLoading && selectedCategory === 'deep_insights' && correlationInsights.length > 0 && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="w-5 h-5 text-amber-400" />
-                <span className="text-sm text-white/70">Machine learning detected patterns</span>
+                <AlertTriangle className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Machine learning detected patterns</span>
               </div>
               {correlationInsights.map((insight) => {
                 const patternType = insight.tags.find(t => t !== 'ml_anomaly') || 'pattern';
@@ -275,37 +271,37 @@ export default function InsightsScreen() {
                     key={insight.id}
                     className={`rounded-2xl border p-5 ${
                       isIllness 
-                        ? 'bg-amber-500/10 border-amber-500/30' 
+                        ? isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'
                         : isRecovery 
-                          ? 'bg-rose-500/10 border-rose-500/30'
-                          : 'bg-cyan-500/10 border-cyan-500/30'
+                          ? isDark ? 'bg-rose-500/10 border-rose-500/30' : 'bg-rose-50 border-rose-200'
+                          : isDark ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-cyan-50 border-cyan-200'
                     }`}
                     data-testid={`card-deep-insight-${insight.id}`}
                   >
                     <div className="flex items-start gap-4">
                       <div className={`p-3 rounded-xl ${
                         isIllness 
-                          ? 'bg-amber-500/20' 
+                          ? isDark ? 'bg-amber-500/20' : 'bg-amber-100'
                           : isRecovery 
-                            ? 'bg-rose-500/20'
-                            : 'bg-cyan-500/20'
+                            ? isDark ? 'bg-rose-500/20' : 'bg-rose-100'
+                            : isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'
                       }`}>
                         {isIllness ? (
-                          <AlertTriangle className={`w-5 h-5 text-amber-500`} />
+                          <AlertTriangle className={`w-5 h-5 ${isDark ? 'text-amber-500' : 'text-amber-600'}`} />
                         ) : isRecovery ? (
-                          <Heart className={`w-5 h-5 text-rose-500`} />
+                          <Heart className={`w-5 h-5 ${isDark ? 'text-rose-500' : 'text-rose-600'}`} />
                         ) : (
-                          <TrendingUp className={`w-5 h-5 text-cyan-500`} />
+                          <TrendingUp className={`w-5 h-5 ${isDark ? 'text-cyan-500' : 'text-cyan-600'}`} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
                           <span className={`px-3 py-1 text-xs font-medium rounded-full ${
                             isIllness 
-                              ? 'bg-amber-500/20 text-amber-400' 
+                              ? isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
                               : isRecovery 
-                                ? 'bg-rose-500/20 text-rose-400'
-                                : 'bg-cyan-500/20 text-cyan-400'
+                                ? isDark ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700'
+                                : isDark ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-700'
                           }`}>
                             {isIllness 
                               ? 'ILLNESS PATTERN' 
@@ -315,19 +311,19 @@ export default function InsightsScreen() {
                           </span>
                           <span className={`px-2 py-0.5 text-xs rounded-full ${
                             insight.importance >= 4 
-                              ? 'bg-red-500/20 text-red-400' 
+                              ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700'
                               : insight.importance >= 3
-                                ? 'bg-amber-500/20 text-amber-400'
-                                : 'bg-white/10 text-white/50'
+                                ? isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
+                                : isDark ? 'bg-white/10 text-white/50' : 'bg-gray-100 text-gray-600'
                           }`}>
                             {insight.importance >= 4 ? 'High Priority' : insight.importance >= 3 ? 'Medium' : 'Low'}
                           </span>
                         </div>
-                        <p className="text-base text-white/90 leading-relaxed mb-3">
+                        <p className={`text-base leading-relaxed mb-3 ${isDark ? 'text-white/90' : 'text-gray-800'}`}>
                           {insight.text}
                         </p>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-white/40">
+                          <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
                             Detected {new Date(insight.createdAt).toLocaleDateString('en-US', { 
                               month: 'short', 
                               day: 'numeric',
@@ -337,7 +333,11 @@ export default function InsightsScreen() {
                           <button
                             onClick={() => deleteCorrelationMutation.mutate(insight.id)}
                             disabled={deleteCorrelationMutation.isPending}
-                            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/50 hover:text-white/80"
+                            className={`p-2 rounded-lg transition-colors ${
+                              isDark 
+                                ? 'hover:bg-white/10 text-white/50 hover:text-white/80' 
+                                : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600'
+                            }`}
                             data-testid={`button-delete-deep-${insight.id}`}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -362,15 +362,19 @@ export default function InsightsScreen() {
                 return (
                   <div
                     key={insight.id}
-                    className="rounded-2xl border border-white/10 p-6 bg-slate-800/40"
+                    className={`rounded-2xl border p-6 ${
+                      isDark 
+                        ? 'border-white/10 bg-slate-800/40' 
+                        : 'border-gray-200 bg-white shadow-sm'
+                    }`}
                     data-testid={`card-insight-${insight.id}`}
                   >
                     {/* Header with icon, title and category */}
                     <div className="flex gap-4 mb-4">
                       {/* Icon */}
                       <div className="flex-shrink-0">
-                        <div className="p-3 rounded-xl bg-teal-500/20">
-                          <Sparkles className="w-5 h-5 text-teal-400" />
+                        <div className={`p-3 rounded-xl ${isDark ? 'bg-teal-500/20' : 'bg-teal-100'}`}>
+                          <Sparkles className={`w-5 h-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
                         </div>
                       </div>
 
@@ -378,13 +382,13 @@ export default function InsightsScreen() {
                       <div className="flex-1 flex flex-col gap-2">
                         <div className="flex items-start justify-between gap-3">
                           <h3
-                            className="text-lg font-semibold text-white flex-1"
+                            className={`text-lg font-semibold flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}
                             data-testid={`text-pattern-${insight.id}`}
                           >
                             {insight.pattern}
                           </h3>
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(insight.category)} flex-shrink-0`}
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(insight.category, isDark)} flex-shrink-0`}
                             data-testid={`badge-category-${insight.id}`}
                           >
                             {getCategoryLabel(insight.category)}
@@ -393,7 +397,7 @@ export default function InsightsScreen() {
 
                         {/* Target label (if applicable) */}
                         {insight.targetBiomarker && (
-                          <div className="text-xs text-white/50">
+                          <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                             Target: {insight.targetBiomarker}
                           </div>
                         )}
@@ -403,10 +407,10 @@ export default function InsightsScreen() {
                     {/* Dialogue boxes - aligned with left margin */}
                     <div className="flex flex-col gap-4">
                       {/* Insight Section */}
-                      <div className="p-4 rounded-xl bg-slate-700/40">
-                        <div className="text-xs text-teal-400 font-medium mb-2">Insight</div>
+                      <div className={`p-4 rounded-xl ${isDark ? 'bg-slate-700/40' : 'bg-gray-50'}`}>
+                        <div className={`text-xs font-medium mb-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>Insight</div>
                         <p
-                          className="text-sm text-white/80"
+                          className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}
                           data-testid={`text-supporting-${insight.id}`}
                         >
                           {insight.supportingData}
@@ -414,10 +418,14 @@ export default function InsightsScreen() {
                       </div>
 
                       {/* Recommended Action Section */}
-                      <div className="p-4 rounded-xl bg-teal-500/10 border border-teal-500/20">
-                        <div className="text-xs text-teal-400 font-medium mb-2">Recommended Action</div>
+                      <div className={`p-4 rounded-xl border ${
+                        isDark 
+                          ? 'bg-teal-500/10 border-teal-500/20' 
+                          : 'bg-teal-50 border-teal-200'
+                      }`}>
+                        <div className={`text-xs font-medium mb-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>Recommended Action</div>
                         <p
-                          className="text-sm text-white/80"
+                          className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}
                           data-testid={`text-action-${insight.id}`}
                         >
                           {insight.action}
@@ -428,21 +436,25 @@ export default function InsightsScreen() {
                       {insight.targetBiomarker && insight.currentValue !== null && insight.targetValue !== null && (
                         <div className="grid grid-cols-2 gap-3">
                           {/* Current Value */}
-                          <div className="p-4 rounded-xl bg-slate-700/60">
-                            <div className="text-xs text-white/50 mb-2">
+                          <div className={`p-4 rounded-xl ${isDark ? 'bg-slate-700/60' : 'bg-gray-100'}`}>
+                            <div className={`text-xs mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                               Current
                             </div>
-                            <div className="text-3xl font-bold text-white">
-                              {insight.currentValue} <span className="text-sm text-white/50 font-normal">{insight.unit}</span>
+                            <div className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {insight.currentValue} <span className={`text-sm font-normal ${isDark ? 'text-white/50' : 'text-gray-500'}`}>{insight.unit}</span>
                             </div>
                           </div>
                           {/* Target Value */}
-                          <div className="p-4 rounded-xl bg-teal-500/20 border border-teal-400/30">
-                            <div className="text-xs text-teal-400 mb-2">
+                          <div className={`p-4 rounded-xl border ${
+                            isDark 
+                              ? 'bg-teal-500/20 border-teal-400/30' 
+                              : 'bg-teal-50 border-teal-200'
+                          }`}>
+                            <div className={`text-xs mb-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
                               Target
                             </div>
-                            <div className="text-3xl font-bold text-teal-400">
-                              {insight.targetValue} <span className="text-sm text-teal-400/70 font-normal">{insight.unit}</span>
+                            <div className={`text-3xl font-bold ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+                              {insight.targetValue} <span className={`text-sm font-normal ${isDark ? 'text-teal-400/70' : 'text-teal-500'}`}>{insight.unit}</span>
                             </div>
                           </div>
                         </div>
@@ -481,13 +493,13 @@ export default function InsightsScreen() {
 
           {/* ML Detected Patterns Section - only show at bottom when NOT in Deep Insights view */}
           {selectedCategory !== 'deep_insights' && correlationInsights.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-white/10">
+            <div className={`mt-8 pt-6 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle className="w-5 h-5 text-amber-400" />
-                <h2 className="text-lg font-semibold text-white">ML Detected Patterns</h2>
-                <span className="text-xs text-white/50">({correlationInsights.length})</span>
+                <AlertTriangle className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>ML Detected Patterns</h2>
+                <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>({correlationInsights.length})</span>
               </div>
-              <p className="text-sm text-white/60 mb-4">
+              <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                 Health patterns detected by our machine learning engine based on your data.
               </p>
               <div className="flex flex-col gap-3">
@@ -501,32 +513,32 @@ export default function InsightsScreen() {
                       key={insight.id}
                       className={`rounded-xl border p-4 ${
                         isIllness 
-                          ? 'bg-amber-500/10 border-amber-500/30' 
+                          ? isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'
                           : isRecovery 
-                            ? 'bg-rose-500/10 border-rose-500/30'
-                            : 'bg-cyan-500/10 border-cyan-500/30'
+                            ? isDark ? 'bg-rose-500/10 border-rose-500/30' : 'bg-rose-50 border-rose-200'
+                            : isDark ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-cyan-50 border-cyan-200'
                       }`}
                       data-testid={`card-correlation-${insight.id}`}
                     >
                       <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-lg ${
                           isIllness 
-                            ? 'bg-amber-500/20' 
+                            ? isDark ? 'bg-amber-500/20' : 'bg-amber-100'
                             : isRecovery 
-                              ? 'bg-rose-500/20'
-                              : 'bg-cyan-500/20'
+                              ? isDark ? 'bg-rose-500/20' : 'bg-rose-100'
+                              : isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'
                         }`}>
                           {isIllness ? (
-                            <AlertTriangle className={`w-4 h-4 text-amber-500`} />
+                            <AlertTriangle className={`w-4 h-4 ${isDark ? 'text-amber-500' : 'text-amber-600'}`} />
                           ) : isRecovery ? (
-                            <Heart className={`w-4 h-4 text-rose-500`} />
+                            <Heart className={`w-4 h-4 ${isDark ? 'text-rose-500' : 'text-rose-600'}`} />
                           ) : (
-                            <TrendingUp className={`w-4 h-4 text-cyan-500`} />
+                            <TrendingUp className={`w-4 h-4 ${isDark ? 'text-cyan-500' : 'text-cyan-600'}`} />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium text-white/60">
+                            <span className={`text-xs font-medium ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
                               {isIllness 
                                 ? 'ILLNESS PATTERN' 
                                 : isRecovery 
@@ -535,19 +547,19 @@ export default function InsightsScreen() {
                             </span>
                             <span className={`px-2 py-0.5 text-xs rounded-full ${
                               insight.importance >= 4 
-                                ? 'bg-red-500/20 text-red-400' 
+                                ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700'
                                 : insight.importance >= 3
-                                  ? 'bg-amber-500/20 text-amber-400'
-                                  : 'bg-white/10 text-white/50'
+                                  ? isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
+                                  : isDark ? 'bg-white/10 text-white/50' : 'bg-gray-100 text-gray-600'
                             }`}>
                               {insight.importance >= 4 ? 'High' : insight.importance >= 3 ? 'Medium' : 'Low'}
                             </span>
                           </div>
-                          <p className="text-sm text-white/90 leading-relaxed">
+                          <p className={`text-sm leading-relaxed ${isDark ? 'text-white/90' : 'text-gray-800'}`}>
                             {insight.text}
                           </p>
                           <div className="flex items-center justify-between mt-3">
-                            <span className="text-xs text-white/40">
+                            <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
                               {new Date(insight.createdAt).toLocaleDateString('en-US', { 
                                 month: 'short', 
                                 day: 'numeric',
@@ -557,7 +569,11 @@ export default function InsightsScreen() {
                             <button
                               onClick={() => deleteCorrelationMutation.mutate(insight.id)}
                               disabled={deleteCorrelationMutation.isPending}
-                              className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/50 hover:text-white/80"
+                              className={`p-2 rounded-lg transition-colors ${
+                                isDark 
+                                  ? 'hover:bg-white/10 text-white/50 hover:text-white/80' 
+                                  : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600'
+                              }`}
                               data-testid={`button-delete-correlation-${insight.id}`}
                             >
                               <Trash2 className="w-4 h-4" />

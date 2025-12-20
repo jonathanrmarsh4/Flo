@@ -77,12 +77,12 @@ export function WhyModal({
         onClick={onClose}
       >
         <div 
-          className={`w-full max-w-xl pointer-events-auto backdrop-blur-3xl rounded-[32px] border shadow-2xl transform transition-all duration-500 ${
+          className={`w-full max-w-xl pointer-events-auto rounded-[32px] border shadow-2xl transform transition-all duration-500 ${
             isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-90 opacity-0 translate-y-8'
           } ${
             isDark 
-              ? 'bg-gradient-to-br from-slate-900/98 via-blue-950/98 to-purple-950/98 border-white/20' 
-              : 'bg-gradient-to-br from-white/98 via-blue-50/98 to-purple-50/98 border-black/10'
+              ? 'backdrop-blur-3xl bg-gradient-to-br from-slate-900/98 via-blue-950/98 to-purple-950/98 border-white/20' 
+              : 'bg-white border-gray-200'
           }`}
           onClick={(e) => e.stopPropagation()}
           data-testid="why-modal"
@@ -90,7 +90,7 @@ export function WhyModal({
             maxHeight: '90vh',
             boxShadow: isDark 
               ? '0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 120px -10px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)' 
-              : '0 30px 60px -15px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+              : '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
           }}
         >
           {/* Header */}
