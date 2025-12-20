@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { format, addMonths } from "date-fns";
 import { TrendingUp } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useTheme } from "@/components/theme-provider";
 
 interface BiomarkerProgressChartProps {
   actionItemId: string;
@@ -27,6 +28,7 @@ export function BiomarkerProgressChart({
   unit,
   timePeriod,
 }: BiomarkerProgressChartProps) {
+  const { isDark } = useTheme();
   const { data, isLoading } = useQuery<{ dataPoints: DataPoint[] }>({
     queryKey: ['/api/action-plan', actionItemId, 'progress', timePeriod],
     queryFn: async () => {
@@ -107,10 +109,12 @@ export function BiomarkerProgressChart({
   // Show loading/empty state
   if (isLoading) {
     return (
-      <div className="h-56 rounded-xl bg-slate-800/40 border border-white/10 p-4 flex items-center justify-center">
+      <div className={`h-56 rounded-xl p-4 flex items-center justify-center ${
+        isDark ? 'bg-slate-800/40 border border-white/10' : 'bg-gray-100/80 border border-gray-200'
+      }`}>
         <div className="text-center">
-          <TrendingUp className="w-10 h-10 text-white/20 mx-auto mb-2 animate-pulse" />
-          <p className="text-xs text-white/40">Loading progress data...</p>
+          <TrendingUp className={`w-10 h-10 mx-auto mb-2 animate-pulse ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
+          <p className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Loading progress data...</p>
         </div>
       </div>
     );
@@ -126,11 +130,13 @@ export function BiomarkerProgressChart({
   // If we have neither actual data nor forecast data, show empty state
   if (!hasActualData && !hasForecastData) {
     return (
-      <div className="h-56 rounded-xl bg-slate-800/40 border border-white/10 p-4 flex flex-col">
+      <div className={`h-56 rounded-xl p-4 flex flex-col ${
+        isDark ? 'bg-slate-800/40 border border-white/10' : 'bg-gray-100/80 border border-gray-200'
+      }`}>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <TrendingUp className="w-10 h-10 text-white/20 mx-auto mb-2" />
-            <p className="text-xs text-white/40">
+            <TrendingUp className={`w-10 h-10 mx-auto mb-2 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
+            <p className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
               No progress data yet. Upload new lab work or sync HealthKit data to track your progress.
             </p>
           </div>
@@ -154,17 +160,29 @@ export function BiomarkerProgressChart({
   const yMin = Math.floor(minValue - padding);
   const yMax = Math.ceil(maxValue + padding);
 
+  // Theme-aware chart colors
+  const chartColors = {
+    grid: isDark ? '#334155' : '#e5e7eb',
+    axis: isDark ? '#94a3b8' : '#6b7280',
+    axisLine: isDark ? '#475569' : '#d1d5db',
+    tooltipBg: isDark ? '#1e293b' : '#ffffff',
+    tooltipBorder: isDark ? '#334155' : '#e5e7eb',
+    tooltipText: isDark ? '#f1f5f9' : '#374151',
+  };
+
   return (
-    <div className="rounded-xl bg-slate-800/40 border border-white/10 p-4" data-testid={`chart-${actionItemId}`}>
+    <div className={`rounded-xl p-4 ${
+      isDark ? 'bg-slate-800/40 border border-white/10' : 'bg-gray-100/80 border border-gray-200'
+    }`} data-testid={`chart-${actionItemId}`}>
       {/* Chart Legend */}
       <div className="flex items-center justify-center gap-6 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-3 h-0.5 bg-purple-400"></div>
-          <span className="text-xs text-white/60">Actual Progress</span>
+          <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Actual Progress</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-0.5 bg-teal-400 border-dashed"></div>
-          <span className="text-xs text-white/60">Forecast</span>
+          <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Forecast</span>
         </div>
       </div>
 
@@ -174,33 +192,33 @@ export function BiomarkerProgressChart({
           data={chartDataToUse}
           margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} opacity={0.3} />
           
           <XAxis
             dataKey="displayDate"
-            stroke="#94a3b8"
-            tick={{ fill: '#94a3b8', fontSize: 11 }}
+            stroke={chartColors.axis}
+            tick={{ fill: chartColors.axis, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: '#475569' }}
+            axisLine={{ stroke: chartColors.axisLine }}
           />
           
           <YAxis
             domain={[yMin, yMax]}
-            stroke="#94a3b8"
-            tick={{ fill: '#94a3b8', fontSize: 11 }}
+            stroke={chartColors.axis}
+            tick={{ fill: chartColors.axis, fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: '#475569' }}
-            label={{ value: unit, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 }}
+            axisLine={{ stroke: chartColors.axisLine }}
+            label={{ value: unit, angle: -90, position: 'insideLeft', fill: chartColors.axis, fontSize: 10 }}
           />
           
           <Tooltip
             contentStyle={{
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
+              backgroundColor: chartColors.tooltipBg,
+              border: `1px solid ${chartColors.tooltipBorder}`,
               borderRadius: '8px',
               padding: '8px',
             }}
-            labelStyle={{ color: '#f1f5f9', fontSize: '12px' }}
+            labelStyle={{ color: chartColors.tooltipText, fontSize: '12px' }}
             itemStyle={{ fontSize: '12px' }}
           />
           

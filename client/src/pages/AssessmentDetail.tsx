@@ -706,25 +706,27 @@ export default function AssessmentDetail() {
       <main className="overflow-y-auto px-4 py-6 pb-32" style={{ height: 'calc(100vh - 80px)' }}>
         {/* Progress Card */}
         {experiment.status === 'active' && (
-          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+          <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-white/70 text-sm">Assessment Progress</span>
-              <span className="text-white font-medium">Day {daysElapsed + 1} of {experiment.experiment_days}</span>
+              <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Assessment Progress</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Day {daysElapsed + 1} of {experiment.experiment_days}</span>
             </div>
-            <Progress value={progress} className="h-2 bg-white/10" />
-            <p className="text-xs text-white/50 mt-2">
+            <Progress value={progress} className={`h-2 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+            <p className={`text-xs mt-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
               {experiment.experiment_days - daysElapsed} days remaining
             </p>
             
             {/* Tracking For badges */}
             {supplementConfig && (
               <div className="mt-4">
-                <p className="text-xs uppercase tracking-wide mb-2 text-white/50">Tracking For</p>
+                <p className={`text-xs uppercase tracking-wide mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Tracking For</p>
                 <div className="flex flex-wrap gap-2">
                   {supplementConfig.subjectiveMetrics.slice(0, 4).map((m) => (
                     <span 
                       key={m.metric}
-                      className="px-3 py-1 rounded-full text-xs bg-purple-500/10 text-purple-300 border border-purple-500/30"
+                      className={`px-3 py-1 rounded-full text-xs border ${
+                        isDark ? 'bg-purple-500/10 text-purple-300 border-purple-500/30' : 'bg-purple-100 text-purple-700 border-purple-200'
+                      }`}
                     >
                       {m.metric}
                     </span>
@@ -737,15 +739,15 @@ export default function AssessmentDetail() {
 
         {/* Z-SCORE DEVIATION PLOT (Control Chart) */}
         {(experiment.status === 'baseline' || experiment.status === 'active' || experiment.status === 'completed') && (
-          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+          <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
             <div className="flex items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                  <Activity className="w-5 h-5 text-purple-400" />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
+                  <Activity className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
                 </div>
                 <div>
-                  <h3 className="text-white font-medium">{supplementConfig?.name || 'Supplement'} Impact</h3>
-                  <p className="text-xs text-white/60">
+                  <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{supplementConfig?.name || 'Supplement'} Impact</h3>
+                  <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                     {experiment.status === 'baseline' 
                       ? 'Collecting baseline data before supplement starts' 
                       : 'Deviation from your normal (Up = Better)'}
@@ -754,7 +756,7 @@ export default function AssessmentDetail() {
               </div>
               {chartData.length > 0 && (
                 <WhyButton 
-                  isDark={true} 
+                  isDark={isDark} 
                   onClick={() => {
                     setShowWhyModal(true);
                     // Only fetch if we don't already have data
@@ -768,9 +770,9 @@ export default function AssessmentDetail() {
             
             {chartData.length === 0 ? (
               <div className="h-40 flex flex-col items-center justify-center text-center">
-                <BarChart3 className="w-10 h-10 text-white/20 mb-3" />
-                <p className="text-white/60 text-sm">No data recorded yet</p>
-                <p className="text-white/40 text-xs mt-1">
+                <BarChart3 className={`w-10 h-10 mb-3 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>No data recorded yet</p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
                   {experiment.status === 'baseline' 
                     ? 'Complete your first check-in to start tracking'
                     : 'Need at least 2 days of baseline data to calculate deviations'}
@@ -783,7 +785,7 @@ export default function AssessmentDetail() {
                     <LineChart data={chartData} margin={{ top: 10, right: 15, left: 5, bottom: 5 }}>
                       <XAxis 
                         dataKey="date" 
-                        stroke="#ffffff40" 
+                        stroke={isDark ? "#ffffff40" : "#9ca3af"} 
                         fontSize={10}
                         tickLine={false}
                         axisLine={false}
@@ -791,7 +793,7 @@ export default function AssessmentDetail() {
                       {/* Single Y-axis: Z-score from -3 to +3 */}
                       <YAxis 
                         domain={[-3, 3]} 
-                        stroke="#ffffff40" 
+                        stroke={isDark ? "#ffffff40" : "#9ca3af"} 
                         fontSize={10}
                         tickLine={false}
                         axisLine={false}
@@ -810,13 +812,13 @@ export default function AssessmentDetail() {
                       {/* Center reference line at 0 = "Normal" baseline */}
                       <ReferenceLine 
                         y={0} 
-                        stroke="#ffffff50" 
+                        stroke={isDark ? "#ffffff50" : "#9ca3af"} 
                         strokeDasharray="8 4" 
                         strokeWidth={2}
                         label={{ 
                           value: 'Baseline', 
                           position: 'right', 
-                          fill: '#ffffff60', 
+                          fill: isDark ? '#ffffff60' : '#6b7280', 
                           fontSize: 10 
                         }}
                       />
@@ -872,7 +874,7 @@ export default function AssessmentDetail() {
                 </div>
                 
                 {/* Legend - matching the JSON spec */}
-                <div className="mt-4 pt-3 border-t border-white/10">
+                <div className={`mt-4 pt-3 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                   <div className="flex flex-wrap items-center gap-4">
                     {/* Objective line legend */}
                     <div className="flex items-center gap-2">
@@ -888,12 +890,12 @@ export default function AssessmentDetail() {
                     
                     {/* Baseline legend */}
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-0.5 border-t-2 border-dashed border-white/50" />
-                      <span className="text-xs text-white/50">Your Normal</span>
+                      <div className={`w-6 h-0.5 border-t-2 border-dashed ${isDark ? 'border-white/50' : 'border-gray-400'}`} />
+                      <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Your Normal</span>
                     </div>
                   </div>
                   
-                  <p className="text-[10px] text-white/30 mt-3">
+                  <p className={`text-[10px] mt-3 ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
                     Z-score normalized: Up always means improvement. Chart shows deviation from your baseline average.
                   </p>
                 </div>
@@ -904,30 +906,30 @@ export default function AssessmentDetail() {
 
         {/* AI Analysis Section */}
         {aiAnalysis && (aiAnalysis.improved.length > 0 || aiAnalysis.noChange.length > 0 || aiAnalysis.declined.length > 0) && (
-          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+          <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                <Brain className="w-5 h-5 text-cyan-400" />
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'}`}>
+                <Brain className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
               </div>
               <div>
-                <h3 className="text-white font-medium">AI Analysis</h3>
-                <p className="text-xs text-white/60">Early trend detection</p>
+                <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>AI Analysis</h3>
+                <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Early trend detection</p>
               </div>
             </div>
             
             <div className="space-y-3">
               {/* Improved Metrics */}
               {aiAnalysis.improved.length > 0 && (
-                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                <div className={`p-3 rounded-lg border ${isDark ? 'bg-green-500/10 border-green-500/20' : 'bg-green-50 border-green-200'}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-4 h-4 text-green-400" />
-                    <span className="text-sm font-medium text-green-400">Improved</span>
+                    <TrendingUp className={`w-4 h-4 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                    <span className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-700'}`}>Improved</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {aiAnalysis.improved.map((item) => (
                       <div key={item.name} className="flex items-center gap-1.5">
-                        <span className="text-sm text-white/80">{item.name}</span>
-                        <span className="text-xs text-green-400">+{(item.change ?? 0).toFixed(0)}%</span>
+                        <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>{item.name}</span>
+                        <span className={`text-xs ${isDark ? 'text-green-400' : 'text-green-600'}`}>+{(item.change ?? 0).toFixed(0)}%</span>
                       </div>
                     ))}
                   </div>
@@ -936,14 +938,14 @@ export default function AssessmentDetail() {
 
               {/* No Change Metrics */}
               {aiAnalysis.noChange.length > 0 && (
-                <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                <div className={`p-3 rounded-lg border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <Minus className="w-4 h-4 text-white/60" />
-                    <span className="text-sm font-medium text-white/60">No Change</span>
+                    <Minus className={`w-4 h-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`} />
+                    <span className={`text-sm font-medium ${isDark ? 'text-white/60' : 'text-gray-600'}`}>No Change</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {aiAnalysis.noChange.map((item) => (
-                      <span key={item.name} className="text-sm text-white/60">{item.name}</span>
+                      <span key={item.name} className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>{item.name}</span>
                     ))}
                   </div>
                 </div>
@@ -951,16 +953,16 @@ export default function AssessmentDetail() {
 
               {/* Declined Metrics */}
               {aiAnalysis.declined.length > 0 && (
-                <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <div className={`p-3 rounded-lg border ${isDark ? 'bg-orange-500/10 border-orange-500/20' : 'bg-orange-50 border-orange-200'}`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingDown className="w-4 h-4 text-orange-400" />
-                    <span className="text-sm font-medium text-orange-400">Declined</span>
+                    <TrendingDown className={`w-4 h-4 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+                    <span className={`text-sm font-medium ${isDark ? 'text-orange-400' : 'text-orange-700'}`}>Declined</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {aiAnalysis.declined.map((item) => (
                       <div key={item.name} className="flex items-center gap-1.5">
-                        <span className="text-sm text-white/80">{item.name}</span>
-                        <span className="text-xs text-orange-400">{(item.change ?? 0).toFixed(0)}%</span>
+                        <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>{item.name}</span>
+                        <span className={`text-xs ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>{(item.change ?? 0).toFixed(0)}%</span>
                       </div>
                     ))}
                   </div>
@@ -968,7 +970,7 @@ export default function AssessmentDetail() {
               )}
             </div>
 
-            <p className="text-[10px] text-white/40 mt-3">
+            <p className={`text-[10px] mt-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
               Analysis based on first half vs. second half comparison. More data = more accurate.
             </p>
           </Card>
@@ -977,30 +979,30 @@ export default function AssessmentDetail() {
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <Card className="p-6 bg-slate-900 border-white/20 max-w-sm w-full">
+            <Card className={`p-6 max-w-sm w-full ${isDark ? 'bg-slate-900 border-white/20' : 'bg-white border-gray-200'}`}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-red-400" />
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                  <AlertTriangle className={`w-6 h-6 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
                 </div>
                 <div>
-                  <h3 className="text-white font-medium">Delete Assessment?</h3>
-                  <p className="text-sm text-white/60">This action cannot be undone</p>
+                  <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Delete Assessment?</h3>
+                  <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>This action cannot be undone</p>
                 </div>
               </div>
-              <p className="text-white/70 text-sm mb-6">
+              <p className={`text-sm mb-6 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                 Are you sure you want to delete this assessment? All progress and check-in data will be lost.
               </p>
               <div className="flex gap-3">
                 <Button
                   variant="outline"
-                  className="flex-1 border-white/20 text-white hover:bg-white/10"
+                  className={`flex-1 ${isDark ? 'border-white/20 text-white hover:bg-white/10' : ''}`}
                   onClick={() => setShowDeleteConfirm(false)}
                   data-testid="button-cancel-delete"
                 >
                   Cancel
                 </Button>
                 <Button
-                  className="flex-1 bg-red-500 hover:bg-red-600"
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white"
                   onClick={() => deleteAssessmentMutation.mutate()}
                   disabled={deleteAssessmentMutation.isPending}
                   data-testid="button-confirm-delete"
@@ -1014,19 +1016,19 @@ export default function AssessmentDetail() {
 
         {/* Action Buttons */}
         {experiment.status === 'pending' && (
-          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+          <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                <FlaskConical className="w-6 h-6 text-cyan-400" />
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'}`}>
+                <FlaskConical className={`w-6 h-6 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
               </div>
               <div className="flex-1">
-                <h3 className="text-white font-medium">Ready to Start</h3>
-                <p className="text-sm text-white/70">Begin your assessment when you're ready</p>
+                <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Ready to Start</h3>
+                <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Begin your assessment when you're ready</p>
               </div>
             </div>
             <div className="flex gap-3">
               <Button
-                className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500"
+                className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
                 onClick={() => startAssessmentMutation.mutate()}
                 disabled={startAssessmentMutation.isPending}
                 data-testid="button-start-assessment"
@@ -1048,15 +1050,15 @@ export default function AssessmentDetail() {
 
         {/* Assessment Controls (for active/paused assessments) */}
         {(experiment.status === 'active' || experiment.status === 'paused') && (
-          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+          <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                  <FlaskConical className="w-5 h-5 text-white/60" />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
+                  <FlaskConical className={`w-5 h-5 ${isDark ? 'text-white/60' : 'text-gray-500'}`} />
                 </div>
                 <div>
-                  <h3 className="text-white font-medium">Assessment Controls</h3>
-                  <p className="text-xs text-white/60">Manage your assessment</p>
+                  <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Assessment Controls</h3>
+                  <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Manage your assessment</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1103,20 +1105,20 @@ export default function AssessmentDetail() {
 
         {/* Daily Check-in */}
         {experiment.status === 'active' && !showCheckinForm && (
-          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+          <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
-                  <MessageSquare className="w-5 h-5 text-green-400" />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
+                  <MessageSquare className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
                 </div>
                 <div>
-                  <h3 className="text-white font-medium">Daily Check-in</h3>
-                  <p className="text-xs text-white/60">{checkins.length} check-ins recorded</p>
+                  <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Daily Check-in</h3>
+                  <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-500'}`}>{checkins.length} check-ins recorded</p>
                 </div>
               </div>
               <Button
                 size="sm"
-                className="bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                className={isDark ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-green-100 text-green-700 hover:bg-green-200'}
                 onClick={() => setShowCheckinForm(true)}
                 data-testid="button-open-checkin"
               >
@@ -1128,14 +1130,14 @@ export default function AssessmentDetail() {
 
         {/* Check-in Form */}
         {showCheckinForm && (
-          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+          <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-medium">Today's Check-in</h3>
+              <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Today's Check-in</h3>
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={() => setShowCheckinForm(false)}
-                className="text-white/60 hover:text-white"
+                className={isDark ? 'text-white/60 hover:text-white' : 'text-gray-500 hover:text-gray-700'}
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -1145,8 +1147,8 @@ export default function AssessmentDetail() {
               {subjectiveMetrics.map((metric) => (
                 <div key={metric.metric_name}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-white/70 text-sm">{metric.metric_name}</span>
-                    <span className="text-white font-medium">
+                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>{metric.metric_name}</span>
+                    <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       {checkinRatings[metric.metric_name] || 5}/10
                     </span>
                   </div>
@@ -1162,18 +1164,18 @@ export default function AssessmentDetail() {
               ))}
 
               <div>
-                <span className="text-white/70 text-sm">Notes (optional)</span>
+                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Notes (optional)</span>
                 <Textarea
                   value={checkinNotes}
                   onChange={(e) => setCheckinNotes(e.target.value)}
                   placeholder="How are you feeling today?"
-                  className="mt-1 bg-white/5 border-white/20 text-white placeholder:text-white/30"
+                  className={`mt-1 ${isDark ? 'bg-white/5 border-white/20 text-white placeholder:text-white/30' : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'}`}
                   data-testid="input-checkin-notes"
                 />
               </div>
 
               <Button
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
                 onClick={() => submitCheckinMutation.mutate()}
                 disabled={submitCheckinMutation.isPending}
                 data-testid="button-submit-checkin"
@@ -1186,14 +1188,14 @@ export default function AssessmentDetail() {
 
         {/* Results (if completed) */}
         {experiment.status === 'completed' && resultsData?.results && (
-          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+          <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                <BarChart3 className="w-5 h-5 text-cyan-400" />
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'}`}>
+                <BarChart3 className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
               </div>
               <div>
-                <h3 className="text-white font-medium">Assessment Results</h3>
-                <p className="text-xs text-white/60">Analysis complete</p>
+                <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Assessment Results</h3>
+                <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Analysis complete</p>
               </div>
             </div>
 
@@ -1227,7 +1229,7 @@ export default function AssessmentDetail() {
                     : 'No Clear Effect'}
                 </span>
               </div>
-              <p className="text-sm text-white/60 mt-2">
+              <p className={`text-sm mt-2 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                 Effect Size: {(resultsData.results.overall_effect_size ?? 0).toFixed(2)} | 
                 Confidence: {Math.round((resultsData.results.confidence_level || 0.7) * 100)}%
               </p>
@@ -1236,12 +1238,12 @@ export default function AssessmentDetail() {
             {/* Individual Metrics */}
             <div className="space-y-3">
               {resultsData.results.metric_results.map((metric) => (
-                <div key={metric.metric_name} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                  <span className="text-white/70 text-sm">{metric.metric_name}</span>
+                <div key={metric.metric_name} className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>{metric.metric_name}</span>
                   <div className="text-right">
                     <span className={`text-sm font-medium ${
-                      metric.verdict === 'strong_evidence' ? 'text-green-400' :
-                      metric.verdict === 'moderate_evidence' ? 'text-yellow-400' : 'text-white/60'
+                      metric.verdict === 'strong_evidence' ? (isDark ? 'text-green-400' : 'text-green-600') :
+                      metric.verdict === 'moderate_evidence' ? (isDark ? 'text-yellow-400' : 'text-yellow-600') : (isDark ? 'text-white/60' : 'text-gray-500')
                     }`}>
                       {(metric.effect_size ?? 0) > 0 ? '+' : ''}{(metric.effect_size ?? 0).toFixed(2)}
                     </span>
@@ -1251,32 +1253,32 @@ export default function AssessmentDetail() {
             </div>
 
             {resultsData.results.ai_summary && (
-              <div className="mt-4 p-3 bg-white/5 rounded-lg">
-                <p className="text-sm text-white/70">{resultsData.results.ai_summary}</p>
+              <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>{resultsData.results.ai_summary}</p>
               </div>
             )}
           </Card>
         )}
 
         {/* Assessment Details */}
-        <Card className="p-4 bg-white/5 border-white/10 mb-4">
-          <h3 className="text-white font-medium mb-3">Assessment Details</h3>
+        <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
+          <h3 className={`font-medium mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>Assessment Details</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-white/60 text-sm">Dosage</span>
-              <span className="text-white">{experiment.dosage_amount}{experiment.dosage_unit}</span>
+              <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Dosage</span>
+              <span className={isDark ? 'text-white' : 'text-gray-900'}>{experiment.dosage_amount}{experiment.dosage_unit}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-white/60 text-sm">Timing</span>
-              <span className="text-white capitalize">{experiment.dosage_timing}</span>
+              <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Timing</span>
+              <span className={`capitalize ${isDark ? 'text-white' : 'text-gray-900'}`}>{experiment.dosage_timing}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-white/60 text-sm">Duration</span>
-              <span className="text-white">{experiment.experiment_days} days</span>
+              <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Duration</span>
+              <span className={isDark ? 'text-white' : 'text-gray-900'}>{experiment.experiment_days} days</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-white/60 text-sm">Started</span>
-              <span className="text-white">
+              <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Started</span>
+              <span className={isDark ? 'text-white' : 'text-gray-900'}>
                 {experiment.experiment_start_date 
                   ? new Date(experiment.experiment_start_date).toLocaleDateString()
                   : 'Not started'
@@ -1288,18 +1290,18 @@ export default function AssessmentDetail() {
 
         {/* Check-in History */}
         {checkins.length > 0 && (
-          <Card className="p-4 bg-white/5 border-white/10">
-            <h3 className="text-white font-medium mb-3">Recent Check-ins</h3>
+          <Card className={`p-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
+            <h3 className={`font-medium mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>Recent Check-ins</h3>
             <div className="space-y-2">
               {checkins.slice(0, 5).map((checkin) => (
-                <div key={checkin.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                <div key={checkin.id} className={`flex items-center justify-between p-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-white/40" />
-                    <span className="text-sm text-white/70">
+                    <Calendar className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                       {new Date(checkin.checkin_date).toLocaleDateString()}
                     </span>
                   </div>
-                  <Badge className="bg-white/10 text-white/60 border-0 text-xs">
+                  <Badge className={`border-0 text-xs ${isDark ? 'bg-white/10 text-white/60' : 'bg-gray-100 text-gray-600'}`}>
                     {checkin.phase}
                   </Badge>
                 </div>
@@ -1316,19 +1318,25 @@ export default function AssessmentDetail() {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={handleCloseWhyModal}
           />
-          <div className="relative w-full max-w-md bg-slate-900 rounded-2xl shadow-2xl border border-white/10 max-h-[80vh] overflow-y-auto">
-            <div className="sticky top-0 bg-slate-900 border-b border-white/10 p-4 flex items-center justify-between">
+          <div className={`relative w-full max-w-md rounded-2xl shadow-2xl border max-h-[80vh] overflow-y-auto ${
+            isDark ? 'bg-slate-900 border-white/10' : 'bg-white border-gray-200'
+          }`}>
+            <div className={`sticky top-0 border-b p-4 flex items-center justify-between ${
+              isDark ? 'bg-slate-900 border-white/10' : 'bg-white border-gray-200'
+            }`}>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <Brain className="w-4 h-4 text-purple-400" />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  isDark ? 'bg-purple-500/20' : 'bg-purple-100'
+                }`}>
+                  <Brain className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
                 </div>
-                <h3 className="text-white font-medium">Understanding Your Progress</h3>
+                <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Understanding Your Progress</h3>
               </div>
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={handleCloseWhyModal}
-                className="text-white/70 hover:text-white hover:bg-white/10"
+                className={isDark ? 'text-white/70 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}
                 data-testid="button-close-why-modal"
               >
                 <X className="w-5 h-5" />
@@ -1337,31 +1345,31 @@ export default function AssessmentDetail() {
             <div className="p-4">
               {explainMutation.isPending ? (
                 <div className="flex flex-col items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-purple-400 mb-4" />
-                  <p className="text-white/60 text-sm">Analyzing your experiment data...</p>
+                  <Loader2 className={`w-8 h-8 animate-spin mb-4 ${isDark ? 'text-purple-400' : 'text-purple-500'}`} />
+                  <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Analyzing your experiment data...</p>
                 </div>
               ) : explainMutation.isError ? (
                 <div className="text-center py-8">
                   <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-3" />
-                  <p className="text-white/70">Unable to generate explanation at this time.</p>
+                  <p className={isDark ? 'text-white/70' : 'text-gray-600'}>Unable to generate explanation at this time.</p>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => explainMutation.mutate()}
-                    className="mt-3 text-purple-400 hover:text-purple-300"
+                    className={`mt-3 ${isDark ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-700'}`}
                   >
                     Try Again
                   </Button>
                 </div>
               ) : explainMutation.data ? (
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <p className="text-white/80 leading-relaxed whitespace-pre-wrap">{explainMutation.data}</p>
+                <div className={`prose prose-sm max-w-none ${isDark ? 'prose-invert' : ''}`}>
+                  <p className={`leading-relaxed whitespace-pre-wrap ${isDark ? 'text-white/80' : 'text-gray-700'}`}>{explainMutation.data}</p>
                 </div>
               ) : (
-                <p className="text-white/60 text-center py-8">No explanation available</p>
+                <p className={`text-center py-8 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>No explanation available</p>
               )}
             </div>
-            <div className="p-4 border-t border-white/10 space-y-3">
+            <div className={`p-4 border-t space-y-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               {/* Discuss with Flō Button */}
               {explainMutation.data && (
                 <Button
@@ -1378,7 +1386,7 @@ export default function AssessmentDetail() {
                   Discuss with Flō
                 </Button>
               )}
-              <p className="text-xs text-white/40 text-center">
+              <p className={`text-xs text-center ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
                 This is educational information, not medical advice. Always consult your healthcare provider for diagnosis and treatment decisions.
               </p>
             </div>
