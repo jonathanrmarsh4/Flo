@@ -19602,8 +19602,8 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       const now = new Date();
       const mealId = crypto.randomUUID();
       
-      const { getHealthIdForUser } = await import('./services/supabaseHealthStorage');
-      const healthId = await getHealthIdForUser(userId);
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const healthId = await getHealthId(userId);
       if (!healthId) {
         return res.status(400).json({ message: 'User profile not found' });
       }
