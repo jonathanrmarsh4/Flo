@@ -7,7 +7,8 @@ import { BottomNav } from './BottomNav';
 import { CGMScreen } from './CGMScreen';
 import { DataSourceBadge } from '@/components/DataSourceBadge';
 import { RecoveryTab, type RecoverySession, type RecoveryStats, type SaunaSessionData, type IceBathSessionData } from '@/components/recovery';
-import { TodaysMealsCard } from '@/components/nutrition/TodaysMealsCard';
+import { TodaysMealsCard, type LoggedMeal } from '@/components/nutrition/TodaysMealsCard';
+import { SavedMealsCard, type SavedMeal } from '@/components/nutrition/SavedMealsCard';
 import { FoodLoggingFlow } from '@/components/nutrition/FoodLoggingFlow';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -999,7 +1000,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
   );
 }
 
-interface LoggedMeal {
+interface LocalLoggedMeal {
   id: string;
   meal: string;
   dateTime: Date;
@@ -1024,27 +1025,126 @@ interface LoggedMeal {
 function NutritionTabContent({ isDark }: { isDark: boolean }) {
   const [showMacrosDetails, setShowMacrosDetails] = useState(false);
   const [showMealDetails, setShowMealDetails] = useState<Date | null>(null);
+  const { toast } = useToast();
   
   const { data: nutritionData, isLoading } = useQuery<NutritionDaily[]>({
     queryKey: ['/api/nutrition/daily'],
   });
 
   // Fetch today's logged meals
-  const { data: mealsData } = useQuery<{ meals: LoggedMeal[] }>({
+  const { data: mealsData } = useQuery<{ meals: LocalLoggedMeal[] }>({
     queryKey: ['/api/food/meals'],
   });
   
-  const todaysMeals = (mealsData?.meals || []).map(m => ({
-    ...m,
+  // Fetch saved meals
+  const { data: savedMealsData } = useQuery<{ meals: SavedMeal[] }>({
+    queryKey: ['/api/food/saved'],
+  });
+  
+  // Save meal mutation
+  const saveMealMutation = useMutation({
+    mutationFn: async (meal: LoggedMeal) => {
+      const mealTotals = meal.items.reduce((acc, item) => ({
+        calories: acc.calories + (item.calories || 0),
+        protein: acc.protein + (item.protein || 0),
+        carbs: acc.carbs + (item.carbs || 0),
+        fats: acc.fats + (item.fats || 0),
+      }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
+      
+      return apiRequest('/api/food/saved', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: meal.meal,
+          items: meal.items.map(item => ({
+            id: item.id,
+            name: item.name,
+            portion: item.portion,
+            calories: item.calories,
+            protein: item.protein,
+            carbs: item.carbs,
+            fats: item.fats,
+          })),
+          totals: mealTotals,
+          originalMealId: meal.id,
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/food/saved'] });
+      toast({ description: 'Meal saved!' });
+    },
+  });
+  
+  // Remove saved meal mutation
+  const removeSavedMealMutation = useMutation({
+    mutationFn: (mealId: string) => apiRequest(`/api/food/saved/${mealId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/food/saved'] });
+      toast({ description: 'Meal removed from saved' });
+    },
+  });
+  
+  // Log saved meal to today mutation
+  const logSavedMealMutation = useMutation({
+    mutationFn: (meal: SavedMeal) => apiRequest(`/api/food/saved/${meal.id}/log`, { 
+      method: 'POST',
+      body: JSON.stringify({ mealType: meal.name }),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/food/meals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/nutrition/daily'] });
+      toast({ description: 'Meal logged to today!' });
+    },
+  });
+  
+  const todaysMeals: LoggedMeal[] = (mealsData?.meals || []).map(m => ({
+    id: m.id,
+    meal: m.meal,
     dateTime: new Date(m.dateTime),
+    items: m.items,
   }));
   
-  const todaysTotals = todaysMeals.reduce((acc, meal) => ({
-    calories: acc.calories + (meal.totals?.calories || 0),
-    protein: acc.protein + (meal.totals?.protein || 0),
-    carbs: acc.carbs + (meal.totals?.carbs || 0),
-    fats: acc.fats + (meal.totals?.fat || 0),
-  }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
+  const savedMeals: SavedMeal[] = (savedMealsData?.meals || []).map(m => ({
+    ...m,
+    savedAt: new Date(m.savedAt),
+  }));
+  
+  // Track which meals are saved by name (for toggling star)
+  const savedMealNames = new Set(savedMeals.map(m => m.name));
+  const savedMealIds = new Set(todaysMeals.filter(m => savedMealNames.has(m.meal)).map(m => m.id));
+  
+  const todaysTotals = todaysMeals.reduce((acc, meal) => {
+    const mealTotals = meal.items.reduce((a, item) => ({
+      calories: a.calories + (item.calories || 0),
+      protein: a.protein + (item.protein || 0),
+      carbs: a.carbs + (item.carbs || 0),
+      fats: a.fats + (item.fats || 0),
+    }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
+    return {
+      calories: acc.calories + mealTotals.calories,
+      protein: acc.protein + mealTotals.protein,
+      carbs: acc.carbs + mealTotals.carbs,
+      fats: acc.fats + mealTotals.fats,
+    };
+  }, { calories: 0, protein: 0, carbs: 0, fats: 0 });
+  
+  const handleSaveMeal = (meal: LoggedMeal) => {
+    // Toggle: if already saved, remove it
+    const existingSaved = savedMeals.find(sm => sm.name === meal.meal);
+    if (existingSaved) {
+      removeSavedMealMutation.mutate(existingSaved.id);
+    } else {
+      saveMealMutation.mutate(meal);
+    }
+  };
+  
+  const handleAddSavedMeal = (meal: SavedMeal) => {
+    logSavedMealMutation.mutate(meal);
+  };
+  
+  const handleRemoveSavedMeal = (mealId: string) => {
+    removeSavedMealMutation.mutate(mealId);
+  };
 
   if (isLoading) {
     return <LoadingSpinner isDark={isDark} />;
@@ -1424,6 +1524,15 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
         todaysMeals={todaysMeals}
         todaysTotals={todaysTotals}
         onMealClick={(date) => setShowMealDetails(date)}
+        onSaveMeal={handleSaveMeal}
+        savedMealIds={savedMealIds}
+      />
+      
+      <SavedMealsCard
+        isDark={isDark}
+        savedMeals={savedMeals}
+        onAddMeal={handleAddSavedMeal}
+        onRemoveSavedMeal={handleRemoveSavedMeal}
       />
     </div>
   );

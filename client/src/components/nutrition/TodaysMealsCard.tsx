@@ -1,4 +1,4 @@
-import { Apple } from 'lucide-react';
+import { Apple, Star } from 'lucide-react';
 
 interface LoggedMeal {
   id: string;
@@ -27,9 +27,11 @@ interface TodaysMealsCardProps {
     fats: number;
   };
   onMealClick: (date: Date) => void;
+  onSaveMeal?: (meal: LoggedMeal) => void;
+  savedMealIds?: Set<string>;
 }
 
-export function TodaysMealsCard({ isDark, todaysMeals, todaysTotals, onMealClick }: TodaysMealsCardProps) {
+export function TodaysMealsCard({ isDark, todaysMeals, todaysTotals, onMealClick, onSaveMeal, savedMealIds }: TodaysMealsCardProps) {
   return (
     <div 
       className={`backdrop-blur-xl rounded-3xl border p-6 ${
@@ -64,50 +66,82 @@ export function TodaysMealsCard({ isDark, todaysMeals, todaysTotals, onMealClick
               fats: acc.fats + (item.fats || 0)
             }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
             
+            const isSaved = savedMealIds?.has(meal.id) || false;
+            
             return (
-              <button
+              <div
                 key={meal.id}
-                onClick={() => onMealClick(new Date(meal.dateTime))}
-                className={`w-full p-4 rounded-xl transition-all text-left ${
-                  isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'
+                className={`relative p-4 rounded-xl ${
+                  isDark ? 'bg-white/5' : 'bg-black/5'
                 }`}
-                data-testid={`button-meal-${meal.id}`}
+                data-testid={`card-meal-${meal.id}`}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className={`text-sm mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {meal.meal}
+                <button
+                  onClick={() => onMealClick(new Date(meal.dateTime))}
+                  className="w-full transition-all text-left"
+                  data-testid={`button-meal-${meal.id}`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <div className={`text-sm mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {meal.meal}
+                      </div>
+                      <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                        {new Date(meal.dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      </div>
                     </div>
-                    <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                      {new Date(meal.dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    <div className="flex items-center gap-3">
+                      <div className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                        {Math.round(mealTotals.calories)} cal
+                      </div>
+                      {onSaveMeal && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSaveMeal(meal);
+                          }}
+                          className={`p-1.5 rounded-lg transition-all ${
+                            isSaved
+                              ? isDark ? 'bg-amber-500/20' : 'bg-amber-500/20'
+                              : isDark ? 'hover:bg-white/10' : 'hover:bg-black/10'
+                          }`}
+                          title={isSaved ? 'Remove from saved' : 'Save this meal'}
+                          data-testid={`button-save-meal-${meal.id}`}
+                        >
+                          <Star 
+                            className={`w-4 h-4 ${
+                              isSaved 
+                                ? 'text-amber-500' 
+                                : isDark ? 'text-white/40' : 'text-gray-400'
+                            }`}
+                            fill={isSaved ? 'currentColor' : 'none'}
+                          />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                    {Math.round(mealTotals.calories)} cal
+                  <div className="space-y-1">
+                    {meal.items.map((item) => (
+                      <div key={item.id} className={`text-xs flex items-center justify-between ${
+                        isDark ? 'text-white/60' : 'text-gray-600'
+                      }`}>
+                        <span>{item.name} ({item.portion})</span>
+                        <span>{item.calories} cal</span>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div className="space-y-1">
-                  {meal.items.map((item) => (
-                    <div key={item.id} className={`text-xs flex items-center justify-between ${
-                      isDark ? 'text-white/60' : 'text-gray-600'
-                    }`}>
-                      <span>{item.name} ({item.portion})</span>
-                      <span>{item.calories} cal</span>
-                    </div>
-                  ))}
-                </div>
-                <div className={`mt-2 pt-2 border-t flex gap-4 text-xs ${
-                  isDark ? 'border-white/10 text-white/50' : 'border-black/10 text-gray-500'
-                }`}>
-                  <span>P: {Math.round(mealTotals.protein)}g</span>
-                  <span>C: {Math.round(mealTotals.carbs)}g</span>
-                  <span>F: {Math.round(mealTotals.fats)}g</span>
-                </div>
-              </button>
+                  <div className={`mt-2 pt-2 border-t flex gap-4 text-xs ${
+                    isDark ? 'border-white/10 text-white/50' : 'border-black/10 text-gray-500'
+                  }`}>
+                    <span>P: {Math.round(mealTotals.protein)}g</span>
+                    <span>C: {Math.round(mealTotals.carbs)}g</span>
+                    <span>F: {Math.round(mealTotals.fats)}g</span>
+                  </div>
+                </button>
+              </div>
             );
           })}
           
-          {/* Daily Summary */}
           <div className={`mt-4 pt-4 border-t flex items-center justify-between ${
             isDark ? 'border-white/10' : 'border-black/10'
           }`}>

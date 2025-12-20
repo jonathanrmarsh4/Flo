@@ -19510,5 +19510,166 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
     }
   });
 
+  // GET /api/food/saved - Get user's saved meals
+  app.get('/api/food/saved', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      
+      const { savedMeals } = await import('@shared/schema');
+      const meals = await db.select().from(savedMeals).where(eq(savedMeals.userId, userId)).orderBy(desc(savedMeals.savedAt));
+      res.json({ meals });
+    } catch (error: any) {
+      logger.error('[SavedMeals] Error fetching:', error?.message);
+      res.status(500).json({ message: 'Failed to fetch saved meals' });
+    }
+  });
+
+  // POST /api/food/saved - Save a meal
+  app.post('/api/food/saved', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      
+      const { name, items, totals, originalMealId } = req.body;
+      
+      if (!name || !items || !totals) {
+        return res.status(400).json({ message: 'Missing required fields: name, items, totals' });
+      }
+      
+      const { savedMeals } = await import('@shared/schema');
+      const [savedMeal] = await db.insert(savedMeals).values({
+        userId,
+        name,
+        items,
+        totals,
+      }).returning();
+      
+      logger.info('[SavedMeals] Meal saved', { userId, name, itemCount: items.length });
+      res.json({ meal: savedMeal });
+    } catch (error: any) {
+      logger.error('[SavedMeals] Error saving:', error?.message);
+      res.status(500).json({ message: 'Failed to save meal' });
+    }
+  });
+
+  // DELETE /api/food/saved/:id - Remove a saved meal
+  app.delete('/api/food/saved/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      
+      const { id } = req.params;
+      
+      const { savedMeals } = await import('@shared/schema');
+      await db.delete(savedMeals).where(and(eq(savedMeals.id, id), eq(savedMeals.userId, userId)));
+      
+      logger.info('[SavedMeals] Meal removed', { userId, mealId: id });
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[SavedMeals] Error removing:', error?.message);
+      res.status(500).json({ message: 'Failed to remove saved meal' });
+    }
+  });
+
+  // POST /api/food/saved/:id/log - Log a saved meal as today's meal
+  app.post('/api/food/saved/:id/log', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      
+      const { id } = req.params;
+      const { mealType = 'Snack' } = req.body;
+      
+      // Fetch the saved meal
+      const { savedMeals } = await import('@shared/schema');
+      const [meal] = await db.select().from(savedMeals).where(and(eq(savedMeals.id, id), eq(savedMeals.userId, userId)));
+      
+      if (!meal) {
+        return res.status(404).json({ message: 'Saved meal not found' });
+      }
+      
+      // Log the meal using the same logic as /api/food/log
+      const now = new Date();
+      const mealId = crypto.randomUUID();
+      
+      const { getHealthIdForUser } = await import('./services/supabaseHealthStorage');
+      const healthId = await getHealthIdForUser(userId);
+      if (!healthId) {
+        return res.status(400).json({ message: 'User profile not found' });
+      }
+      
+      // Calculate totals from items
+      const totals = meal.items.reduce((acc: any, food: any) => ({
+        calories: acc.calories + (food.calories || 0),
+        protein: acc.protein + (food.protein || 0),
+        carbs: acc.carbs + (food.carbs || 0),
+        fat: acc.fat + (food.fats || 0),
+      }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+      
+      // Store as nutrition samples
+      const nutritionSamples = [
+        { data_type: 'dietary_calories', value: totals.calories, unit: 'kcal' },
+        { data_type: 'dietary_protein', value: totals.protein, unit: 'g' },
+        { data_type: 'dietary_carbohydrates', value: totals.carbs, unit: 'g' },
+        { data_type: 'dietary_fat', value: totals.fat, unit: 'g' },
+      ].filter(s => s.value > 0);
+      
+      if (nutritionSamples.length === 0) {
+        nutritionSamples.push({ data_type: 'dietary_calories', value: 0, unit: 'kcal' });
+      }
+      
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      const supabaseClient = getSupabaseClient();
+      
+      for (const sample of nutritionSamples) {
+        await supabaseClient.from('healthkit_samples').insert({
+          uuid: crypto.randomUUID(),
+          health_id: healthId,
+          data_type: sample.data_type,
+          value: sample.value,
+          unit: sample.unit,
+          start_date: now.toISOString(),
+          end_date: now.toISOString(),
+          source_name: 'Flō Food Log',
+          source_bundle_id: 'com.flo.healthapp',
+          metadata: {
+            meal_id: mealId,
+            meal_type: mealType,
+            foods: meal.items.map((f: any) => ({
+              id: f.id,
+              name: f.name,
+              portion: f.portion,
+              quantity: 1,
+            })),
+            saved_meal_id: meal.id,
+          },
+        });
+      }
+      
+      // Update daily nutrition metrics
+      const { format } = await import('date-fns');
+      const dateStr = format(now, 'yyyy-MM-dd');
+      const user = await storage.getUser(userId);
+      const timezone = user?.timezone || 'UTC';
+      const { upsertNutritionDaily } = await import('./services/nutritionMindfulnessAggregator');
+      await upsertNutritionDaily(userId, dateStr, timezone);
+      
+      logger.info('[SavedMeals] Logged saved meal', { userId, mealId, savedMealId: meal.id });
+      res.json({ success: true, mealId });
+    } catch (error: any) {
+      logger.error('[SavedMeals] Error logging:', error?.message);
+      res.status(500).json({ message: 'Failed to log saved meal' });
+    }
+  });
+
   return httpServer;
 }

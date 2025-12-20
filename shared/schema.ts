@@ -3220,3 +3220,41 @@ export const insertUserDataSourcePreferencesSchema = createInsertSchema(userData
 
 export type InsertUserDataSourcePreferences = z.infer<typeof insertUserDataSourcePreferencesSchema>;
 export type UserDataSourcePreferences = typeof userDataSourcePreferences.$inferSelect;
+
+// ============================================================================
+// Saved Meals - User's saved meal templates for quick logging
+// ============================================================================
+
+export const savedMeals = pgTable("saved_meals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  items: jsonb("items").$type<Array<{
+    id: string;
+    name: string;
+    portion: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+  }>>().notNull(),
+  totals: jsonb("totals").$type<{
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+  }>().notNull(),
+  savedAt: timestamp("saved_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("saved_meals_user_idx").on(table.userId),
+}));
+
+export const insertSavedMealSchema = createInsertSchema(savedMeals).omit({
+  id: true,
+  savedAt: true,
+  createdAt: true,
+} as const);
+
+export type InsertSavedMeal = z.infer<typeof insertSavedMealSchema>;
+export type SavedMeal = typeof savedMeals.$inferSelect;
