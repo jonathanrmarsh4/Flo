@@ -5,11 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 import { getAuthHeaders, getApiBaseUrl } from "@/lib/queryClient";
 import { FileText, Share2, Loader2 } from "lucide-react";
 import { HealthReportScreen, HealthReportData } from "./HealthReportScreen";
+import { useTheme } from "@/components/theme-provider";
 
 export function ReportTile() {
   const { toast } = useToast();
   const [showFullReport, setShowFullReport] = useState(false);
   const [reportData, setReportData] = useState<HealthReportData | null>(null);
+  const { isDark } = useTheme();
 
   const generateReportMutation = useMutation({
     mutationFn: async () => {
@@ -60,18 +62,20 @@ export function ReportTile() {
 
   return (
     <>
-      <div className="rounded-2xl border p-6 bg-slate-800/40 border-white/10 mb-4" data-testid="tile-health-report">
+      <div className={`rounded-2xl border p-6 mb-4 ${
+        isDark ? 'bg-slate-800/40 border-white/10' : 'bg-white/80 border-gray-200'
+      }`} data-testid="tile-health-report">
         <div className="flex flex-col gap-4">
           {/* Header with icon */}
           <div className="flex items-start gap-4">
-            <div className="p-3 rounded-2xl bg-purple-500/20">
-              <FileText className="w-6 h-6 text-purple-400" />
+            <div className={`p-3 rounded-2xl ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
+              <FileText className={`w-6 h-6 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Health Summary Report
               </h2>
-              <p className="text-sm text-white/60 mt-1">
+              <p className={`text-sm mt-1 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                 Comprehensive biomarker analysis ready to share
               </p>
             </div>
@@ -79,11 +83,11 @@ export function ReportTile() {
 
           {/* Badges */}
           <div className="flex items-center gap-2">
-            <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30 border">
-              <span className="text-teal-400 mr-1">●</span>
+            <Badge className={`border ${isDark ? 'bg-teal-500/20 text-teal-400 border-teal-500/30' : 'bg-teal-100 text-teal-700 border-teal-200'}`}>
+              <span className={`mr-1 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>●</span>
               90+ Biomarkers
             </Badge>
-            <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 border">
+            <Badge className={`border ${isDark ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-purple-100 text-purple-700 border-purple-200'}`}>
               <Share2 className="w-3 h-3 mr-1" />
               Shareable
             </Badge>
@@ -116,7 +120,7 @@ export function ReportTile() {
       {/* Health Summary Report Modal */}
       {showFullReport && (
         <HealthReportScreen 
-          isDark={true} 
+          isDark={isDark} 
           onClose={() => setShowFullReport(false)} 
           reportData={reportData || undefined}
         />

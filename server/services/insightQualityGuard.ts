@@ -13,7 +13,7 @@
  */
 
 import { logger } from '../logger';
-import { getUserMemories, saveUserMemory, type UserMemory } from './userMemoryService';
+import { getUserMemories, storeMemory, type UserMemory } from './userMemoryService';
 import { subDays, differenceInDays } from 'date-fns';
 import { clickhouseBaselineEngine } from './clickhouseBaselineEngine';
 
@@ -220,7 +220,7 @@ export class InsightQualityGuard {
   ): Promise<void> {
     try {
       if (feedbackType === 'skipped' || feedbackType === 'dismissed' || feedbackType === 'not_helpful') {
-        await saveUserMemory(userId, {
+        await storeMemory(userId, {
           type: 'topic_suppression',
           raw: `User ${feedbackType} insight about ${metricName}`,
           extracted: {
@@ -272,52 +272,6 @@ export class InsightQualityGuard {
     });
     
     return { passed, rejected };
-  }
-  
-  /**
-   * Check if a metric has a sustained multi-day trend
-   * Requires ClickHouse data to validate
-   */
-  async validateMultiDayTrend(
-    healthId: string,
-    metricName: string,
-    direction: 'above' | 'below',
-    minDays: number = 3
-  ): Promise<{ hasTrend: boolean; consecutiveDays: number; avgDeviation: number }> {
-    try {
-      const analysis = await clickhouseBaselineEngine.analyzePastNDays(healthId, minDays + 2, [metricName]);
-      
-      if (!analysis || analysis.length === 0) {
-        return { hasTrend: false, consecutiveDays: 0, avgDeviation: 0 };
-      }
-      
-      let consecutiveDays = 0;
-      let totalDeviation = 0;
-      
-      for (const day of analysis) {
-        const metric = (day as any)[metricName];
-        if (!metric) continue;
-        
-        const zScore = metric.z_score || 0;
-        const isInDirection = direction === 'above' ? zScore > 0.5 : zScore < -0.5;
-        
-        if (isInDirection) {
-          consecutiveDays++;
-          totalDeviation += Math.abs(zScore);
-        } else {
-          break;
-        }
-      }
-      
-      return {
-        hasTrend: consecutiveDays >= minDays,
-        consecutiveDays,
-        avgDeviation: consecutiveDays > 0 ? totalDeviation / consecutiveDays : 0,
-      };
-    } catch (error) {
-      logger.error('[QualityGuard] Error validating multi-day trend:', error);
-      return { hasTrend: false, consecutiveDays: 0, avgDeviation: 0 };
-    }
   }
 }
 

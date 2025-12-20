@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, X, TrendingUp, ChevronDown, ChevronUp, Target, TrendingDown } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
 import { BiomarkerProgressChart } from "./BiomarkerProgressChart";
+import { useTheme } from "@/components/theme-provider";
 
 interface ActionCardProps {
   item: ActionPlanItem;
@@ -68,15 +69,16 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
   const isCompleted = item.status === 'completed';
   const [isExpanded, setIsExpanded] = useState(false);
   const [timePeriod, setTimePeriod] = useState<'3M' | '6M' | '9M' | '12M'>('3M');
+  const { isDark } = useTheme();
 
   // Calculate days since added
   const daysSinceAdded = Math.floor((Date.now() - new Date(item.addedAt).getTime()) / (1000 * 60 * 60 * 24));
 
   return (
     <div
-      className={`rounded-2xl border p-5 bg-slate-800/40 border-white/10 ${
-        isCompleted ? 'opacity-75' : ''
-      }`}
+      className={`rounded-2xl border p-5 ${
+        isDark ? 'bg-slate-800/40 border-white/10' : 'bg-white/80 border-gray-200'
+      } ${isCompleted ? 'opacity-75' : ''}`}
       data-testid={`card-action-${item.id}`}
     >
       <div className="flex flex-col gap-3">
@@ -85,14 +87,14 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
           <div className="flex-1">
             {/* Title */}
             <h3
-              className="text-base font-semibold text-white mb-2"
+              className={`text-base font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}
               data-testid={`text-title-${item.id}`}
             >
               {item.snapshotTitle}
             </h3>
 
             {/* Timestamp */}
-            <p className="text-xs text-white/50">
+            <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
               Added {daysSinceAdded}d ago
             </p>
           </div>
@@ -109,13 +111,15 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
             {/* Expand/Collapse Button */}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
+              className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+              }`}
               data-testid={`button-toggle-${item.id}`}
             >
               {isExpanded ? (
-                <ChevronUp className="w-5 h-5 text-white/60" />
+                <ChevronUp className={`w-5 h-5 ${isDark ? 'text-white/60' : 'text-gray-500'}`} />
               ) : (
-                <ChevronDown className="w-5 h-5 text-white/60" />
+                <ChevronDown className={`w-5 h-5 ${isDark ? 'text-white/60' : 'text-gray-500'}`} />
               )}
             </button>
           </div>
@@ -123,17 +127,17 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
 
         {/* Expanded Content */}
         {isExpanded && (
-          <div className="flex flex-col gap-4 pt-4 border-t border-white/20">
+          <div className={`flex flex-col gap-4 pt-4 border-t ${isDark ? 'border-white/20' : 'border-gray-200'}`}>
             {/* Insight Section */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-white/60" />
-                <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                <TrendingUp className={`w-4 h-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`} />
+                <h4 className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                   Insight
                 </h4>
               </div>
               <p
-                className="text-sm text-white/80 leading-relaxed"
+                className={`text-sm leading-relaxed ${isDark ? 'text-white/80' : 'text-gray-700'}`}
                 data-testid={`text-insight-${item.id}`}
               >
                 {item.snapshotInsight}
@@ -141,15 +145,17 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
             </div>
 
             {/* Action Recommendation Section */}
-            <div className="flex flex-col gap-3 p-4 rounded-xl bg-teal-500/10 border border-teal-400/30">
+            <div className={`flex flex-col gap-3 p-4 rounded-xl border ${
+              isDark ? 'bg-teal-500/10 border-teal-400/30' : 'bg-teal-50 border-teal-200'
+            }`}>
               <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-teal-400" />
-                <h4 className="text-xs font-semibold text-teal-400 uppercase tracking-wide">
+                <Target className={`w-4 h-4 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+                <h4 className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
                   Recommended Action
                 </h4>
               </div>
               <p
-                className="text-sm text-white/90 leading-relaxed"
+                className={`text-sm leading-relaxed ${isDark ? 'text-white/90' : 'text-gray-800'}`}
                 data-testid={`text-action-${item.id}`}
               >
                 {item.snapshotAction}
@@ -161,26 +167,22 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
               const hasProgressData = item.targetBiomarker && 
                 typeof item.currentValue === 'number' && 
                 typeof item.targetValue === 'number';
-              // Debug logging for chart rendering
-              console.log(`[ActionCard ${item.id}] Chart check:`, {
-                targetBiomarker: item.targetBiomarker,
-                currentValue: item.currentValue,
-                targetValue: item.targetValue,
-                unit: item.unit,
-                shouldShow: hasProgressData
-              });
               return hasProgressData;
             })() && (
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-white">
+                  <h4 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     Progress Tracking
                   </h4>
                   {/* Time Period Selector */}
                   <select 
                     value={timePeriod}
                     onChange={(e) => setTimePeriod(e.target.value as typeof timePeriod)}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800/60 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                    className={`px-3 py-1.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 ${
+                      isDark 
+                        ? 'bg-slate-800/60 border-white/10 text-white' 
+                        : 'bg-white border-gray-200 text-gray-900'
+                    }`}
                     data-testid={`select-period-${item.id}`}
                   >
                     <option value="3M">3 months</option>
@@ -192,21 +194,25 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
                 
                 <div className="grid grid-cols-2 gap-3">
                   {/* Current Value */}
-                  <div className="p-4 rounded-xl bg-slate-800/60 border border-white/10">
-                    <div className="text-xs text-white/50 mb-2">
+                  <div className={`p-4 rounded-xl border ${
+                    isDark ? 'bg-slate-800/60 border-white/10' : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className={`text-xs mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                       Current
                     </div>
-                    <div className="text-3xl font-bold text-white">
-                      {item.currentValue} <span className="text-sm text-white/50 font-normal">{item.unit}</span>
+                    <div className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {item.currentValue} <span className={`text-sm font-normal ${isDark ? 'text-white/50' : 'text-gray-500'}`}>{item.unit}</span>
                     </div>
                   </div>
                   {/* Target Value */}
-                  <div className="p-4 rounded-xl bg-teal-500/20 border border-teal-400/30">
-                    <div className="text-xs text-teal-400 mb-2">
+                  <div className={`p-4 rounded-xl border ${
+                    isDark ? 'bg-teal-500/20 border-teal-400/30' : 'bg-teal-50 border-teal-200'
+                  }`}>
+                    <div className={`text-xs mb-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
                       Target
                     </div>
-                    <div className="text-3xl font-bold text-teal-400">
-                      {item.targetValue} <span className="text-sm text-teal-400/70 font-normal">{item.unit}</span>
+                    <div className={`text-3xl font-bold ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+                      {item.targetValue} <span className={`text-sm font-normal ${isDark ? 'text-teal-400/70' : 'text-teal-500'}`}>{item.unit}</span>
                     </div>
                   </div>
                 </div>

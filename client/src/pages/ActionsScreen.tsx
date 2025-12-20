@@ -34,7 +34,7 @@ interface N1Assessment {
   experiment_end_date?: string;
 }
 
-function AssessmentCard({ assessment, onClick }: { assessment: N1Assessment; onClick: () => void }) {
+function AssessmentCard({ assessment, onClick, isDark }: { assessment: N1Assessment; onClick: () => void; isDark: boolean }) {
   const supplementConfig = SUPPLEMENT_CONFIGURATIONS[assessment.supplement_type_id];
   
   const getStatusInfo = () => {
@@ -72,7 +72,11 @@ function AssessmentCard({ assessment, onClick }: { assessment: N1Assessment; onC
   
   return (
     <Card 
-      className="p-4 bg-white/5 border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+      className={`p-4 transition-colors cursor-pointer ${
+        isDark 
+          ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+          : 'bg-white/80 border-gray-200 hover:bg-white'
+      }`}
       onClick={onClick}
       data-testid={`assessment-card-${assessment.id}`}
     >
@@ -81,21 +85,23 @@ function AssessmentCard({ assessment, onClick }: { assessment: N1Assessment; onC
           <img 
             src={assessment.product_image_url} 
             alt={assessment.product_name}
-            className="w-12 h-12 rounded-lg object-cover bg-white/10"
+            className={`w-12 h-12 rounded-lg object-cover ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}
           />
         ) : (
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center">
-            <FlaskConical className="w-6 h-6 text-cyan-400" />
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+            isDark ? 'bg-gradient-to-br from-cyan-500/20 to-blue-500/20' : 'bg-gradient-to-br from-cyan-100 to-blue-100'
+          }`}>
+            <FlaskConical className={`w-6 h-6 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
           </div>
         )}
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-white font-medium truncate">{assessment.product_name}</h3>
+            <h3 className={`font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{assessment.product_name}</h3>
           </div>
           
           {assessment.product_brand && (
-            <p className="text-xs text-white/50 mb-2">{assessment.product_brand}</p>
+            <p className={`text-xs mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>{assessment.product_brand}</p>
           )}
           
           <div className="flex items-center gap-2 flex-wrap">
@@ -105,7 +111,7 @@ function AssessmentCard({ assessment, onClick }: { assessment: N1Assessment; onC
             </Badge>
             
             {supplementConfig && (
-              <Badge className="bg-white/10 text-white/60 border-0 text-xs">
+              <Badge className={`border-0 text-xs ${isDark ? 'bg-white/10 text-white/60' : 'bg-gray-100 text-gray-600'}`}>
                 {supplementConfig.category}
               </Badge>
             )}
@@ -113,11 +119,11 @@ function AssessmentCard({ assessment, onClick }: { assessment: N1Assessment; onC
           
           {assessment.status === 'active' && (
             <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-white/50 mb-1">
+              <div className={`flex items-center justify-between text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                 <span>Day {Math.floor(progress * assessment.experiment_days / 100) + 1} of {assessment.experiment_days}</span>
                 <span>{progress}%</span>
               </div>
-              <Progress value={progress} className="h-1.5 bg-white/10" />
+              <Progress value={progress} className={`h-1.5 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
             </div>
           )}
         </div>
@@ -320,7 +326,11 @@ export default function ActionsScreen() {
             {/* Premium Upgrade Banner for Free Users */}
             {isFreePlan && (
               <div 
-                className="mb-4 p-4 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10"
+                className={`mb-4 p-4 rounded-2xl border ${
+                  isDark 
+                    ? 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10'
+                    : 'border-cyan-300 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50'
+                }`}
                 data-testid="premium-upgrade-banner"
               >
                 <div className="flex items-start gap-3">
@@ -328,8 +338,8 @@ export default function ActionsScreen() {
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-white font-semibold mb-1">Unlock AI-Powered Actions</h3>
-                    <p className="text-white/70 text-sm leading-relaxed">
+                    <h3 className={`font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>Unlock AI-Powered Actions</h3>
+                    <p className={`text-sm leading-relaxed ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                       Upgrade to Flo Premium to get personalized AI insights and actionable recommendations based on your health data.
                     </p>
                     <Button
@@ -350,14 +360,14 @@ export default function ActionsScreen() {
             {/* Action Items List */}
             {isLoadingActions ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+                <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDark ? 'border-cyan-400' : 'border-cyan-500'}`}></div>
               </div>
             ) : activeItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
-                <ListChecks className="w-16 h-16 text-white/20" />
+                <ListChecks className={`w-16 h-16 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
                 <div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">No Active Actions</h3>
-                  <p className="text-sm text-white/60 mb-4">
+                  <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>No Active Actions</h3>
+                  <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                     {isFreePlan 
                       ? 'Upgrade to Premium to unlock personalized AI insights and actions tailored to your health data.'
                       : 'Add insights from your AI Insights to start tracking your health goals.'
@@ -385,28 +395,32 @@ export default function ActionsScreen() {
           <>
             {/* Compatibility Notice - show when there are blocked intents or error */}
             {compatibilityError ? (
-              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+              <div className={`mb-4 p-3 rounded-xl border ${
+                isDark ? 'bg-red-500/10 border-red-500/20' : 'bg-red-50 border-red-200'
+              }`}>
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
                   <div>
-                    <h4 className="text-sm font-medium text-red-300 mb-1">
+                    <h4 className={`text-sm font-medium mb-1 ${isDark ? 'text-red-300' : 'text-red-700'}`}>
                       Compatibility Check Unavailable
                     </h4>
-                    <p className="text-xs text-white/60 leading-relaxed">
+                    <p className={`text-xs leading-relaxed ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
                       Unable to verify experiment conflicts. New assessments are temporarily blocked. Please try again later.
                     </p>
                   </div>
                 </div>
               </div>
             ) : compatibilityData?.blockedIntents && compatibilityData.blockedIntents.length > 0 && (
-              <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <div className={`mb-4 p-3 rounded-xl border ${
+                isDark ? 'bg-amber-500/10 border-amber-500/20' : 'bg-amber-50 border-amber-200'
+              }`}>
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                   <div>
-                    <h4 className="text-sm font-medium text-amber-300 mb-1">
+                    <h4 className={`text-sm font-medium mb-1 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                       Experiment Conflict Prevention
                     </h4>
-                    <p className="text-xs text-white/60 leading-relaxed">
+                    <p className={`text-xs leading-relaxed ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
                       {compatibilityData.blockedIntents.length === 1 
                         ? '1 health goal is temporarily blocked'
                         : `${compatibilityData.blockedIntents.length} health goals are temporarily blocked`
@@ -419,14 +433,14 @@ export default function ActionsScreen() {
 
             {isLoadingAssessments ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+                <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDark ? 'border-cyan-400' : 'border-cyan-500'}`}></div>
               </div>
             ) : assessments.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
-                <FlaskConical className="w-16 h-16 text-white/20" />
+                <FlaskConical className={`w-16 h-16 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
                 <div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">No Assessments Yet</h3>
-                  <p className="text-sm text-white/60 mb-4 max-w-xs">
+                  <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>No Assessments Yet</h3>
+                  <p className={`text-sm mb-4 max-w-xs ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
                     Start your first N-of-1 assessment to scientifically test if a supplement works for YOUR body.
                   </p>
                   <Button
@@ -444,11 +458,12 @@ export default function ActionsScreen() {
                 {/* Active Assessments */}
                 {activeAssessments.length > 0 && (
                   <>
-                    <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Active</h2>
+                    <h2 className={`text-sm font-medium uppercase tracking-wider ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Active</h2>
                     {activeAssessments.map((assessment) => (
                       <AssessmentCard
                         key={assessment.id}
                         assessment={assessment}
+                        isDark={isDark}
                         onClick={() => setLocation(`/assessments/${assessment.id}`)}
                       />
                     ))}
@@ -458,11 +473,12 @@ export default function ActionsScreen() {
                 {/* Completed Assessments */}
                 {assessments.filter(e => e.status === 'completed').length > 0 && (
                   <>
-                    <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mt-4">Completed</h2>
+                    <h2 className={`text-sm font-medium uppercase tracking-wider mt-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Completed</h2>
                     {assessments.filter(e => e.status === 'completed').map((assessment) => (
                       <AssessmentCard
                         key={assessment.id}
                         assessment={assessment}
+                        isDark={isDark}
                         onClick={() => setLocation(`/assessments/${assessment.id}`)}
                       />
                     ))}
