@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useParams } from 'wouter';
 import { ChevronLeft, Activity, TrendingUp, TrendingDown, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTheme } from '@/components/theme-provider';
 
 export default function FullReport() {
   const [, setLocation] = useLocation();
   const params = useParams<{ id?: string }>();
-  const [isDark] = useState(true);
+  const { isDark } = useTheme();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const analysisId = params.id;

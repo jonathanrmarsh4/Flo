@@ -8,13 +8,14 @@ import { BottomNav } from '@/components/BottomNav';
 import { VoiceChatScreen } from '@/components/VoiceChatScreen';
 import { useAuth } from '@/hooks/useAuth';
 import { useHealthKitAutoPermission } from '@/hooks/useHealthKitAutoPermission';
+import { useTheme } from '@/components/theme-provider';
 import { queryClient } from '@/lib/queryClient';
 import { logger } from '@/lib/logger';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const [isDark, setIsDark] = useState(true);
+  const { isDark, toggleTheme } = useTheme();
   const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false);
   const [voiceChatContext, setVoiceChatContext] = useState<string | undefined>(undefined);
 
@@ -45,10 +46,6 @@ export default function Dashboard() {
 
   const handleSettingsClick = () => {
     setLocation('/profile');
-  };
-
-  const toggleTheme = () => {
-    setIsDark(!isDark);
   };
 
   return (

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FloBottomNav } from "@/components/FloBottomNav";
 import { FloLogo } from "@/components/FloLogo";
+import { useTheme } from "@/components/theme-provider";
 import { 
   Select,
   SelectContent,
@@ -33,12 +34,12 @@ import type { BiomarkerMeasurement } from "@shared/schema";
 
 export default function MeasurementHistory() {
   const { toast } = useToast();
+  const { isDark, toggleTheme } = useTheme();
   const [selectedBiomarkerId, setSelectedBiomarkerId] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [editUnit, setEditUnit] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [isDark, setIsDark] = useState(true);
 
   // Fetch all biomarkers
   const { data: biomarkersData } = useQuery<any>({
@@ -188,7 +189,7 @@ export default function MeasurementHistory() {
               <FloLogo size={28} showText={true} className={isDark ? 'text-white' : 'text-gray-900'} />
             </div>
             <button 
-              onClick={() => setIsDark(!isDark)}
+              onClick={toggleTheme}
               className={`p-2 rounded-lg transition-colors ${
                 isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
               }`}

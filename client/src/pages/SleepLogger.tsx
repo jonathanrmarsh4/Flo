@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
+import { useTheme } from '@/components/theme-provider';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -58,7 +59,7 @@ interface ActiveTimer {
 }
 
 export default function SleepLogger() {
-  const [isDark] = useState(true);
+  const { isDark } = useTheme();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showManualEntry, setShowManualEntry] = useState(false);

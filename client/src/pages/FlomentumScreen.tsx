@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, TrendingUp, TrendingDown, CheckCircle, AlertCircle, Info, Target } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useTheme } from '@/components/theme-provider';
 import { BottomNav } from '@/components/BottomNav';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -48,7 +49,7 @@ interface FlomentumWeeklyData {
 export default function FlomentumScreen() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<'today' | 'weekly'>('today');
-  const [isDark] = useState(true);
+  const { isDark } = useTheme();
 
   const { data: dailyData, isLoading: isDailyLoading } = useQuery<FlomentumDailyData>({
     queryKey: ['/api/flomentum/today'],

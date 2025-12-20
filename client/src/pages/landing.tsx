@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
 import { LoginScreen } from '@/components/LoginScreen';
+import { useTheme } from '@/components/theme-provider';
 
 export default function Landing() {
-  const [isDark, setIsDark] = useState(true);
+  const { isDark } = useTheme();
   const [, navigate] = useLocation();
 
   useEffect(() => {

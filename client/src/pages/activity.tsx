@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { ActivityScreen } from "@/components/ActivityScreen";
 import { UnifiedUploadModal } from "@/components/UnifiedUploadModal";
+import { useTheme } from "@/components/theme-provider";
 
 export default function ActivityPage() {
   const [, setLocation] = useLocation();
-  const [isDark] = useState(true);
+  const { isDark } = useTheme();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const handleClose = () => {

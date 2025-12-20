@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useTheme } from "@/components/theme-provider";
 import { DiagnosticResultsScreen } from "@/components/DiagnosticResultsScreen";
 import { BottomNav } from "@/components/BottomNav";
 import { UnifiedUploadModal } from "@/components/UnifiedUploadModal";
@@ -32,7 +33,7 @@ interface UserProfile {
 
 export default function DiagnosticsPage() {
   const [, setLocation] = useLocation();
-  const [isDark] = useState(true);
+  const { isDark } = useTheme();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const { data, isLoading } = useQuery<DiagnosticResultsSummary>({

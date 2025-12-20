@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnitDisplayMode } from '@/hooks/useUnitDisplayMode';
+import { useTheme } from '@/components/theme-provider';
 import { 
   mapAnalysisToBiomarkerReadings, 
   type BiomarkerReading 
@@ -121,7 +122,7 @@ export default function Dashboard() {
   };
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  const { isDark } = useTheme();
   
   const { isOriginal, toggleMode } = useUnitDisplayMode();
   
