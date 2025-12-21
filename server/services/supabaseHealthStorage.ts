@@ -257,6 +257,43 @@ export async function resetHealthKitBackfillStatus(userId: string): Promise<void
   logger.info(`[SupabaseHealth] Reset HealthKit backfill status for user ${userId}`);
 }
 
+/**
+ * Update the ClickHouse backfill metadata after syncing historical data.
+ * Called after HealthKit backfill completes to update the correct record counts.
+ * @param healthId - The user's health ID
+ * @param metadata - The sync result metadata
+ */
+export async function updateClickHouseBackfillMetadata(
+  healthId: string,
+  metadata: {
+    total: number;
+    activity: number;
+    sleep: number;
+    weight: number;
+    bodyComp: number;
+    nutrition: number;
+    heartMetrics: number;
+    completedAt: string;
+  }
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      clickhouse_backfill_complete: true,
+      clickhouse_backfill_date: new Date().toISOString(),
+      clickhouse_backfill_metadata: metadata,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('health_id', healthId);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error updating ClickHouse backfill metadata:', error);
+    throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Updated ClickHouse backfill metadata: ${metadata.total} total records`);
+}
+
 // ==================== BIOMARKER TEST SESSIONS ====================
 
 export interface BiomarkerTestSession {

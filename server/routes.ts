@@ -6096,11 +6096,27 @@ Important: This is for educational purposes. Include a brief note that users sho
           const batch = batches[batchIndex];
           logger.info(`[Admin] Processing batch ${batchIndex + 1}/${batches.length}`);
           
+          const { updateClickHouseBackfillMetadata } = await import('./services/supabaseHealthStorage');
           const batchResults = await Promise.all(
             batch.map(async (user) => {
               try {
                 const healthId = await getHealthId(user.id);
                 const summary = await clickhouseBaselineEngine.syncFullHistory(healthId);
+                
+                // Only update metadata if we actually synced records
+                if (summary.total > 0) {
+                  await updateClickHouseBackfillMetadata(healthId, {
+                    total: summary.total,
+                    activity: summary.healthMetrics,
+                    sleep: 0,
+                    weight: summary.bodyComposition,
+                    bodyComp: summary.bodyComposition,
+                    nutrition: summary.nutrition,
+                    heartMetrics: 0,
+                    completedAt: new Date().toISOString(),
+                  });
+                }
+                
                 logger.info(`[Admin] Backfill complete for ${user.id}: ${summary.total} records`);
                 return { userId: user.id, success: true, total: summary.total };
               } catch (err: any) {
@@ -6127,14 +6143,31 @@ Important: This is for educational purposes. Include a brief note that users sho
           results
         });
       } else if (userId) {
+        const { updateClickHouseBackfillMetadata } = await import('./services/supabaseHealthStorage');
         const healthId = await getHealthId(userId);
         const summary = await clickhouseBaselineEngine.syncFullHistory(healthId);
+        
+        // Only update metadata if we actually synced records
+        const metadataUpdated = summary.total > 0;
+        if (metadataUpdated) {
+          await updateClickHouseBackfillMetadata(healthId, {
+            total: summary.total,
+            activity: summary.healthMetrics,
+            sleep: 0,
+            weight: summary.bodyComposition,
+            bodyComp: summary.bodyComposition,
+            nutrition: summary.nutrition,
+            heartMetrics: 0,
+            completedAt: new Date().toISOString(),
+          });
+        }
         
         logger.info(`[Admin] FULL HISTORY backfill complete for ${userId}`, summary);
         
         res.json({ 
           message: `Full history synced for user ${userId}`,
           healthId,
+          metadataUpdated,
           ...summary
         });
       } else {
@@ -9865,6 +9898,96 @@ Important: This is for educational purposes. Include a brief note that users sho
   // ============================================================================
   
   /**
+   * GET /api/dashboard/sync-status
+   * Returns comprehensive sync status for dashboard to show progress indicator.
+   * Used by frontend to determine if data is still syncing and show appropriate UI.
+   * 
+   * Response: {
+   *   healthkitSyncing: boolean,
+   *   clickhouseSyncing: boolean,
+   *   isReady: boolean,
+   *   healthkitRecords: number,
+   *   clickhouseRecords: number,
+   *   message: string
+   * }
+   */
+  app.get("/api/dashboard/sync-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const { getHealthKitSyncStatus, getHealthId } = await import('./services/supabaseHealthStorage');
+      const { supabase } = await import('./services/supabaseClient');
+      
+      // Get HealthKit sync status
+      const healthKitStatus = await getHealthKitSyncStatus(userId);
+      const healthId = await getHealthId(userId);
+      
+      // Get profile with ClickHouse backfill status
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('healthkit_backfill_complete, healthkit_backfill_metadata, clickhouse_backfill_complete, clickhouse_backfill_metadata')
+        .eq('health_id', healthId)
+        .single();
+      
+      // Count records in Supabase
+      const { count: supabaseRecords } = await supabase
+        .from('user_daily_metrics')
+        .select('*', { count: 'exact', head: true })
+        .eq('health_id', healthId);
+      
+      const healthkitRecords = supabaseRecords || 0;
+      const healthkitComplete = profile?.healthkit_backfill_complete || false;
+      const clickhouseComplete = profile?.clickhouse_backfill_complete || false;
+      const clickhouseTotal = profile?.clickhouse_backfill_metadata?.total || 0;
+      
+      // Determine sync state with strict requirements:
+      // - healthkitSyncing: HealthKit backfill not yet marked complete
+      // - clickhouseSyncing: HealthKit is complete with data, but ClickHouse doesn't have data yet
+      // - isReady: BOTH have data (healthkitRecords > 0 AND clickhouseTotal > 0)
+      const healthkitSyncing = !healthkitComplete;
+      // ClickHouse is syncing if we have HealthKit data but ClickHouse has no records yet
+      // This catches the race condition where backfill ran before data arrived
+      const clickhouseSyncing = healthkitComplete && healthkitRecords > 0 && clickhouseTotal === 0;
+      // Only ready when we have actual data in BOTH systems
+      const isReady = healthkitRecords > 0 && clickhouseTotal > 0;
+      
+      // Generate user-friendly message
+      let message = '';
+      if (healthkitSyncing) {
+        message = 'Syncing your health data...';
+      } else if (clickhouseSyncing) {
+        message = 'Processing your data for insights...';
+      } else if (healthkitRecords === 0) {
+        message = 'No health data yet. Open the app on your iPhone to sync.';
+      } else if (!isReady) {
+        message = 'Preparing your dashboard...';
+      } else {
+        message = 'Your dashboard is ready!';
+      }
+      
+      res.json({
+        healthkitSyncing,
+        clickhouseSyncing,
+        isReady,
+        healthkitRecords,
+        clickhouseRecords: clickhouseTotal,
+        message,
+      });
+    } catch (error: any) {
+      logger.error(`[Dashboard] Error getting sync status:`, error);
+      // Return a safe default on error
+      res.json({
+        healthkitSyncing: false,
+        clickhouseSyncing: false,
+        isReady: false,
+        healthkitRecords: 0,
+        clickhouseRecords: 0,
+        message: 'Unable to check sync status',
+      });
+    }
+  });
+
+  /**
    * GET /api/healthkit/sync-status
    * Returns whether the user needs to perform a full historical backfill.
    * 
@@ -9934,15 +10057,34 @@ Important: This is for educational purposes. Include a brief note that users sho
       });
       
       // Trigger full history sync to ClickHouse asynchronously (non-blocking)
-      // This syncs ALL the historical data that was just uploaded
+      // This syncs ALL the historical data that was just uploaded AND updates the backfill metadata
       setImmediate(async () => {
         try {
           const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+          const { updateClickHouseBackfillMetadata } = await import('./services/supabaseHealthStorage');
           const healthId = await getHealthId(userId);
           
-          logger.info(`[ClickHouseML] Starting full history sync after backfill complete for user ${userId}`);
+          logger.info(`[ClickHouseML] Starting full history sync after HealthKit backfill complete for user ${userId}`);
           const result = await clickhouseBaselineEngine.syncFullHistory(healthId);
           logger.info(`[ClickHouseML] Full history sync complete for ${userId}: ${result.total} records synced to ClickHouse`);
+          
+          // Only update metadata if we actually synced records
+          // This prevents marking ClickHouse as "complete" with 0 records (race condition fix)
+          if (result.total > 0) {
+            await updateClickHouseBackfillMetadata(healthId, {
+              total: result.total,
+              activity: result.healthMetrics,
+              sleep: 0, // Sleep is counted in healthMetrics
+              weight: result.bodyComposition,
+              bodyComp: result.bodyComposition,
+              nutrition: result.nutrition,
+              heartMetrics: 0, // Counted in healthMetrics
+              completedAt: new Date().toISOString(),
+            });
+            logger.info(`[ClickHouseML] Updated backfill metadata for ${userId} with ${result.total} total records`);
+          } else {
+            logger.warn(`[ClickHouseML] Sync returned 0 records for ${userId} - NOT marking ClickHouse backfill complete`);
+          }
         } catch (syncError) {
           logger.error(`[ClickHouseML] Async full history sync failed for ${userId}:`, syncError);
         }

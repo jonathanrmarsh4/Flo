@@ -7,6 +7,7 @@ import { FlomentumGamifiedTile } from './dashboard/FlomentumGamifiedTile';
 import { UpgradePremiumTile } from './dashboard/UpgradePremiumTile';
 import { AirQualityTile } from './dashboard/AirQualityTile';
 import { MorningBriefingTile } from './dashboard/MorningBriefingTile';
+import { SyncProgressIndicator } from './dashboard/SyncProgressIndicator';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { ThreePMSurveyModal } from './ThreePMSurveyModal';
@@ -644,6 +645,9 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
             })()}
 
             {/* AnomalyAlertTile removed - using ML Feedback Banner above instead */}
+
+            {/* Sync Progress Indicator - Shows when HealthKit/ClickHouse is syncing */}
+            <SyncProgressIndicator isDark={isDark} />
 
             {/* Morning Briefing Tile - Shows 7am-12pm above Flō Overview */}
             <MorningBriefingTile isDark={isDark} useMetric={true} onTalkToFlo={onTalkToFlo} />
