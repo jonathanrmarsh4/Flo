@@ -1,5 +1,8 @@
 import { logger } from '../logger';
 import { getSupabaseClient } from './supabaseClient';
+import { apnsService } from './apnsService';
+import { db } from '../db';
+import { notificationLogs } from '@shared/schema';
 
 /**
  * Active Life Events Service
@@ -594,6 +597,138 @@ class ActiveLifeEventsService {
       createdAt: new Date(data.created_at),
       expiresAt: new Date(data.expires_at),
     };
+  }
+
+  /**
+   * Send a check-in push notification to a user
+   * This is a new notification type specifically for contextual check-ins
+   */
+  async sendCheckInNotification(params: {
+    healthId: string;
+    checkInId: string;
+    promptMessage: string;
+    triggerMetric: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { healthId, checkInId, promptMessage, triggerMetric } = params;
+
+      // Look up the user ID from health ID (via supabase health profiles)
+      const { data: healthProfile, error: profileError } = await this.supabase
+        .from('health_profiles')
+        .select('user_id')
+        .eq('health_id', healthId)
+        .single();
+
+      if (profileError || !healthProfile?.user_id) {
+        logger.warn('[ActiveLifeEvents] Could not find user for health ID', { healthId });
+        return { success: false, error: 'User not found' };
+      }
+
+      const userId = healthProfile.user_id;
+
+      // Create notification log entry
+      const [logEntry] = await db.insert(notificationLogs).values({
+        userId,
+        title: 'Check In with Flō',
+        body: promptMessage.length > 200 ? promptMessage.substring(0, 197) + '...' : promptMessage,
+        status: 'pending',
+        contextData: { 
+          type: 'check_in', 
+          checkInId, 
+          triggerMetric 
+        },
+      }).returning();
+
+      // Send via APNs with check_in type for deep linking
+      const result = await apnsService.sendToUser(userId, {
+        title: 'Check In with Flo',
+        body: promptMessage.length > 150 ? promptMessage.substring(0, 147) + '...' : promptMessage,
+        sound: 'default',
+        interruptionLevel: 'active',
+        data: {
+          type: 'check_in',
+          checkInId,
+          triggerMetric,
+          action: 'open_flo_chat',
+        },
+      }, logEntry?.id);
+
+      // Only mark as 'sent' if APNs actually delivered to at least one device
+      const actuallyDelivered = result.success && !result.blocked && (result.devicesReached || 0) > 0;
+
+      if (actuallyDelivered) {
+        // Update check-in status to 'sent'
+        await this.supabase
+          .from('check_in_prompts')
+          .update({ 
+            status: 'sent', 
+            sent_at: new Date().toISOString() 
+          })
+          .eq('id', checkInId);
+
+        logger.info('[ActiveLifeEvents] Check-in notification sent', {
+          checkInId,
+          userId,
+          devicesReached: result.devicesReached,
+        });
+
+        return { success: true };
+      } else if (result.blocked) {
+        // Notification was blocked by eligibility service - keep as pending for retry
+        logger.info('[ActiveLifeEvents] Check-in notification blocked (eligibility)', {
+          checkInId,
+          reason: result.error,
+        });
+        return { success: false, error: 'Blocked by eligibility check - will retry later' };
+      } else {
+        logger.warn('[ActiveLifeEvents] Check-in notification failed', {
+          checkInId,
+          error: result.error,
+        });
+        return { success: false, error: result.error };
+      }
+    } catch (error: any) {
+      logger.error('[ActiveLifeEvents] Error sending check-in notification:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Create and send a check-in prompt with optional push notification
+   */
+  async createAndSendCheckIn(params: {
+    healthId: string;
+    triggerType: 'persistent_anomaly' | 'sudden_change' | 'pattern_break' | 'scheduled';
+    triggerMetric: string;
+    anomalyDays?: number;
+    deviationPercent?: number;
+    baselineValue?: number;
+    currentValue?: number;
+    triggerDetails?: Record<string, any>;
+    sendPushNotification?: boolean;
+  }): Promise<{ checkIn: CheckInPrompt | null; notificationSent: boolean }> {
+    const { sendPushNotification = true, ...createParams } = params;
+    
+    // Create the check-in prompt
+    const checkIn = await this.createCheckInPrompt(createParams);
+    
+    if (!checkIn) {
+      return { checkIn: null, notificationSent: false };
+    }
+
+    // Optionally send push notification
+    let notificationSent = false;
+    if (sendPushNotification) {
+      const notifResult = await this.sendCheckInNotification({
+        healthId: params.healthId,
+        checkInId: checkIn.id,
+        promptMessage: checkIn.promptMessage,
+        triggerMetric: params.triggerMetric,
+      });
+      notificationSent = notifResult.success;
+    }
+
+    return { checkIn, notificationSent };
   }
 }
 
