@@ -180,9 +180,39 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
                             product.priceLocale?.currencyCode ||
                             extractCurrencyFromPrice(priceString);
         
+        // Log all price-related fields for debugging
+        console.log('[StoreKit] Price fields for', productId, ':', {
+          price: product.price,
+          localizedPrice: product.localizedPrice,
+          displayPrice: product.displayPrice,
+          priceValue: product.priceValue,
+          priceAmountMicros: product.priceAmountMicros,
+          currencyCode: currencyCode,
+          priceLocale: product.priceLocale,
+        });
+        
         // The displayPrice should be the fully localized string from App Store
-        // This already includes the correct currency symbol and formatting for the user's region
-        const displayPrice = product.price || product.localizedPrice || product.displayPrice || `$${numericPrice.toFixed(2)}`;
+        // Prioritize localizedPrice and displayPrice over price, as price may be unlocalized
+        // Use Intl.NumberFormat as fallback to format with correct currency symbol
+        let displayPrice: string;
+        if (product.localizedPrice && typeof product.localizedPrice === 'string' && product.localizedPrice.length > 0) {
+          displayPrice = product.localizedPrice;
+        } else if (product.displayPrice && typeof product.displayPrice === 'string' && product.displayPrice.length > 0) {
+          displayPrice = product.displayPrice;
+        } else if (product.price && typeof product.price === 'string' && /[^0-9.,]/.test(product.price)) {
+          // product.price contains non-numeric chars (likely a currency symbol), use it
+          displayPrice = product.price;
+        } else {
+          // Fallback: format the numeric price with the detected currency
+          try {
+            displayPrice = new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: currencyCode,
+            }).format(numericPrice);
+          } catch {
+            displayPrice = `${currencyCode} ${numericPrice.toFixed(2)}`;
+          }
+        }
         
         products.push({
           productId: product.productIdentifier,
