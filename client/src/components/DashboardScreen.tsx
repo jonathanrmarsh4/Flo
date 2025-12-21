@@ -8,6 +8,7 @@ import { UpgradePremiumTile } from './dashboard/UpgradePremiumTile';
 import { AirQualityTile } from './dashboard/AirQualityTile';
 import { MorningBriefingTile } from './dashboard/MorningBriefingTile';
 import { SyncProgressIndicator } from './dashboard/SyncProgressIndicator';
+import { ActiveContextTile } from './dashboard/ActiveContextTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { ThreePMSurveyModal } from './ThreePMSurveyModal';
@@ -657,6 +658,9 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
 
             {/* Sync Progress Indicator - Shows when HealthKit/ClickHouse is syncing */}
             <SyncProgressIndicator isDark={isDark} />
+
+            {/* Active Context Tile - Shows current life events affecting ML sensitivity */}
+            <ActiveContextTile isDark={isDark} />
 
             {/* Morning Briefing Tile - Shows 7am-12pm above Flō Overview */}
             <MorningBriefingTile isDark={isDark} useMetric={true} onTalkToFlo={onTalkToFlo} />
