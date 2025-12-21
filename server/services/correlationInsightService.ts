@@ -14,6 +14,10 @@ const FEEDBACK_EXPIRY_HOURS = 48;
 // Note: Pattern cooldown now uses admin-configurable alertCooldownHours from getMLSettings()
 const DEFAULT_PATTERN_COOLDOWN_HOURS = 24;
 
+// Minimum days of data required before running anomaly detection
+// New users with insufficient baseline will flood with false anomalies
+const MIN_BASELINE_DAYS = 14;
+
 export interface CorrelationInsight {
   insightId: string;
   insightType: string;
@@ -55,7 +59,23 @@ class CorrelationInsightService {
       };
     }
 
-    logger.info(`[CorrelationInsight] Starting full analysis for user ${userId}`);
+    // CRITICAL: Check if user has established baseline before running anomaly detection
+    // New users with insufficient data will trigger false positives on everything
+    const baselineInfo = await this.checkBaselineEstablished(healthId);
+    if (!baselineInfo.isEstablished) {
+      logger.info(`[CorrelationInsight] Skipping analysis for user ${userId}: baseline not established (${baselineInfo.daysOfData} days of data, need ${MIN_BASELINE_DAYS})`);
+      return {
+        healthId,
+        timestamp,
+        anomalies: [],
+        feedbackQuestion: null,
+        feedbackQuestions: [],
+        insights: [],
+        patterns: [],
+      };
+    }
+
+    logger.info(`[CorrelationInsight] Starting full analysis for user ${userId} (${baselineInfo.daysOfData} days of baseline data)`);
 
     // Get admin-configured cooldown setting
     const mlSettings = await getMLSettings();
@@ -636,6 +656,34 @@ class CorrelationInsightService {
       logger.info(`[CorrelationInsight] Tracked answered pattern "${triggerPattern}" for user ${userId}`);
     } catch (error) {
       logger.error(`[CorrelationInsight] Failed to track answered pattern:`, error);
+    }
+  }
+
+  private async checkBaselineEstablished(healthId: string): Promise<{ isEstablished: boolean; daysOfData: number }> {
+    try {
+      // Query ClickHouse to get data coverage summary
+      const coverage = await clickhouseBaselineEngine.getDataCoverageSummary(healthId);
+      
+      // Check health metrics coverage (the primary data source for anomaly detection)
+      if (!coverage.healthMetrics.earliestDate || !coverage.healthMetrics.latestDate) {
+        return { isEstablished: false, daysOfData: 0 };
+      }
+      
+      // Calculate days of data based on date range
+      const earliest = new Date(coverage.healthMetrics.earliestDate);
+      const latest = new Date(coverage.healthMetrics.latestDate);
+      const daysOfData = Math.ceil((latest.getTime() - earliest.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      
+      // Also require a minimum number of data points (at least 7 per day on average)
+      const hasEnoughDataPoints = coverage.healthMetrics.count >= MIN_BASELINE_DAYS * 3; // At least 3 metrics per day
+      
+      const isEstablished = daysOfData >= MIN_BASELINE_DAYS && hasEnoughDataPoints;
+      
+      return { isEstablished, daysOfData };
+    } catch (error) {
+      logger.error(`[CorrelationInsight] Error checking baseline for ${healthId}:`, error);
+      // If we can't check, assume baseline is not established (conservative approach)
+      return { isEstablished: false, daysOfData: 0 };
     }
   }
 

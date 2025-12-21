@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { users } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray, isNotNull } from "drizzle-orm";
 import { createLogger } from "../utils/logger";
 import { correlationInsightService } from "./correlationInsightService";
 import { getHealthId } from "./supabaseHealthStorage";
@@ -51,12 +51,20 @@ async function runAnomalyDetection() {
   const startTime = Date.now();
 
   try {
+    // CRITICAL: Only run for premium/admin users with established health data
+    // Free users should NOT receive ML-powered anomaly detection (it overwhelms new users)
     const activeUsers = await db
-      .select({ id: users.id })
+      .select({ id: users.id, healthId: users.healthId })
       .from(users)
-      .where(eq(users.status, "active"));
+      .where(
+        and(
+          eq(users.status, "active"),
+          inArray(users.role, ['premium', 'admin']),
+          isNotNull(users.healthId)
+        )
+      );
 
-    logger.info(`[AnomalyDetectionScheduler] Running detection for ${activeUsers.length} active users`);
+    logger.info(`[AnomalyDetectionScheduler] Running detection for ${activeUsers.length} premium/admin users`);
 
     let successCount = 0;
     let errorCount = 0;
@@ -66,7 +74,8 @@ async function runAnomalyDetection() {
 
     for (const user of activeUsers) {
       try {
-        const healthId = await getHealthId(user.id);
+        // Use cached healthId from query if available
+        const healthId = user.healthId || await getHealthId(user.id);
         if (!healthId) {
           skippedCount++;
           continue;
@@ -106,10 +115,17 @@ export async function triggerManualAnomalyDetection(): Promise<{
   
   try {
     const startTime = Date.now();
+    // Only process premium/admin users with health data
     const activeUsers = await db
-      .select({ id: users.id })
+      .select({ id: users.id, healthId: users.healthId })
       .from(users)
-      .where(eq(users.status, "active"));
+      .where(
+        and(
+          eq(users.status, "active"),
+          inArray(users.role, ['premium', 'admin']),
+          isNotNull(users.healthId)
+        )
+      );
 
     let usersProcessed = 0;
     let anomaliesDetected = 0;

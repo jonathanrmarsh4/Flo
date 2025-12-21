@@ -14,7 +14,7 @@
 import cron from 'node-cron';
 import { db } from '../db';
 import { users } from '../../shared/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and, isNotNull, inArray } from 'drizzle-orm';
 import { logger } from '../logger';
 import { formatInTimeZone, format } from 'date-fns-tz';
 import { generateDailyInsights } from './insightsEngineV2';
@@ -77,8 +77,8 @@ async function processInsightsGeneration(catchUpMode: boolean = false) {
   logger.info(`[InsightsV2Scheduler] Starting hourly check for users needing insights (catchUp: ${catchUpMode})`);
   
   try {
-    // Get all active users with timezone data AND healthId (users with Supabase health data)
-    // healthId is set when users have health profiles in Supabase
+    // CRITICAL: Only run for premium/admin users to prevent overwhelming new/free users
+    // Daily insights require AI processing and should be reserved for paying users
     const allUsers = await db
       .select({
         id: users.id,
@@ -91,14 +91,16 @@ async function processInsightsGeneration(catchUpMode: boolean = false) {
         and(
           eq(users.status, 'active'),
           isNotNull(users.timezone),
-          isNotNull(users.healthId) // Only users with health profiles
+          isNotNull(users.healthId),
+          // Only premium/admin users get daily insights
+          inArray(users.role, ['premium', 'admin'])
         )
       );
     
     // All users with healthId have health data in Supabase
     const usersWithHealthData = allUsers;
     
-    logger.info(`[InsightsV2Scheduler] Found ${allUsers.length} active users with timezone and healthId`);
+    logger.info(`[InsightsV2Scheduler] Found ${allUsers.length} active premium/admin users with timezone and healthId`);
     
     const now = new Date();
     let eligibleUsers: typeof usersWithHealthData = [];
