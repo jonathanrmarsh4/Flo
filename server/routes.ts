@@ -19789,11 +19789,33 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         return res.json({ meals: [] });
       }
       
-      const start = startDate ? new Date(startDate as string) : new Date();
-      start.setHours(0, 0, 0, 0);
+      // Get user's timezone from the database
+      const userResult = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+      const userTimezone = userResult[0]?.timezone || 'UTC';
       
-      const end = endDate ? new Date(endDate as string) : new Date();
-      end.setHours(23, 59, 59, 999);
+      // Calculate start/end in user's local timezone, then convert to UTC for query
+      const { formatInTimeZone, zonedTimeToUtc } = await import('date-fns-tz');
+      
+      let start: Date;
+      let end: Date;
+      
+      if (startDate) {
+        start = new Date(startDate as string);
+        start.setHours(0, 0, 0, 0);
+      } else {
+        // Get today's date in user's local timezone, then get midnight in that timezone
+        const nowInUserTz = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
+        start = zonedTimeToUtc(`${nowInUserTz}T00:00:00`, userTimezone);
+      }
+      
+      if (endDate) {
+        end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+      } else {
+        // Get today's date in user's local timezone, then get end of day in that timezone
+        const nowInUserTz = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
+        end = zonedTimeToUtc(`${nowInUserTz}T23:59:59.999`, userTimezone);
+      }
       
       // Query nutrition samples from healthkit_samples
       const { getSupabaseClient } = await import('./services/supabaseClient');
