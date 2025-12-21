@@ -4,9 +4,12 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { storage } from "../storage";
+import { db } from "../db";
 import { logger } from "../logger";
 import { isAuthenticated } from "../replitAuth";
+import { deviceTokens } from "@shared/schema";
 import { authRateLimiter, signupRateLimiter, passwordResetRateLimiter } from "../middleware/rateLimiter";
 import {
   generateRegistrationOptions,
@@ -579,6 +582,36 @@ router.post("/api/mobile/auth/login", authRateLimiter, async (req, res) => {
     }
     logger.error('Email login error', error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Mobile logout endpoint - deactivates device tokens to stop push notifications
+router.post("/api/mobile/auth/logout", isAuthenticated, async (req, res) => {
+  try {
+    const userId = (req.user as any).id || (req.user as any).claims?.sub;
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    // Deactivate all device tokens for this user
+    const result = await db
+      .update(deviceTokens)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(deviceTokens.userId, userId));
+    
+    const deactivatedCount = result.rowCount || 0;
+    
+    logger.info(`[MobileAuth] User ${userId} logged out - deactivated ${deactivatedCount} device token(s)`);
+    
+    res.json({ 
+      success: true, 
+      message: "Logged out successfully",
+      deactivatedTokens: deactivatedCount
+    });
+  } catch (error) {
+    logger.error('Mobile logout error', error);
+    res.status(500).json({ error: "Failed to logout" });
   }
 });
 

@@ -317,6 +317,15 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   const handleLogout = async () => {
     if (Capacitor.isNativePlatform()) {
       try {
+        // First, call server to deactivate device tokens (stops push notifications)
+        await apiRequest('POST', '/api/mobile/auth/logout');
+        logger.debug('Server-side logout completed - device tokens deactivated');
+      } catch (error) {
+        // Continue with local logout even if server call fails
+        logger.warn('Server logout failed, continuing with local logout');
+      }
+      
+      try {
         const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
         await SecureStoragePlugin.remove({ key: 'auth_token' });
         logger.debug('JWT token cleared from secure storage on logout');

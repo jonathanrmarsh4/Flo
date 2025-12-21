@@ -47,6 +47,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Stand Hours HealthKit Fix:** Corrected iOS stand hours calculation in `HealthKitNormalisationService.swift` to use `HKCategoryTypeIdentifierAppleStandHour`.
 - **Saved Meals Feature:** Users can save frequently eaten meals from Today's Meals card (star button) and quickly log them again via SavedMealsCard. Stored in `saved_meals` table with items and nutrition totals.
 - **ML Notification Safeguards:** Anomaly detection and insights generation require: (a) premium/admin user status, (b) 14+ days of established baseline data with 42+ minimum data points. Prevents notification flooding for new users.
+- **Mobile Logout Device Token Deactivation:** POST `/api/mobile/auth/logout` endpoint deactivates all device tokens for the user, stopping push notifications after logout. The iOS client now calls this endpoint before clearing local authentication state.
 
 ## External Dependencies
 
