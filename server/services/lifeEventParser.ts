@@ -21,6 +21,7 @@ interface LifeEventExtraction {
   acknowledgment: string;
   dateHint?: string;  // Raw date reference like "Sunday", "yesterday", "last week"
   occurredAt?: Date;  // Parsed date (populated after chrono processing)
+  durationDays?: number;  // Duration in days for context-aware events (travel, illness, etc.)
 }
 
 interface MultipleLifeEventsExtraction {
@@ -148,6 +149,17 @@ const TRIGGER_WORDS = [
   'feeling dizzy', 'cough', 'congestion', 'runny nose', 'sinus pressure', 'stomach cramps',
   'got injured', 'pulled a muscle', 'feeling fatigued', 'body aches',
   
+  // Context-aware life events (affect ML sensitivity)
+  'traveling', 'travel', 'on vacation', 'vacation', 'on a trip', 'road trip', 'flying',
+  'jet lag', 'time zone', 'been sick', 'came down with', 'caught a cold', 'got sick',
+  'rest day', 'recovery day', 'taking it easy', 'day off', 'injured my', 
+  'dealing with stress', 'high stress', 'stressful week', 'busy week',
+  'without my', 'forgot my', 'left my', 'equipment issue', 'watch died',
+  'fasting', 'intermittent fasting', 'not eating', 'skipping meals',
+  'started new medication', 'changed medication', 'new prescription',
+  'altitude', 'high altitude', 'in the mountains',
+  'period', 'menstrual', 'cycle started',
+  
   // Goal/intention phrases (multi-word for specificity)
   'want to lose', 'want to gain', 'want to improve', 'want to increase',
   'trying to lose', 'trying to gain', 'trying to improve', 'trying to build',
@@ -201,14 +213,23 @@ Output JSON array with this structure (empty array [] if no events):
 {
   "events": [
     {
-      "eventType": "ice_bath|sauna|alcohol|late_meal|supplements|workout|stress|breathwork|caffeine|symptoms|health_goal|observation",
+      "eventType": "ice_bath|sauna|alcohol|late_meal|supplements|workout|stress|breathwork|caffeine|symptoms|health_goal|observation|travel|illness|injury|rest_day|jet_lag|vacation|recovery",
       "details": {...},
       "acknowledgment": "Short acknowledgment for this specific event",
-      "dateHint": "Raw date reference if mentioned (e.g. 'Sunday', 'yesterday', 'last week', 'this morning') or null if today"
+      "dateHint": "Raw date reference if mentioned (e.g. 'Sunday', 'yesterday', 'last week', 'this morning') or null if today",
+      "durationDays": number or null (extract if user mentions duration like "for a week", "for 3 days", "until Friday")
     }
   ],
   "combinedAcknowledgment": "Brief overall acknowledgment (1 sentence)"
 }
+
+DURATION EXTRACTION (for context-aware events):
+- "traveling for a week" → durationDays: 7
+- "been sick for 3 days" → durationDays: 3
+- "vacation until Friday" → calculate days until Friday
+- "taking a rest day" → durationDays: 1
+- "dealing with jet lag" → durationDays: 5 (default)
+- If no duration mentioned for travel/illness → use sensible defaults (travel: 7, illness: 5, stress: 3)
 
 DATE EXTRACTION RULES:
 - If user says "Sunday", "on Sunday", "last Sunday" → dateHint: "Sunday" or "last Sunday"

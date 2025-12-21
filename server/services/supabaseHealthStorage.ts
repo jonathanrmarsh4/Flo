@@ -1132,15 +1132,25 @@ export interface LifeEventInput {
   notes?: string | null;
   happenedAt?: Date;
   happened_at?: Date;
+  durationDays?: number;  // Duration in days for context-aware events (travel, illness, etc.)
+  duration_days?: number;  // Snake_case variant
 }
+
+// Event types that should be tracked as "active" life events affecting ML sensitivity
+const ACTIVE_LIFE_EVENT_TYPES = new Set([
+  'travel', 'illness', 'stress', 'injury', 'rest_day', 'alcohol', 
+  'equipment_unavailable', 'social_event', 'jet_lag', 'menstrual_cycle', 
+  'altitude', 'fasting', 'medication_change', 'sick', 'vacation', 'recovery'
+]);
 
 export async function createLifeEvent(userId: string, event: LifeEventInput): Promise<LifeEvent> {
   const healthId = await getHealthId(userId);
   
   // Convert camelCase to snake_case for Supabase, with fallbacks
+  const eventType = event.event_type || event.eventType || 'other';
   const insertData = {
     health_id: healthId,
-    event_type: event.event_type || event.eventType,
+    event_type: eventType,
     details: event.details || {},
     notes: event.notes || null,
     happened_at: event.happened_at || event.happenedAt || new Date(),
@@ -1164,6 +1174,44 @@ export async function createLifeEvent(userId: string, event: LifeEventInput): Pr
   }
   
   logger.info('[SupabaseHealth] Life event created successfully:', { id: data.id });
+
+  // Check if this is a life event type that should affect ML sensitivity
+  // If so, also create an "active" life event with duration and affected metrics
+  if (ACTIVE_LIFE_EVENT_TYPES.has(eventType.toLowerCase()) || 
+      eventType.includes('travel') || eventType.includes('sick') || eventType.includes('stress')) {
+    try {
+      const { activeLifeEventsService } = await import('./activeLifeEventsService');
+      const details = event.details || {};
+      
+      // Extract duration from top-level field first, then from details (e.g., "traveling for 7 days")
+      const durationDays = event.durationDays || event.duration_days || 
+                          details.duration_days || details.durationDays || details.duration || undefined;
+      
+      if (durationDays) {
+        logger.info('[SupabaseHealth] Using explicit duration for active life event', { 
+          eventType, 
+          durationDays 
+        });
+      }
+      
+      await activeLifeEventsService.createActiveLifeEvent({
+        healthId,
+        eventType: eventType.toLowerCase().replace(/\s+/g, '_'),
+        details,
+        notes: event.notes || undefined,
+        happenedAt: insertData.happened_at instanceof Date ? insertData.happened_at : new Date(insertData.happened_at),
+        durationDays,
+        userExplanation: event.notes || details.reason || details.explanation || undefined,
+        source: 'chat',
+        suppressionAction: 'context_only', // Default to context-only, not full suppression
+      });
+      
+      logger.info('[SupabaseHealth] Also created active life event for ML context', { eventType });
+    } catch (activeError: any) {
+      // Non-fatal - don't fail the main event creation if active life event fails
+      logger.warn('[SupabaseHealth] Could not create active life event:', activeError.message);
+    }
+  }
 
   return data;
 }
