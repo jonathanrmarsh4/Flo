@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Zap, Brain, Heart, ChevronRight, Clock, Sparkles, Loader2, Pill, Moon, Activity, Frown } from 'lucide-react';
+import { X, Zap, Brain, Heart, ChevronRight, Clock, Sparkles, Loader2, Pill, Moon, Activity, Frown, Dumbbell, Bone, Eye, BatteryCharging, Smile, Wind, AlertCircle, type LucideIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { SUPPLEMENT_CONFIGURATIONS } from '@shared/supplementConfig';
 
 interface ThreePMSurveyModalProps {
   isOpen: boolean;
@@ -27,16 +28,24 @@ interface ActiveExperiment {
 }
 
 interface SupplementRatings {
-  [experimentId: string]: {
-    'Sleep Quality'?: number;
-    'Recovery'?: number;
-    'Stress Level'?: number;
-  };
+  [experimentId: string]: Record<string, number>;
 }
 
-const SUPPLEMENT_QUESTIONS = [
-  {
-    id: 'Sleep Quality',
+interface MetricQuestionConfig {
+  id: string;
+  icon: LucideIcon;
+  iconColor: string;
+  iconBg: string;
+  gradient: string;
+  title: string;
+  prompt: string;
+  lowAnchor: string;
+  highAnchor: string;
+  inverted?: boolean;
+}
+
+const METRIC_DISPLAY_CONFIG: Record<string, Omit<MetricQuestionConfig, 'id'>> = {
+  'Sleep Quality': {
     icon: Moon,
     iconColor: 'text-indigo-400',
     iconBg: 'bg-indigo-500/20',
@@ -46,8 +55,7 @@ const SUPPLEMENT_QUESTIONS = [
     lowAnchor: 'Terrible, restless sleep',
     highAnchor: 'Deep, restorative sleep',
   },
-  {
-    id: 'Recovery',
+  'Recovery': {
     icon: Activity,
     iconColor: 'text-emerald-400',
     iconBg: 'bg-emerald-500/20',
@@ -57,8 +65,7 @@ const SUPPLEMENT_QUESTIONS = [
     lowAnchor: 'Completely drained',
     highAnchor: 'Fully recharged',
   },
-  {
-    id: 'Stress Level',
+  'Stress Level': {
     icon: Frown,
     iconColor: 'text-amber-400',
     iconBg: 'bg-amber-500/20',
@@ -69,7 +76,126 @@ const SUPPLEMENT_QUESTIONS = [
     highAnchor: 'Extremely stressed',
     inverted: true,
   },
-];
+  'Joint Pain': {
+    icon: Bone,
+    iconColor: 'text-orange-400',
+    iconBg: 'bg-orange-500/20',
+    gradient: 'from-orange-500/20 to-red-500/20',
+    title: 'Joint Pain',
+    prompt: 'How is your joint pain or discomfort today?',
+    lowAnchor: 'No pain at all',
+    highAnchor: 'Severe pain',
+    inverted: true,
+  },
+  'Muscle Soreness': {
+    icon: Dumbbell,
+    iconColor: 'text-red-400',
+    iconBg: 'bg-red-500/20',
+    gradient: 'from-red-500/20 to-pink-500/20',
+    title: 'Muscle Soreness',
+    prompt: 'How sore are your muscles today?',
+    lowAnchor: 'Not sore at all',
+    highAnchor: 'Very sore',
+    inverted: true,
+  },
+  'Energy Level': {
+    icon: BatteryCharging,
+    iconColor: 'text-yellow-400',
+    iconBg: 'bg-yellow-500/20',
+    gradient: 'from-yellow-500/20 to-orange-500/20',
+    title: 'Energy Level',
+    prompt: 'How is your energy level today?',
+    lowAnchor: 'Completely exhausted',
+    highAnchor: 'Full of energy',
+  },
+  'Mental Clarity': {
+    icon: Brain,
+    iconColor: 'text-purple-400',
+    iconBg: 'bg-purple-500/20',
+    gradient: 'from-purple-500/20 to-blue-500/20',
+    title: 'Mental Clarity',
+    prompt: 'How clear is your thinking today?',
+    lowAnchor: 'Very foggy',
+    highAnchor: 'Crystal clear',
+  },
+  'Focus': {
+    icon: Eye,
+    iconColor: 'text-cyan-400',
+    iconBg: 'bg-cyan-500/20',
+    gradient: 'from-cyan-500/20 to-blue-500/20',
+    title: 'Focus',
+    prompt: 'How well can you focus today?',
+    lowAnchor: 'Very distracted',
+    highAnchor: 'Laser focused',
+  },
+  'Anxiety': {
+    icon: AlertCircle,
+    iconColor: 'text-rose-400',
+    iconBg: 'bg-rose-500/20',
+    gradient: 'from-rose-500/20 to-red-500/20',
+    title: 'Anxiety',
+    prompt: 'How anxious are you feeling?',
+    lowAnchor: 'Very calm',
+    highAnchor: 'Very anxious',
+    inverted: true,
+  },
+  'Calmness': {
+    icon: Wind,
+    iconColor: 'text-teal-400',
+    iconBg: 'bg-teal-500/20',
+    gradient: 'from-teal-500/20 to-cyan-500/20',
+    title: 'Calmness',
+    prompt: 'How calm do you feel?',
+    lowAnchor: 'Very agitated',
+    highAnchor: 'Completely at peace',
+  },
+  'Mood': {
+    icon: Smile,
+    iconColor: 'text-pink-400',
+    iconBg: 'bg-pink-500/20',
+    gradient: 'from-pink-500/20 to-rose-500/20',
+    title: 'Mood',
+    prompt: 'How is your overall mood?',
+    lowAnchor: 'Very low',
+    highAnchor: 'Excellent',
+  },
+  'Morning Alertness': {
+    icon: Zap,
+    iconColor: 'text-amber-400',
+    iconBg: 'bg-amber-500/20',
+    gradient: 'from-amber-500/20 to-yellow-500/20',
+    title: 'Morning Alertness',
+    prompt: 'How alert did you feel when you woke up?',
+    lowAnchor: 'Very groggy',
+    highAnchor: 'Wide awake',
+  },
+};
+
+function getMetricQuestionConfig(metricName: string): MetricQuestionConfig {
+  const config = METRIC_DISPLAY_CONFIG[metricName];
+  if (config) {
+    return { id: metricName, ...config };
+  }
+  return {
+    id: metricName,
+    icon: Activity,
+    iconColor: 'text-gray-400',
+    iconBg: 'bg-gray-500/20',
+    gradient: 'from-gray-500/20 to-slate-500/20',
+    title: metricName,
+    prompt: `How would you rate your ${metricName.toLowerCase()} today?`,
+    lowAnchor: 'Very poor',
+    highAnchor: 'Excellent',
+  };
+}
+
+function getExperimentSubjectiveMetrics(supplementTypeId: string): string[] {
+  const config = SUPPLEMENT_CONFIGURATIONS[supplementTypeId];
+  if (config && config.subjectiveMetrics) {
+    return config.subjectiveMetrics.map(m => m.metric);
+  }
+  return ['Recovery', 'Energy Level'];
+}
 
 export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: ThreePMSurveyModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -199,10 +325,12 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
     if (!activeExperiments || activeExperiments.length === 0) {
       return [];
     }
-    const steps: { experiment: ActiveExperiment; question: typeof SUPPLEMENT_QUESTIONS[0] }[] = [];
+    const steps: { experiment: ActiveExperiment; question: MetricQuestionConfig; metricsCount: number }[] = [];
     for (const exp of activeExperiments) {
-      for (const q of SUPPLEMENT_QUESTIONS) {
-        steps.push({ experiment: exp, question: q });
+      const metricNames = getExperimentSubjectiveMetrics(exp.supplement_type_id);
+      for (const metricName of metricNames) {
+        const question = getMetricQuestionConfig(metricName);
+        steps.push({ experiment: exp, question, metricsCount: metricNames.length });
       }
     }
     return steps;
@@ -218,8 +346,6 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
       const step = supplementQuestionSteps[supplementStep];
       return {
         ...step.question,
-        iconColor: isDark ? step.question.iconColor : step.question.iconColor.replace('-400', '-600'),
-        iconBg: isDark ? step.question.iconBg : step.question.iconBg.replace('/20', '-100').replace('bg-', 'bg-'),
         supplementName: step.experiment.product_name,
         experimentId: step.experiment.id,
       };
@@ -233,7 +359,7 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
       return surveyData[dailyQuestions[currentStep].id as keyof SurveyData];
     } else {
       const step = supplementQuestionSteps[supplementStep];
-      return supplementRatings[step.experiment.id]?.[step.question.id as keyof SupplementRatings[string]] || null;
+      return supplementRatings[step.experiment.id]?.[step.question.id] || null;
     }
   };
 
@@ -291,7 +417,9 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
 
       setTimeout(async () => {
         try {
-          const isLastQuestionForExperiment = (supplementStep + 1) % SUPPLEMENT_QUESTIONS.length === 0;
+          const currentExp = step.experiment;
+          const nextStep = supplementQuestionSteps[supplementStep + 1];
+          const isLastQuestionForExperiment = !nextStep || nextStep.experiment.id !== currentExp.id;
           
           if (isLastQuestionForExperiment) {
             await submitSupplementCheckinMutation.mutateAsync({ experimentId, ratings: newRatings });
