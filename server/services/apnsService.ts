@@ -3,6 +3,7 @@ import { db } from '../db';
 import { apnsConfiguration, deviceTokens, notificationLogs, type DeviceToken } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../logger';
+import { checkNotificationEligibility } from './notificationEligibilityService';
 
 type InterruptionLevel = 'passive' | 'active' | 'time-sensitive' | 'critical';
 
@@ -242,20 +243,49 @@ class ApnsService {
 
   /**
    * Send notification to all active devices for a user
+   * 
+   * CRITICAL: This method now includes eligibility checks to prevent:
+   * 1. Notification flooding for new users (require 14+ days baseline)
+   * 2. Historical backfill notifications
+   * 3. Notifications to logged-out users
    */
   async sendToUser(
     userId: string,
-    payload: PushNotificationPayload,
+    payload: PushNotificationPayload & { sourceTimestamp?: Date | string; skipBaselineCheck?: boolean },
     notificationLogId?: string
-  ): Promise<{ success: boolean; devicesReached: number; error?: string }> {
+  ): Promise<{ success: boolean; devicesReached: number; error?: string; blocked?: boolean }> {
     try {
+      // Normalize userId to string to prevent type mismatches
+      const normalizedUserId = String(userId);
+      
+      // CRITICAL: Check notification eligibility before sending
+      const eligibility = await checkNotificationEligibility(normalizedUserId, {
+        sourceTimestamp: payload.sourceTimestamp,
+        skipBaselineCheck: payload.skipBaselineCheck,
+        notificationType: payload.data?.type || 'unknown',
+      });
+      
+      if (!eligibility.eligible) {
+        logger.info(`[APNs] Notification BLOCKED for user ${normalizedUserId}`, {
+          reason: eligibility.reason,
+          daysOfData: eligibility.daysOfData,
+          title: payload.title?.substring(0, 50),
+        });
+        return { 
+          success: false, 
+          devicesReached: 0, 
+          error: eligibility.reason,
+          blocked: true,
+        };
+      }
+      
       // Get all active device tokens for user
       const tokens = await db
         .select()
         .from(deviceTokens)
         .where(
           and(
-            eq(deviceTokens.userId, userId),
+            eq(deviceTokens.userId, normalizedUserId),
             eq(deviceTokens.isActive, true)
           )
         );
@@ -270,17 +300,17 @@ class ApnsService {
             createdAt: deviceTokens.createdAt,
           })
           .from(deviceTokens)
-          .where(eq(deviceTokens.userId, userId));
+          .where(eq(deviceTokens.userId, normalizedUserId));
         
         // Also check total tokens in database for debugging
         const totalTokens = await db
           .select({ count: deviceTokens.id })
           .from(deviceTokens);
         
-        logger.warn(`[APNs] No active device tokens found for user ${userId}`, {
-          userId,
-          userIdLength: userId.length,
-          userIdType: userId.includes('-') ? 'UUID' : 'short',
+        logger.warn(`[APNs] No active device tokens found for user ${normalizedUserId}`, {
+          userId: normalizedUserId,
+          userIdLength: normalizedUserId.length,
+          userIdType: normalizedUserId.includes('-') ? 'UUID' : 'short',
           inactiveTokensForUser: allUserTokens.length,
           totalTokensInDb: totalTokens.length,
           inactiveTokenDetails: allUserTokens.map(t => ({
@@ -293,8 +323,8 @@ class ApnsService {
         return { success: false, devicesReached: 0, error: 'No active devices' };
       }
 
-      logger.info(`[APNs] Sending notification to ${tokens.length} device(s) for user ${userId}`, {
-        userId,
+      logger.info(`[APNs] Sending notification to ${tokens.length} device(s) for user ${normalizedUserId}`, {
+        userId: normalizedUserId,
         tokenCount: tokens.length,
         tokenPreviews: tokens.map(t => t.deviceToken.substring(0, 15) + '...'),
       });

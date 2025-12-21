@@ -585,7 +585,7 @@ router.post("/api/mobile/auth/login", authRateLimiter, async (req, res) => {
   }
 });
 
-// Mobile logout endpoint - deactivates device tokens to stop push notifications
+// Mobile logout endpoint - deactivates device tokens AND flushes pending notifications
 router.post("/api/mobile/auth/logout", isAuthenticated, async (req, res) => {
   try {
     const userId = (req.user as any).id || (req.user as any).claims?.sub;
@@ -594,20 +594,34 @@ router.post("/api/mobile/auth/logout", isAuthenticated, async (req, res) => {
       return res.status(401).json({ error: "Not authenticated" });
     }
     
+    // CRITICAL: Normalize userId to string to ensure type match with device_tokens table
+    const normalizedUserId = String(userId);
+    
     // Deactivate all device tokens for this user
     const result = await db
       .update(deviceTokens)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(deviceTokens.userId, userId));
+      .where(eq(deviceTokens.userId, normalizedUserId));
     
     const deactivatedCount = result.rowCount || 0;
     
-    logger.info(`[MobileAuth] User ${userId} logged out - deactivated ${deactivatedCount} device token(s)`);
+    // CRITICAL: Flush pending notifications to prevent post-logout notification flooding
+    const { flushPendingNotifications, clearBaselineCache } = await import("../services/notificationEligibilityService");
+    const flushResult = await flushPendingNotifications(normalizedUserId);
+    
+    // Clear any cached baseline eligibility
+    clearBaselineCache(normalizedUserId);
+    
+    logger.info(`[MobileAuth] User ${normalizedUserId} logged out`, {
+      deactivatedTokens: deactivatedCount,
+      flushedNotifications: flushResult.flushed,
+    });
     
     res.json({ 
       success: true, 
       message: "Logged out successfully",
-      deactivatedTokens: deactivatedCount
+      deactivatedTokens: deactivatedCount,
+      flushedNotifications: flushResult.flushed,
     });
   } catch (error) {
     logger.error('Mobile logout error', error);
