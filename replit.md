@@ -49,6 +49,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **ML Notification Safeguards:** Anomaly detection and insights generation require: (a) premium/admin user status, (b) 14+ days of established baseline data with 42+ minimum data points. Prevents notification flooding for new users.
 - **Mobile Logout Device Token Deactivation:** POST `/api/mobile/auth/logout` endpoint deactivates all device tokens for the user, stopping push notifications after logout. The iOS client now calls this endpoint before clearing local authentication state.
 - **Account Deletion Feature:** Users can delete their account as a final step after deleting their data. The DELETE `/api/user/account` endpoint performs self-deletion, and the DeleteDataConfirmation modal offers account deletion as an optional follow-up step.
+- **Cumulative Metrics Aggregation Fix:** ClickHouse queries now use `max(value)` for cumulative daily metrics (steps, active_energy, exercise_minutes, etc.) instead of `avg(value)`. This fixes incorrect step counts in insights where partial syncs (8, 283, 7074 steps throughout the day) were being averaged instead of taking the final daily maximum value.
 
 ## External Dependencies
 

@@ -1098,16 +1098,56 @@ export class ClickHouseBaselineEngine {
       const baselines = await this.calculateBaselines(healthId, windowDays);
       const baselineMap = new Map(baselines.map(b => [b.metricType, b]));
 
+      // CRITICAL FIX: Use max() for cumulative daily metrics (steps, active_energy, etc.)
+      // These metrics accumulate throughout the day, so partial syncs (8, 283, 1500, 7074)
+      // need max() to get the final value, not avg() which would average all partial syncs
+      // IMPORTANT: Cumulative metrics must be scoped to the most recent local_date to avoid
+      // mixing values from different days (e.g., yesterday's 7074 with today's partial 283)
+      const CUMULATIVE_METRIC_TYPES = ['steps', 'active_energy', 'exercise_minutes', 'workout_minutes', 
+        'distance_walking_running', 'distance_km', 'stand_hours', 'stand_time', 'move_minutes', 'active_calories'];
+      
+      // For cumulative metrics: Get max value from the most recent day only
+      // For instantaneous metrics: Average over the lookback window
       const sql = `
-        SELECT
-          metric_type,
-          avg(value) as current_value,
-          count() as sample_count
-        FROM flo_health.health_metrics
-        WHERE health_id = {healthId:String}
-          AND recorded_at >= now() - INTERVAL {lookbackHours:UInt32} HOUR
-        GROUP BY metric_type
-        HAVING count() >= 1
+        WITH 
+          -- Get the most recent local_date for each metric type
+          recent_dates AS (
+            SELECT 
+              metric_type,
+              max(toDate(local_date)) as latest_date
+            FROM flo_health.health_metrics
+            WHERE health_id = {healthId:String}
+              AND recorded_at >= now() - INTERVAL {lookbackHours:UInt32} HOUR
+            GROUP BY metric_type
+          ),
+          -- For cumulative metrics: get max value from the most recent day only
+          cumulative_values AS (
+            SELECT 
+              m.metric_type,
+              max(m.value) as current_value,
+              count() as sample_count
+            FROM flo_health.health_metrics m
+            INNER JOIN recent_dates rd ON m.metric_type = rd.metric_type 
+              AND toDate(m.local_date) = rd.latest_date
+            WHERE m.health_id = {healthId:String}
+              AND m.metric_type IN (${CUMULATIVE_METRIC_TYPES.map(m => `'${m}'`).join(', ')})
+            GROUP BY m.metric_type
+          ),
+          -- For instantaneous metrics: average over the full lookback window
+          instantaneous_values AS (
+            SELECT 
+              metric_type,
+              avg(value) as current_value,
+              count() as sample_count
+            FROM flo_health.health_metrics
+            WHERE health_id = {healthId:String}
+              AND recorded_at >= now() - INTERVAL {lookbackHours:UInt32} HOUR
+              AND metric_type NOT IN (${CUMULATIVE_METRIC_TYPES.map(m => `'${m}'`).join(', ')})
+            GROUP BY metric_type
+          )
+        SELECT * FROM cumulative_values
+        UNION ALL
+        SELECT * FROM instantaneous_values
       `;
 
       const recentMetrics = await clickhouse.query<{
@@ -1530,16 +1570,49 @@ export class ClickHouseBaselineEngine {
       }
 
       // Step 2: Get current values (recent lookback period)
+      // CRITICAL FIX: Use max() for cumulative daily metrics, scoped to most recent day
+      const CUMULATIVE_METRIC_TYPES_ANALYSIS = ['steps', 'active_energy', 'exercise_minutes', 'workout_minutes', 
+        'distance_walking_running', 'distance_km', 'stand_hours', 'stand_time', 'move_minutes', 'active_calories'];
+      
       const recentSql = `
-        SELECT
-          metric_type,
-          avg(value) as current_value,
-          max(recorded_at) as latest_date,
-          count() as sample_count
-        FROM flo_health.health_metrics
-        WHERE health_id = {healthId:String}
-          AND recorded_at >= now() - INTERVAL {lookbackHours:UInt32} HOUR
-        GROUP BY metric_type
+        WITH 
+          recent_dates AS (
+            SELECT 
+              metric_type,
+              max(toDate(local_date)) as latest_date
+            FROM flo_health.health_metrics
+            WHERE health_id = {healthId:String}
+              AND recorded_at >= now() - INTERVAL {lookbackHours:UInt32} HOUR
+            GROUP BY metric_type
+          ),
+          cumulative_values AS (
+            SELECT 
+              m.metric_type,
+              max(m.value) as current_value,
+              max(m.recorded_at) as latest_date,
+              count() as sample_count
+            FROM flo_health.health_metrics m
+            INNER JOIN recent_dates rd ON m.metric_type = rd.metric_type 
+              AND toDate(m.local_date) = rd.latest_date
+            WHERE m.health_id = {healthId:String}
+              AND m.metric_type IN (${CUMULATIVE_METRIC_TYPES_ANALYSIS.map(m => `'${m}'`).join(', ')})
+            GROUP BY m.metric_type
+          ),
+          instantaneous_values AS (
+            SELECT 
+              metric_type,
+              avg(value) as current_value,
+              max(recorded_at) as latest_date,
+              count() as sample_count
+            FROM flo_health.health_metrics
+            WHERE health_id = {healthId:String}
+              AND recorded_at >= now() - INTERVAL {lookbackHours:UInt32} HOUR
+              AND metric_type NOT IN (${CUMULATIVE_METRIC_TYPES_ANALYSIS.map(m => `'${m}'`).join(', ')})
+            GROUP BY metric_type
+          )
+        SELECT * FROM cumulative_values
+        UNION ALL
+        SELECT * FROM instantaneous_values
       `;
 
       const recentMetrics = await clickhouse.query<{
@@ -1552,14 +1625,28 @@ export class ClickHouseBaselineEngine {
       const recentMap = new Map(recentMetrics.map(r => [r.metric_type, r]));
 
       // Step 2b: Get weekly and monthly averages (for trend context)
+      // For cumulative metrics: first get max per day, then average those daily values
+      // For instantaneous metrics: average all values directly
       const trendSql = `
+        WITH daily_values AS (
+          SELECT
+            metric_type,
+            toDate(local_date) as day,
+            CASE
+              WHEN metric_type IN (${CUMULATIVE_METRIC_TYPES_ANALYSIS.map(m => `'${m}'`).join(', ')})
+              THEN max(value)
+              ELSE avg(value)
+            END as daily_value
+          FROM flo_health.health_metrics
+          WHERE health_id = {healthId:String}
+            AND recorded_at >= now() - INTERVAL 30 DAY
+          GROUP BY metric_type, day
+        )
         SELECT
           metric_type,
-          avgIf(value, recorded_at >= now() - INTERVAL 7 DAY) as weekly_avg,
-          avgIf(value, recorded_at >= now() - INTERVAL 30 DAY) as monthly_avg
-        FROM flo_health.health_metrics
-        WHERE health_id = {healthId:String}
-          AND recorded_at >= now() - INTERVAL 30 DAY
+          avgIf(daily_value, day >= today() - 7) as weekly_avg,
+          avg(daily_value) as monthly_avg
+        FROM daily_values
         GROUP BY metric_type
       `;
 
