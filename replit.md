@@ -46,6 +46,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Apple App Store AI Compliance:** A full compliance system for sharing health data with third-party AI services, including an `AIConsentScreen`, `requireAIConsent` middleware, consent checks in the Morning Briefing Scheduler, a settings toggle for AI Features, AI provider attribution, Privacy Policy updates, and version tracking for re-prompting.
 - **Stand Hours HealthKit Fix:** Corrected iOS stand hours calculation in `HealthKitNormalisationService.swift` to use `HKCategoryTypeIdentifierAppleStandHour`.
 - **Saved Meals Feature:** Users can save frequently eaten meals from Today's Meals card (star button) and quickly log them again via SavedMealsCard. Stored in `saved_meals` table with items and nutrition totals.
+- **ML Notification Safeguards:** Anomaly detection and insights generation require: (a) premium/admin user status, (b) 14+ days of established baseline data with 42+ minimum data points. Prevents notification flooding for new users.
 
 ## External Dependencies
 
