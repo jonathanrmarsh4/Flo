@@ -8488,6 +8488,164 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // Get per-metric sensitivity settings (admin only)
+  app.get("/api/admin/metric-sensitivity", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { getSupabaseClient } = await import("./services/supabaseClient");
+      const supabase = getSupabaseClient();
+      
+      const { data, error } = await supabase
+        .from('metric_sensitivity_overrides')
+        .select('*')
+        .is('health_id', null)
+        .order('metric_type');
+      
+      if (error) {
+        logger.error('[Admin] Failed to get metric sensitivity settings:', error);
+        return res.status(500).json({ error: "Failed to get metric sensitivity settings" });
+      }
+      
+      const formatted = (data || []).map((row: any) => ({
+        id: row.id,
+        metricType: row.metric_type,
+        enabled: row.enabled,
+        zScoreThreshold: row.z_score_threshold,
+        percentageThreshold: row.percentage_threshold,
+        minSampleCount: row.min_sample_count,
+        notifyOnAnomaly: row.notify_on_anomaly,
+        notifyOnImprovement: row.notify_on_improvement,
+        cooldownHours: row.cooldown_hours,
+        suppressedByEvents: row.suppressed_by_events || [],
+      }));
+      
+      res.json(formatted);
+    } catch (error: any) {
+      logger.error('[Admin] Failed to get metric sensitivity settings:', error);
+      res.status(500).json({ error: "Failed to get metric sensitivity settings" });
+    }
+  });
+
+  // Update per-metric sensitivity settings (admin only)
+  app.patch("/api/admin/metric-sensitivity/:metricType", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { metricType } = req.params;
+      const updates = req.body;
+      
+      const { getSupabaseClient } = await import("./services/supabaseClient");
+      const supabase = getSupabaseClient();
+      
+      const updatePayload: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+        updated_by: req.user.id,
+      };
+      
+      if (updates.enabled !== undefined) updatePayload.enabled = updates.enabled;
+      if (updates.zScoreThreshold !== undefined) updatePayload.z_score_threshold = updates.zScoreThreshold;
+      if (updates.percentageThreshold !== undefined) updatePayload.percentage_threshold = updates.percentageThreshold;
+      if (updates.notifyOnAnomaly !== undefined) updatePayload.notify_on_anomaly = updates.notifyOnAnomaly;
+      if (updates.notifyOnImprovement !== undefined) updatePayload.notify_on_improvement = updates.notifyOnImprovement;
+      if (updates.cooldownHours !== undefined) updatePayload.cooldown_hours = updates.cooldownHours;
+      if (updates.suppressedByEvents !== undefined) updatePayload.suppressed_by_events = updates.suppressedByEvents;
+      
+      const { error } = await supabase
+        .from('metric_sensitivity_overrides')
+        .update(updatePayload)
+        .eq('metric_type', metricType)
+        .is('health_id', null);
+      
+      if (error) {
+        logger.error('[Admin] Failed to update metric sensitivity:', error);
+        return res.status(500).json({ error: "Failed to update metric sensitivity" });
+      }
+      
+      logger.info(`[Admin] Updated metric sensitivity for ${metricType} by user ${req.user.id}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to update metric sensitivity:', error);
+      res.status(500).json({ error: "Failed to update metric sensitivity" });
+    }
+  });
+
+  // Get active life events for a user (admin or self)
+  app.get("/api/life-events/active", isAuthenticated, async (req: any, res) => {
+    try {
+      const { getHealthId } = await import("./services/supabaseHealthStorage");
+      const { activeLifeEventsService } = await import("./services/activeLifeEventsService");
+      
+      const healthId = await getHealthId(req.user.id);
+      const events = await activeLifeEventsService.getActiveLifeEvents(healthId);
+      
+      res.json(events);
+    } catch (error: any) {
+      logger.error('[LifeEvents] Failed to get active life events:', error);
+      res.status(500).json({ error: "Failed to get active life events" });
+    }
+  });
+
+  // End an active life event
+  app.post("/api/life-events/:eventId/end", isAuthenticated, async (req: any, res) => {
+    try {
+      const { eventId } = req.params;
+      const { activeLifeEventsService } = await import("./services/activeLifeEventsService");
+      
+      const success = await activeLifeEventsService.endLifeEvent(eventId);
+      
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(400).json({ error: "Failed to end life event" });
+      }
+    } catch (error: any) {
+      logger.error('[LifeEvents] Failed to end life event:', error);
+      res.status(500).json({ error: "Failed to end life event" });
+    }
+  });
+
+  // Get pending check-in prompts for user
+  app.get("/api/check-ins/pending", isAuthenticated, async (req: any, res) => {
+    try {
+      const { getHealthId } = await import("./services/supabaseHealthStorage");
+      const { activeLifeEventsService } = await import("./services/activeLifeEventsService");
+      
+      const healthId = await getHealthId(req.user.id);
+      const checkIns = await activeLifeEventsService.getPendingCheckIns(healthId);
+      
+      res.json(checkIns);
+    } catch (error: any) {
+      logger.error('[CheckIns] Failed to get pending check-ins:', error);
+      res.status(500).json({ error: "Failed to get pending check-ins" });
+    }
+  });
+
+  // Answer a check-in prompt
+  app.post("/api/check-ins/:checkInId/answer", isAuthenticated, async (req: any, res) => {
+    try {
+      const { checkInId } = req.params;
+      const { responseText, createLifeEvent } = req.body;
+      
+      if (!responseText) {
+        return res.status(400).json({ error: "responseText is required" });
+      }
+      
+      const { activeLifeEventsService } = await import("./services/activeLifeEventsService");
+      
+      const success = await activeLifeEventsService.answerCheckIn(
+        checkInId,
+        responseText,
+        createLifeEvent
+      );
+      
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(400).json({ error: "Failed to answer check-in" });
+      }
+    } catch (error: any) {
+      logger.error('[CheckIns] Failed to answer check-in:', error);
+      res.status(500).json({ error: "Failed to answer check-in" });
+    }
+  });
+
   // Test 3PM survey notification (admin only)
   app.post("/api/admin/test-survey-notification", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {

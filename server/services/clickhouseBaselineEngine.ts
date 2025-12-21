@@ -1095,6 +1095,37 @@ export class ClickHouseBaselineEngine {
         logger.debug(`[ClickHouseML] Active suppressions for ${healthId}: ${Array.from(suppressedMetrics).join(', ')}`);
       }
 
+      // Get active life events that may suppress or adjust thresholds for certain metrics
+      let lifeEventSuppressions = new Map<string, { suppress: boolean; multiplier?: number; reason?: string }>();
+      try {
+        const { activeLifeEventsService } = await import('./activeLifeEventsService');
+        const activeEvents = await activeLifeEventsService.getActiveLifeEvents(healthId);
+        
+        for (const event of activeEvents) {
+          for (const metric of event.affectedMetrics) {
+            if (event.suppressionAction === 'suppress') {
+              lifeEventSuppressions.set(metric, { 
+                suppress: true, 
+                reason: `Active life event: ${event.eventType}` 
+              });
+            } else if (event.suppressionAction === 'adjust_threshold') {
+              lifeEventSuppressions.set(metric, { 
+                suppress: false, 
+                multiplier: event.thresholdMultiplier,
+                reason: `Threshold adjusted for: ${event.eventType}` 
+              });
+            }
+          }
+        }
+        
+        if (lifeEventSuppressions.size > 0) {
+          logger.debug(`[ClickHouseML] Life event suppressions for ${healthId}:`, 
+            Object.fromEntries(lifeEventSuppressions));
+        }
+      } catch (error) {
+        logger.debug('[ClickHouseML] Could not load life event suppressions (table may not exist yet)');
+      }
+
       const baselines = await this.calculateBaselines(healthId, windowDays);
       const baselineMap = new Map(baselines.map(b => [b.metricType, b]));
 
@@ -1195,6 +1226,13 @@ export class ClickHouseBaselineEngine {
           logger.debug(`[ClickHouseML] Skipping suppressed metric ${metric.metric_type} for ${healthId}`);
           continue;
         }
+
+        // Skip metrics fully suppressed by active life events (e.g., travel suppresses water_intake)
+        const lifeEventSuppression = lifeEventSuppressions.get(metric.metric_type);
+        if (lifeEventSuppression?.suppress) {
+          logger.debug(`[ClickHouseML] Skipping ${metric.metric_type} due to life event: ${lifeEventSuppression.reason}`);
+          continue;
+        }
         
         // Skip cumulative daily metrics during the day - they only make sense at end of day
         if (CUMULATIVE_DAILY_METRICS.has(metric.metric_type) && !isEndOfDay) {
@@ -1216,12 +1254,15 @@ export class ClickHouseBaselineEngine {
           ? personalizedThreshold.zScoreThreshold 
           : defaultThreshold.zScoreThreshold;
         
+        // Apply life event threshold multiplier if present (makes detection less sensitive during events)
+        const lifeEventMultiplier = lifeEventSuppression?.multiplier || 1.0;
+        
         const threshold = {
           ...defaultThreshold,
-          zScoreThreshold: Math.max(mlSettings.anomalyZScoreThreshold, baseZScoreThreshold),
-          percentageThreshold: personalizedThreshold.isPersonalized 
+          zScoreThreshold: Math.max(mlSettings.anomalyZScoreThreshold, baseZScoreThreshold) * lifeEventMultiplier,
+          percentageThreshold: (personalizedThreshold.isPersonalized 
             ? personalizedThreshold.percentageThreshold 
-            : defaultThreshold.percentageThreshold,
+            : defaultThreshold.percentageThreshold) * lifeEventMultiplier,
         };
 
         const deviation = metric.current_value - baseline.meanValue;

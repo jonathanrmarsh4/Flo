@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sliders, RotateCcw, Save, Activity, Brain, Bell, TrendingUp, History, Target } from 'lucide-react';
+import { Sliders, RotateCcw, Save, Activity, Brain, Bell, TrendingUp, History, Target, Gauge, ChevronDown, ChevronUp, AlertCircle, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
 
 interface MLSettings {
   anomalyZScoreThreshold: number;
@@ -20,6 +22,39 @@ interface MLSettings {
   enableProactiveAlerts: boolean;
   alertCooldownHours: number;
 }
+
+interface MetricSensitivity {
+  id: string;
+  metricType: string;
+  enabled: boolean;
+  zScoreThreshold: number;
+  percentageThreshold: number;
+  notifyOnAnomaly: boolean;
+  notifyOnImprovement: boolean;
+  cooldownHours: number;
+  suppressedByEvents: string[];
+}
+
+const METRIC_DISPLAY_NAMES: Record<string, string> = {
+  water_intake: 'Water Intake',
+  steps: 'Steps',
+  active_energy: 'Active Calories',
+  exercise_minutes: 'Exercise Minutes',
+  hrv_ms: 'Heart Rate Variability',
+  resting_heart_rate_bpm: 'Resting Heart Rate',
+  sleep_duration_min: 'Sleep Duration',
+  deep_sleep_min: 'Deep Sleep',
+  rem_sleep_min: 'REM Sleep',
+  respiratory_rate_bpm: 'Respiratory Rate',
+  oxygen_saturation_pct: 'Blood Oxygen',
+  body_temperature_deviation: 'Body Temperature',
+};
+
+const EVENT_TYPES = [
+  'travel', 'illness', 'stress', 'injury', 'rest_day', 'alcohol',
+  'equipment_unavailable', 'social_event', 'caffeine', 'jet_lag',
+  'menstrual_cycle', 'altitude', 'fasting', 'medication_change'
+];
 
 export function AdminMLSettings() {
   const { toast } = useToast();
@@ -363,6 +398,216 @@ export function AdminMLSettings() {
           </div>
         </div>
       </div>
+
+      <PerMetricSensitivitySection />
+    </div>
+  );
+}
+
+function PerMetricSensitivitySection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const [editingMetric, setEditingMetric] = useState<string | null>(null);
+  const [editedSettings, setEditedSettings] = useState<Record<string, Partial<MetricSensitivity>>>({});
+
+  const { data: metricSettings, isLoading } = useQuery<MetricSensitivity[]>({
+    queryKey: ['/api/admin/metric-sensitivity'],
+  });
+
+  const updateMetricMutation = useMutation({
+    mutationFn: async ({ metricType, updates }: { metricType: string; updates: Partial<MetricSensitivity> }) => {
+      return apiRequest('PATCH', `/api/admin/metric-sensitivity/${metricType}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/metric-sensitivity'] });
+      toast({ title: 'Saved', description: 'Per-metric sensitivity updated.' });
+      setEditingMetric(null);
+      setEditedSettings({});
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'Failed to update', variant: 'destructive' });
+    },
+  });
+
+  const getEditedValue = <K extends keyof MetricSensitivity>(metricType: string, key: K, original: MetricSensitivity[K]): MetricSensitivity[K] => {
+    return (editedSettings[metricType]?.[key] ?? original) as MetricSensitivity[K];
+  };
+
+  const updateEditedValue = (metricType: string, key: keyof MetricSensitivity, value: any) => {
+    setEditedSettings(prev => ({
+      ...prev,
+      [metricType]: { ...prev[metricType], [key]: value }
+    }));
+  };
+
+  const handleSave = (metric: MetricSensitivity) => {
+    if (editedSettings[metric.metricType]) {
+      updateMetricMutation.mutate({
+        metricType: metric.metricType,
+        updates: editedSettings[metric.metricType]
+      });
+    }
+  };
+
+  if (isLoading) {
+    return null;
+  }
+
+  return (
+    <div className="border-t border-white/10 pt-4">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2 text-white/80 text-sm font-medium">
+            <Gauge className="w-4 h-4 text-cyan-400" />
+            Per-Metric Sensitivity Controls
+          </div>
+          {isOpen ? (
+            <ChevronUp className="w-4 h-4 text-white/40" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-white/40" />
+          )}
+        </CollapsibleTrigger>
+        
+        <CollapsibleContent className="mt-4">
+          <p className="text-[10px] text-white/40 mb-4">
+            Fine-tune sensitivity for each metric type. Life events can automatically suppress alerts for specific metrics.
+          </p>
+          
+          <div className="space-y-3">
+            {(metricSettings || []).map((metric) => (
+              <div
+                key={metric.metricType}
+                className="rounded-xl border border-white/10 bg-white/5 p-4"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={getEditedValue(metric.metricType, 'enabled', metric.enabled)}
+                      onCheckedChange={(checked) => {
+                        updateEditedValue(metric.metricType, 'enabled', checked);
+                        setEditingMetric(metric.metricType);
+                      }}
+                      data-testid={`switch-metric-${metric.metricType}`}
+                    />
+                    <span className="text-sm text-white font-medium">
+                      {METRIC_DISPLAY_NAMES[metric.metricType] || metric.metricType}
+                    </span>
+                  </div>
+                  
+                  {editingMetric === metric.metricType && editedSettings[metric.metricType] && (
+                    <button
+                      onClick={() => handleSave(metric)}
+                      disabled={updateMetricMutation.isPending}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs"
+                      data-testid={`button-save-metric-${metric.metricType}`}
+                    >
+                      <Save className="w-3 h-3" />
+                      Save
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                  <div>
+                    <Label className="text-[10px] text-white/50">Z-Score</Label>
+                    <input
+                      type="number"
+                      value={getEditedValue(metric.metricType, 'zScoreThreshold', metric.zScoreThreshold)}
+                      onChange={(e) => {
+                        updateEditedValue(metric.metricType, 'zScoreThreshold', parseFloat(e.target.value) || 2.0);
+                        setEditingMetric(metric.metricType);
+                      }}
+                      step={0.1}
+                      min={0.5}
+                      max={5}
+                      className="w-full mt-1 px-2 py-1 rounded bg-white/10 border border-white/20 text-white text-xs focus:outline-none focus:border-cyan-500"
+                      data-testid={`input-zscore-${metric.metricType}`}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-[10px] text-white/50">% Threshold</Label>
+                    <input
+                      type="number"
+                      value={getEditedValue(metric.metricType, 'percentageThreshold', metric.percentageThreshold)}
+                      onChange={(e) => {
+                        updateEditedValue(metric.metricType, 'percentageThreshold', parseFloat(e.target.value) || 15);
+                        setEditingMetric(metric.metricType);
+                      }}
+                      step={1}
+                      min={1}
+                      max={100}
+                      className="w-full mt-1 px-2 py-1 rounded bg-white/10 border border-white/20 text-white text-xs focus:outline-none focus:border-cyan-500"
+                      data-testid={`input-pct-${metric.metricType}`}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-[10px] text-white/50">Cooldown (hrs)</Label>
+                    <input
+                      type="number"
+                      value={getEditedValue(metric.metricType, 'cooldownHours', metric.cooldownHours)}
+                      onChange={(e) => {
+                        updateEditedValue(metric.metricType, 'cooldownHours', parseInt(e.target.value) || 4);
+                        setEditingMetric(metric.metricType);
+                      }}
+                      step={1}
+                      min={1}
+                      max={72}
+                      className="w-full mt-1 px-2 py-1 rounded bg-white/10 border border-white/20 text-white text-xs focus:outline-none focus:border-cyan-500"
+                      data-testid={`input-cooldown-${metric.metricType}`}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-3 pt-4">
+                    <div className="flex items-center gap-1">
+                      <Switch
+                        checked={getEditedValue(metric.metricType, 'notifyOnAnomaly', metric.notifyOnAnomaly)}
+                        onCheckedChange={(checked) => {
+                          updateEditedValue(metric.metricType, 'notifyOnAnomaly', checked);
+                          setEditingMetric(metric.metricType);
+                        }}
+                        className="scale-75"
+                        data-testid={`switch-notify-${metric.metricType}`}
+                      />
+                      <span className="text-[10px] text-white/50">Notify</span>
+                    </div>
+                  </div>
+                </div>
+
+                {metric.suppressedByEvents.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <MapPin className="w-3 h-3 text-amber-400" />
+                      <span className="text-[10px] text-white/50">Suppressed by life events:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {metric.suppressedByEvents.map((event) => (
+                        <Badge
+                          key={event}
+                          variant="outline"
+                          className="text-[9px] px-1.5 py-0 border-amber-500/30 text-amber-400/80"
+                        >
+                          {event.replace(/_/g, ' ')}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {(!metricSettings || metricSettings.length === 0) && (
+            <div className="text-center py-8 text-white/40 text-sm">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p>No per-metric settings found.</p>
+              <p className="text-[10px] mt-1">Run the Supabase migration to seed default settings.</p>
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
