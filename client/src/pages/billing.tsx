@@ -300,46 +300,45 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-white mb-2">Features:</p>
+              <p className="text-sm font-medium text-white mb-2">Free Features (Always Included):</p>
+              <div className="space-y-2 mb-4">
+                <FeatureItem label="Lab Reports" value="Unlimited" unlimited={true} />
+                <FeatureItem label="Biomarkers" value="Unlimited" unlimited={true} />
+                <FeatureItem label="HealthKit Sync" value="Full history" unlimited={true} />
+                <FeatureItem label="Dashboard Tiles" value="All available" unlimited={true} />
+                <FeatureItem label="Diagnostics" value="Unlimited" unlimited={true} />
+              </div>
+              <p className="text-sm font-medium text-white mb-2">AI Features:</p>
               <div className="space-y-2">
                 <FeatureItem
-                  label="Lab Reports"
-                  value={
-                    currentPlan?.features?.labs?.allowUnlimitedLabUploads
-                      ? 'Unlimited'
-                      : `${currentPlan?.limits?.maxLabUploadsPerUser || 0} max`
-                  }
-                  unlimited={currentPlan?.features?.labs?.allowUnlimitedLabUploads}
+                  label="Why Explanations"
+                  value={currentPlan?.features?.ai?.allowWhyExplanations ? 'Enabled' : 'Premium only'}
+                  unlimited={currentPlan?.features?.ai?.allowWhyExplanations}
                 />
                 <FeatureItem
-                  label="Biomarkers"
-                  value={
-                    currentPlan?.features?.biomarkers?.allowUnlimitedBiomarkerDisplay
-                      ? 'Unlimited'
-                      : `${currentPlan?.limits?.maxVisibleBiomarkersPerUser || 0} visible`
-                  }
-                  unlimited={currentPlan?.features?.biomarkers?.allowUnlimitedBiomarkerDisplay}
+                  label="AI Insights Tile"
+                  value={currentPlan?.features?.ai?.allowAiInsightsTile ? 'Enabled' : 'Premium only'}
+                  unlimited={currentPlan?.features?.ai?.allowAiInsightsTile}
                 />
                 <FeatureItem
                   label="Flō Chat"
-                  value={
-                    currentPlan?.features?.oracle?.allowOracleChat
-                      ? currentPlan?.features?.oracle?.allowUnlimitedOracleMessages
-                        ? 'Unlimited'
-                        : `${currentPlan?.limits?.maxDailyOracleMessages || 0}/day`
-                      : 'Not available'
-                  }
-                  unlimited={currentPlan?.features?.oracle?.allowOracleChat}
+                  value={currentPlan?.features?.ai?.allowFloChat ? '200/day' : 'Premium only'}
+                  unlimited={currentPlan?.features?.ai?.allowFloChat}
                 />
                 <FeatureItem
-                  label="AI Insights"
-                  value={currentPlan?.features?.insights?.allowAiGeneratedInsightCards ? 'Enabled' : 'Not available'}
-                  unlimited={currentPlan?.features?.insights?.allowAiGeneratedInsightCards}
+                  label="Food Logging"
+                  value={currentPlan?.features?.ai?.allowFoodLogging ? 'Enabled' : 'Premium only'}
+                  unlimited={currentPlan?.features?.ai?.allowFoodLogging}
                 />
                 <FeatureItem
-                  label="Flōmentum Scoring"
-                  value={currentPlan?.features?.flomentum?.allowFlomentumScoring ? 'Enabled' : 'Not available'}
-                  unlimited={currentPlan?.features?.flomentum?.allowFlomentumScoring}
+                  label="Biomarker AI"
+                  value={currentPlan?.features?.ai?.allowBiomarkerAiDetails ? 'Enabled' : 'Premium only'}
+                  unlimited={currentPlan?.features?.ai?.allowBiomarkerAiDetails}
+                />
+                <FeatureItem
+                  label="Interventions"
+                  value={currentPlan?.features?.ai?.allowInterventionsPage ? 'Enabled' : 'Premium only'}
+                  unlimited={currentPlan?.features?.ai?.allowInterventionsPage}
                 />
               </div>
             </div>
@@ -454,13 +453,13 @@ export default function BillingPage() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="space-y-2">
-                      <PremiumFeature text="Unlimited lab report uploads" />
-                      <PremiumFeature text="View all biomarkers (unlimited)" />
-                      <PremiumFeature text="Flō AI health coach (200 msgs/day)" />
-                      <PremiumFeature text="AI-generated insight cards" />
-                      <PremiumFeature text="Flōmentum daily momentum scoring" />
-                      <PremiumFeature text="RAG-powered pattern detection" />
-                      <PremiumFeature text="Advanced health analytics" />
+                      <PremiumFeature text="AI tile explanations (Why buttons)" />
+                      <PremiumFeature text="AI Insights tile with daily updates" />
+                      <PremiumFeature text="Flō voice & text chat (200 msgs/day)" />
+                      <PremiumFeature text="AI-powered food logging (voice/photo)" />
+                      <PremiumFeature text="Biomarker AI explanations & patterns" />
+                      <PremiumFeature text="Interventions: Reports, Supplements, Action Plans" />
+                      <PremiumFeature text="AI/ML push notifications" />
                     </div>
                   </CardContent>
                   <CardFooter className="flex-col gap-3">

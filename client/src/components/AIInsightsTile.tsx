@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, ChevronRight, TrendingUp } from "lucide-react";
+import { Sparkles, ChevronRight, TrendingUp, Lock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { InsightsModal } from "./InsightsModal";
+import { usePlan, usePaywallModals } from "@/hooks/usePlan";
+import { PaywallModal } from "./PaywallModal";
+import { useLocation } from "wouter";
 
 interface DailyInsight {
   id: string;
@@ -72,12 +75,95 @@ interface AIInsightsTileProps {
 
 export function AIInsightsTile({ isDark = true }: AIInsightsTileProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [, setLocation] = useLocation();
+  
+  const { data: planData } = usePlan();
+  const { data: modalsData } = usePaywallModals();
+  
+  const allowAiInsightsTile = planData?.features?.ai?.allowAiInsightsTile ?? false;
+  
   const { data, isLoading } = useQuery<{ insights: DailyInsight[]; count: number }>({
     queryKey: ['/api/daily-insights'],
+    enabled: allowAiInsightsTile,
   });
 
   const insights = data?.insights || [];
   const newCount = insights.filter(i => i.isNew).length;
+
+  const paywallModal = modalsData?.modals?.find(m => m.id === 'upgrade_on_locked_insights_tile') || {
+    id: 'upgrade_on_locked_insights_tile',
+    title: 'Unlock AI Insights',
+    description: 'Flō can continuously scan your labs and wearable data to surface the patterns that matter most.',
+    benefits: [
+      'AI-generated insights across all data',
+      'Updated as new labs and data arrive',
+      'Flō — human-level health coaching',
+      'Unlimited voice conversations',
+    ],
+    ctaText: 'Unlock Insights',
+    ctaAction: 'upgrade_to_premium' as const,
+  };
+
+  if (!allowAiInsightsTile) {
+    return (
+      <>
+        <div 
+          className={`backdrop-blur-xl rounded-3xl border p-6 relative overflow-hidden cursor-pointer ${
+            isDark 
+              ? 'bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20' 
+              : 'bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50 border-black/10'
+          }`} 
+          data-testid="tile-ai-insights-locked"
+          onClick={() => setShowPaywall(true)}
+        >
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-2xl ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
+                  <Sparkles className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                </div>
+                <div>
+                  <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>AI Insights</h2>
+                  <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Personalized health recommendations</p>
+                </div>
+              </div>
+              <Badge className="bg-gradient-to-r from-amber-500/80 to-orange-500/80 text-white border-0 px-3 flex items-center gap-1" data-testid="badge-premium">
+                <Lock className="w-3 h-3" />
+                Premium
+              </Badge>
+            </div>
+            
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className={`p-4 rounded-full mb-4 ${isDark ? 'bg-amber-500/10' : 'bg-amber-100'}`}>
+                <Lock className={`w-8 h-8 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+              </div>
+              <p className={`text-sm font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Unlock AI-Powered Insights
+              </p>
+              <p className={`text-xs max-w-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Get personalized health patterns and recommendations based on your labs and wearable data.
+              </p>
+              <button
+                className="mt-4 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-sm font-medium flex items-center gap-2"
+                data-testid="button-unlock-insights"
+              >
+                <Sparkles className="w-4 h-4" />
+                Unlock with Premium
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <PaywallModal
+          open={showPaywall}
+          onOpenChange={setShowPaywall}
+          modal={paywallModal}
+          onUpgrade={() => setLocation('/billing')}
+        />
+      </>
+    );
+  }
 
   return (
     <div 

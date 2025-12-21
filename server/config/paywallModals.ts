@@ -4,6 +4,10 @@ export type PaywallModalId =
   | 'upgrade_on_locked_insights_tile'
   | 'upgrade_on_locked_flomentum_tile'
   | 'upgrade_on_locked_oracle_tile'
+  | 'upgrade_on_locked_why_insight'
+  | 'upgrade_on_locked_food_logging'
+  | 'upgrade_on_locked_biomarker_ai'
+  | 'upgrade_on_locked_interventions'
   | 'generic_premium_upsell';
 
 export interface PaywallModal {
@@ -108,6 +112,66 @@ export const PAYWALL_MODALS: Record<PaywallModalId, PaywallModal> = {
       'Daily personalized insights',
       'Flōmentum readiness scores',
       'Personalized action plans',
+    ],
+  },
+  upgrade_on_locked_why_insight: {
+    id: 'upgrade_on_locked_why_insight',
+    title: 'Unlock AI Explanations',
+    body: 'Get personalized AI explanations for why your scores are what they are, and what you can do to improve them. This feature is part of Flō Premium.',
+    primaryCtaLabel: 'Unlock AI Insights',
+    secondaryCtaLabel: 'Maybe later',
+    icon: 'insights',
+    highlightedBenefits: [
+      'AI-powered explanations for every tile',
+      'Personalized health coaching',
+      'Voice conversations with Flō',
+      'Daily AI-generated insights',
+      'Smart recommendations based on your data',
+    ],
+  },
+  upgrade_on_locked_food_logging: {
+    id: 'upgrade_on_locked_food_logging',
+    title: 'Unlock Food Logging',
+    body: 'Log your meals with voice, photo, or text and see how nutrition affects your health. AI-powered food logging is part of Flō Premium.',
+    primaryCtaLabel: 'Unlock Food Logging',
+    secondaryCtaLabel: 'Not now',
+    icon: 'insights',
+    highlightedBenefits: [
+      'Log meals with voice, photo, or text',
+      'AI-powered nutrition analysis',
+      'Track macros and calories',
+      'See how food affects your glucose',
+      'Personalized meal recommendations',
+    ],
+  },
+  upgrade_on_locked_biomarker_ai: {
+    id: 'upgrade_on_locked_biomarker_ai',
+    title: 'Unlock Biomarker AI Insights',
+    body: 'Get AI-powered explanations of what each biomarker means for your health, potential patterns, and personalized recommendations. This feature is part of Flō Premium.',
+    primaryCtaLabel: 'Unlock AI Analysis',
+    secondaryCtaLabel: 'View data only',
+    icon: 'biomarkers',
+    highlightedBenefits: [
+      'AI explanations for every biomarker',
+      'Pattern detection across your labs',
+      'Personalized improvement suggestions',
+      'Track changes over time',
+      'Flō coaching for optimal ranges',
+    ],
+  },
+  upgrade_on_locked_interventions: {
+    id: 'upgrade_on_locked_interventions',
+    title: 'Unlock Interventions',
+    body: 'Access AI-generated health reports, supplement experiments, and personalized action plans designed for your unique health profile. This feature is part of Flō Premium.',
+    primaryCtaLabel: 'Unlock Interventions',
+    secondaryCtaLabel: 'Maybe later',
+    icon: 'premium',
+    highlightedBenefits: [
+      'AI-generated health reports',
+      'N-of-1 supplement experiments',
+      'Personalized action plans',
+      'Track intervention progress',
+      'Evidence-based recommendations',
     ],
   },
 };

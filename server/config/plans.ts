@@ -64,6 +64,15 @@ export interface PlanFeatures {
     lockedTiles: string[];
     showPremiumBadges: boolean;
   };
+  ai: {
+    allowWhyExplanations: boolean;
+    allowAiInsightsTile: boolean;
+    allowAiPushNotifications: boolean;
+    allowFoodLogging: boolean;
+    allowBiomarkerAiDetails: boolean;
+    allowInterventionsPage: boolean;
+    allowFloChat: boolean;
+  };
 }
 
 export interface Plan {
@@ -78,14 +87,14 @@ export const PLANS: Record<PlanId, Plan> = {
   FREE: {
     id: 'FREE',
     label: 'Flō Free',
-    description: 'Great starting point to track key labs and readiness.',
+    description: 'Full tracking features including unlimited lab uploads. Upgrade for AI-powered insights.',
     limits: {
-      maxLabReportsStored: 3,
-      maxVisibleBiomarkersPerUser: 35,
-      maxDiagnosticReportsStored: 2,
-      maxDailyOracleMessages: 0,
-      maxDailyBiomarkerAiInsightClicks: 50,
-      healthKitHistoryDaysShown: 14,
+      maxLabReportsStored: -1, // Unlimited lab uploads for free
+      maxVisibleBiomarkersPerUser: -1, // Unlimited biomarker display for free
+      maxDiagnosticReportsStored: -1, // Unlimited diagnostics for free
+      maxDailyOracleMessages: 0, // No AI chat for free
+      maxDailyBiomarkerAiInsightClicks: 0, // No AI biomarker insights for free
+      healthKitHistoryDaysShown: -1, // Unlimited history for free
     },
     features: {
       billing: {
@@ -96,51 +105,60 @@ export const PLANS: Record<PlanId, Plan> = {
         canUploadLabs: true,
         canViewLabHistory: true,
         parseAllBiomarkersIngested: true,
-        displayBiomarkersCappedByPlan: true,
-        maxVisibleBiomarkersPerUser: 35,
-        showBiomarkerAiInsights: 'per_biomarker_only',
-        showMultiBiomarkerInsights: false,
-        showInsightsTile: false,
-        showInsightsPage: false,
+        displayBiomarkersCappedByPlan: false, // No cap for free
+        maxVisibleBiomarkersPerUser: -1, // Unlimited
+        showBiomarkerAiInsights: 'per_biomarker_only', // Basic data only, AI explanations locked
+        showMultiBiomarkerInsights: false, // AI feature - premium only
+        showInsightsTile: false, // AI feature - premium only
+        showInsightsPage: false, // AI feature - premium only
       },
       diagnostics: {
         featureStatus: 'beta',
-        canUploadDiagnostics: true,
-        maxDiagnosticReportsStored: 2,
-        showDiagnosticsTile: true,
-        showDiagnosticsSummary: true,
-        showAdvancedDiagnosticsInsights: false,
-        allowOracleDiagnosticsContext: false,
+        canUploadDiagnostics: true, // Free users can upload
+        maxDiagnosticReportsStored: -1, // Unlimited for free
+        showDiagnosticsTile: true, // Free users see data
+        showDiagnosticsSummary: true, // Free users see basic summary
+        showAdvancedDiagnosticsInsights: false, // AI feature - premium only
+        allowOracleDiagnosticsContext: false, // AI feature - premium only
       },
       healthKit: {
         canConnectHealthKit: true,
         ingestAllSupportedMetrics: true,
-        useSubsetForReadinessAndSleep: true,
+        useSubsetForReadinessAndSleep: false, // Full access for free
         showReadinessTile: true,
         showFloSleepIndexTile: true,
-        showAdditionalHealthTiles: false,
-        maxHistoryDaysShown: 14,
+        showAdditionalHealthTiles: true, // All tiles visible for free
+        maxHistoryDaysShown: -1, // Unlimited history
       },
       insights: {
-        showInsightsTile: false,
-        showInsightsPage: false,
-        allowAiGeneratedInsightCards: false,
-        allowPeriodicInsightRefresh: false,
+        showInsightsTile: false, // AI feature - premium only
+        showInsightsPage: false, // AI feature - premium only
+        allowAiGeneratedInsightCards: false, // AI feature - premium only
+        allowPeriodicInsightRefresh: false, // AI feature - premium only
       },
       flomentum: {
-        showFlomentumTile: false,
-        allowFlomentumScoring: false,
-        allowDailyCoachingPrompts: false,
+        showFlomentumTile: true, // Data visible for free
+        allowFlomentumScoring: true, // Basic scoring available
+        allowDailyCoachingPrompts: false, // AI feature - premium only
       },
       oracle: {
-        showOracleTileLocked: true,
-        allowOracleChat: false,
-        allowTileDeepLinksToOracle: false,
+        showOracleTileLocked: true, // Show locked state
+        allowOracleChat: false, // AI feature - premium only
+        allowTileDeepLinksToOracle: false, // AI feature - premium only
       },
       ui: {
         showLockedTiles: true,
-        lockedTiles: ['INSIGHTS', 'FLOMENTUM', 'ORACLE'],
+        lockedTiles: ['INSIGHTS', 'ORACLE'], // Only AI features locked
         showPremiumBadges: true,
+      },
+      ai: {
+        allowWhyExplanations: false, // AI feature - premium only
+        allowAiInsightsTile: false, // AI feature - premium only
+        allowAiPushNotifications: false, // AI feature - premium only
+        allowFoodLogging: false, // AI feature - premium only
+        allowBiomarkerAiDetails: false, // AI feature - premium only
+        allowInterventionsPage: false, // AI feature - premium only
+        allowFloChat: false, // AI feature - premium only
       },
     },
   },
@@ -210,6 +228,15 @@ export const PLANS: Record<PlanId, Plan> = {
         showLockedTiles: false,
         lockedTiles: [],
         showPremiumBadges: true,
+      },
+      ai: {
+        allowWhyExplanations: true,
+        allowAiInsightsTile: true,
+        allowAiPushNotifications: true,
+        allowFoodLogging: true,
+        allowBiomarkerAiDetails: true,
+        allowInterventionsPage: true,
+        allowFloChat: true,
       },
     },
   },

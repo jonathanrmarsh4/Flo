@@ -231,7 +231,16 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
     queryClient.invalidateQueries({ queryKey: ['/api/anomaly-alerts/pending'] });
   };
 
+  // Check if user has access to AI Why explanations (premium feature)
+  const canAccessWhyExplanations = planData?.features?.ai?.allowWhyExplanations ?? false;
+
   const handleWhyClick = async (tileType: 'flo_overview' | 'flomentum' | 'sleep_index' | 'daily_readiness') => {
+    // Check premium access for AI Why explanations
+    if (!canAccessWhyExplanations) {
+      setPaywallModalId('upgrade_on_locked_why_insight');
+      return;
+    }
+    
     setWhyModalData({ isOpen: true, tileType, isLoading: true, data: null, error: null });
     try {
       // Use apiRequest which handles auth headers automatically (same pattern as biomarker insights)

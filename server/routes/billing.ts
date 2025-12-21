@@ -940,8 +940,50 @@ router.get('/plan', async (req: any, res) => {
     }
 
     const userPlan = await getUserPlan(userId);
-    const features = await getUserFeatures(userId);
-    const limits = await getUserLimits(userId);
+    const serverFeatures = await getUserFeatures(userId);
+    const serverLimits = await getUserLimits(userId);
+
+    // Transform server features/limits to match frontend expected structure
+    const clientLimits = {
+      maxLabUploadsPerUser: serverLimits.maxLabReportsStored,
+      maxVisibleBiomarkersPerUser: serverLimits.maxVisibleBiomarkersPerUser,
+      maxDailyOracleMessages: serverLimits.maxDailyOracleMessages,
+    };
+
+    const clientFeatures = {
+      labs: {
+        allowUnlimitedLabUploads: serverLimits.maxLabReportsStored === -1,
+        maxLabUploadsPerUser: serverLimits.maxLabReportsStored,
+      },
+      biomarkers: {
+        allowUnlimitedBiomarkerDisplay: serverLimits.maxVisibleBiomarkersPerUser === -1,
+        maxVisibleBiomarkersPerUser: serverLimits.maxVisibleBiomarkersPerUser,
+      },
+      oracle: {
+        allowOracleChat: serverFeatures.oracle.allowOracleChat,
+        allowUnlimitedOracleMessages: serverLimits.maxDailyOracleMessages === -1,
+        maxDailyOracleMessages: serverLimits.maxDailyOracleMessages,
+      },
+      insights: {
+        allowAiGeneratedInsightCards: serverFeatures.insights.allowAiGeneratedInsightCards,
+      },
+      flomentum: {
+        allowFlomentumScoring: serverFeatures.flomentum.allowFlomentumScoring,
+      },
+      general: {
+        allowAiHealthReportGeneration: serverFeatures.ai.allowInterventionsPage,
+        allowRagBasedInsights: serverFeatures.insights.allowAiGeneratedInsightCards,
+      },
+      ai: {
+        allowWhyExplanations: serverFeatures.ai.allowWhyExplanations,
+        allowAiInsightsTile: serverFeatures.ai.allowAiInsightsTile,
+        allowAiPushNotifications: serverFeatures.ai.allowAiPushNotifications,
+        allowFoodLogging: serverFeatures.ai.allowFoodLogging,
+        allowBiomarkerAiDetails: serverFeatures.ai.allowBiomarkerAiDetails,
+        allowInterventionsPage: serverFeatures.ai.allowInterventionsPage,
+        allowFloChat: serverFeatures.ai.allowFloChat,
+      },
+    };
 
     // Return structure matching frontend expectations
     res.json({
@@ -949,11 +991,11 @@ router.get('/plan', async (req: any, res) => {
         id: userPlan.id.toLowerCase(), // 'free' or 'premium'
         displayName: userPlan.label,
         tier: userPlan.id === 'PREMIUM' ? 2 : 1,
-        limits,
-        features,
+        limits: clientLimits,
+        features: clientFeatures,
       },
-      features,
-      limits,
+      features: clientFeatures,
+      limits: clientLimits,
     });
   } catch (error: any) {
     logger.error('[Billing] Get plan error:', error);
@@ -985,26 +1027,77 @@ router.get('/paywall-modals', async (req: any, res) => {
 });
 
 /**
+ * Helper to transform server plan features to client structure
+ */
+function transformPlanToClientStructure(plan: typeof PLANS.FREE) {
+  const clientLimits = {
+    maxLabUploadsPerUser: plan.limits.maxLabReportsStored,
+    maxVisibleBiomarkersPerUser: plan.limits.maxVisibleBiomarkersPerUser,
+    maxDailyOracleMessages: plan.limits.maxDailyOracleMessages,
+  };
+
+  const clientFeatures = {
+    labs: {
+      allowUnlimitedLabUploads: plan.limits.maxLabReportsStored === -1,
+      maxLabUploadsPerUser: plan.limits.maxLabReportsStored,
+    },
+    biomarkers: {
+      allowUnlimitedBiomarkerDisplay: plan.limits.maxVisibleBiomarkersPerUser === -1,
+      maxVisibleBiomarkersPerUser: plan.limits.maxVisibleBiomarkersPerUser,
+    },
+    oracle: {
+      allowOracleChat: plan.features.oracle.allowOracleChat,
+      allowUnlimitedOracleMessages: plan.limits.maxDailyOracleMessages === -1,
+      maxDailyOracleMessages: plan.limits.maxDailyOracleMessages,
+    },
+    insights: {
+      allowAiGeneratedInsightCards: plan.features.insights.allowAiGeneratedInsightCards,
+    },
+    flomentum: {
+      allowFlomentumScoring: plan.features.flomentum.allowFlomentumScoring,
+    },
+    general: {
+      allowAiHealthReportGeneration: plan.features.ai.allowInterventionsPage,
+      allowRagBasedInsights: plan.features.insights.allowAiGeneratedInsightCards,
+    },
+    ai: {
+      allowWhyExplanations: plan.features.ai.allowWhyExplanations,
+      allowAiInsightsTile: plan.features.ai.allowAiInsightsTile,
+      allowAiPushNotifications: plan.features.ai.allowAiPushNotifications,
+      allowFoodLogging: plan.features.ai.allowFoodLogging,
+      allowBiomarkerAiDetails: plan.features.ai.allowBiomarkerAiDetails,
+      allowInterventionsPage: plan.features.ai.allowInterventionsPage,
+      allowFloChat: plan.features.ai.allowFloChat,
+    },
+  };
+
+  return { clientLimits, clientFeatures };
+}
+
+/**
  * GET /api/billing/plans
  * Get all available plans
  */
 router.get('/plans', async (req: any, res) => {
   try {
     // Transform plans to match frontend expectations
+    const freeTransformed = transformPlanToClientStructure(PLANS.FREE);
+    const premiumTransformed = transformPlanToClientStructure(PLANS.PREMIUM);
+
     const transformedPlans = {
       free: {
         id: 'free',
         displayName: PLANS.FREE.label,
         tier: 1,
-        limits: PLANS.FREE.limits,
-        features: PLANS.FREE.features,
+        limits: freeTransformed.clientLimits,
+        features: freeTransformed.clientFeatures,
       },
       premium: {
         id: 'premium',
         displayName: PLANS.PREMIUM.label,
         tier: 2,
-        limits: PLANS.PREMIUM.limits,
-        features: PLANS.PREMIUM.features,
+        limits: premiumTransformed.clientLimits,
+        features: premiumTransformed.clientFeatures,
       },
     };
 

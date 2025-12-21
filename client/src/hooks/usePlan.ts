@@ -24,6 +24,15 @@ export interface PlanFeatures {
     allowAiHealthReportGeneration: boolean;
     allowRagBasedInsights: boolean;
   };
+  ai: {
+    allowWhyExplanations: boolean;
+    allowAiInsightsTile: boolean;
+    allowAiPushNotifications: boolean;
+    allowFoodLogging: boolean;
+    allowBiomarkerAiDetails: boolean;
+    allowInterventionsPage: boolean;
+    allowFloChat: boolean;
+  };
 }
 
 export interface PlanLimits {

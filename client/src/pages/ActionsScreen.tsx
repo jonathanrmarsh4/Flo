@@ -182,6 +182,7 @@ export default function ActionsScreen() {
   // Check user's plan for premium features
   const { data: planData } = usePlan();
   const isFreePlan = planData?.plan?.id === 'free';
+  const allowInterventionsPage = planData?.features?.ai?.allowInterventionsPage ?? false;
 
   // Fetch all action plan items
   const { data: actionPlanData, isLoading: isLoadingActions } = useQuery<{ items: ActionPlanItem[] }>({

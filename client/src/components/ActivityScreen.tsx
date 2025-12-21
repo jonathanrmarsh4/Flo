@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2, Flame, Plus, Pill, Gem } from 'lucide-react';
+import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2, Flame, Plus, Pill, Gem, Lock, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BottomNav } from './BottomNav';
 import { CGMScreen } from './CGMScreen';
@@ -10,6 +10,9 @@ import { RecoveryTab, type RecoverySession, type RecoveryStats, type SaunaSessio
 import { TodaysMealsCard, type LoggedMeal } from '@/components/nutrition/TodaysMealsCard';
 import { SavedMealsCard, type SavedMeal } from '@/components/nutrition/SavedMealsCard';
 import { FoodLoggingFlow } from '@/components/nutrition/FoodLoggingFlow';
+import { PaywallModal } from '@/components/PaywallModal';
+import { usePlan, usePaywallModals } from '@/hooks/usePlan';
+import { useLocation } from 'wouter';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
@@ -216,15 +219,40 @@ interface MacrosWeeklyData {
 export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenProps) {
   const [activeTab, setActiveTab] = useState<TabType>('activity');
   const [showFoodLogging, setShowFoodLogging] = useState(false);
+  const [showFoodPaywall, setShowFoodPaywall] = useState(false);
+  const [, setLocation] = useLocation();
+  
+  const { data: planData } = usePlan();
+  const { data: modalsData } = usePaywallModals();
+  
+  const allowFoodLogging = planData?.features?.ai?.allowFoodLogging ?? false;
+  
+  const foodPaywallModal = modalsData?.modals?.find(m => m.id === 'upgrade_on_locked_food_logging') || {
+    id: 'upgrade_on_locked_food_logging',
+    title: 'Unlock Food Logging',
+    description: 'Log your meals with voice, photo, or text and see how nutrition affects your health.',
+    benefits: [
+      'Log meals with voice, photo, or text',
+      'AI-powered nutrition analysis',
+      'Track macros and calories',
+      'See how food affects your glucose',
+    ],
+    ctaText: 'Unlock Food Logging',
+    ctaAction: 'upgrade_to_premium' as const,
+  };
 
   // Handle Flō button click based on active tab
   const handleAddClick = useCallback(() => {
     if (activeTab === 'nutrition') {
-      setShowFoodLogging(true);
+      if (!allowFoodLogging) {
+        setShowFoodPaywall(true);
+      } else {
+        setShowFoodLogging(true);
+      }
     } else if (onAddClick) {
       onAddClick();
     }
-  }, [activeTab, onAddClick]);
+  }, [activeTab, onAddClick, allowFoodLogging]);
 
   // CGMScreen has its own full-page layout with header, so render it separately
   // CGMScreen handles its own padding, BottomNav is included in CGMScreen layout
@@ -313,6 +341,13 @@ export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenPr
           }}
         />
       )}
+      
+      <PaywallModal
+        open={showFoodPaywall}
+        onOpenChange={setShowFoodPaywall}
+        modal={foodPaywallModal}
+        onUpgrade={() => setLocation('/billing')}
+      />
     </div>
   );
 }
