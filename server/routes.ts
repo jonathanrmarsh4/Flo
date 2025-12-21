@@ -9928,11 +9928,14 @@ Important: This is for educational purposes. Include a brief note that users sho
       const userId = req.user.claims.sub;
       
       const { getHealthKitSyncStatus, getHealthId } = await import('./services/supabaseHealthStorage');
-      const { supabase } = await import('./services/supabaseClient');
+      const { getSupabaseClient } = await import('./services/supabaseClient');
       
       // Get HealthKit sync status
       const healthKitStatus = await getHealthKitSyncStatus(userId);
       const healthId = await getHealthId(userId);
+      
+      // Get Supabase client
+      const supabase = getSupabaseClient();
       
       // Get profile with ClickHouse backfill status
       const { data: profile } = await supabase
