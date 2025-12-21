@@ -1816,12 +1816,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate chronological age using mid-year (July 1st) assumption for ±6 month accuracy
       const ageYears = calculateAgeFromBirthYear(profile.birthYear)!;
 
+      // Required biomarkers for PhenoAge - defined early so we can return them when no data exists
+      const allRequiredBiomarkers = ['Albumin', 'Creatinine', 'Glucose', 'CRP', 'Lymphocytes', 'MCV', 'RDW', 'ALP', 'WBC'];
+      
       // Get user's latest biomarker test session (from Supabase via healthRouter)
       const sessions = await healthRouter.getBiomarkerSessions(userId);
       if (sessions.length === 0) {
-        return res.status(400).json({ 
-          error: "No biomarker data found. Please add test results to calculate biological age.",
-          missingData: "biomarkers"
+        // Return all required biomarkers as missing when no blood work exists
+        return res.status(200).json({ 
+          chronologicalAge: ageYears,
+          biologicalAge: null,
+          ageDifference: null,
+          incomplete: true,
+          missingBiomarkers: allRequiredBiomarkers,
+          message: "Upload blood work to calculate biological age"
         });
       }
 
@@ -1865,12 +1873,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.info(`[BioAge] Best session: ${bestSession?.id} with ${bestMatchCount} matches`);
 
-      // If no session has measurements, return error
+      // If no session has measurements, return all biomarkers as missing
       if (!bestSession) {
         logger.warn(`[BioAge] No session with measurements found for user ${userId}`);
-        return res.status(400).json({ 
-          error: "No biomarker measurements found. Please add test results to calculate biological age.",
-          missingData: "biomarkers"
+        return res.status(200).json({ 
+          chronologicalAge: ageYears,
+          biologicalAge: null,
+          ageDifference: null,
+          incomplete: true,
+          missingBiomarkers: allRequiredBiomarkers,
+          message: "Upload blood work to calculate biological age"
         });
       }
 
