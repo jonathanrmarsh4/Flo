@@ -285,6 +285,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE /api/user/account - Delete user's own account (self-deletion)
+  app.delete('/api/user/account', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      logger.info(`[AccountDeletion] User ${userId} requested self-account deletion`);
+      
+      // Use the user's own ID as the "admin" for audit purposes (self-deletion)
+      await storage.deleteUser(userId, userId);
+      
+      logger.info(`[AccountDeletion] Account deleted successfully for user ${userId}`);
+      
+      res.status(204).send();
+    } catch (error) {
+      logger.error('[AccountDeletion] Error deleting user account:', error);
+      res.status(500).json({ error: "Failed to delete account" });
+    }
+  });
+
   // POST /api/support/bug-report - Submit a bug report
   app.post('/api/support/bug-report', isAuthenticated, async (req: any, res) => {
     try {

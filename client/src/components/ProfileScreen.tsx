@@ -1714,19 +1714,11 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
       <DeleteDataConfirmation
         isOpen={showDeleteConfirmation}
         onClose={() => setShowDeleteConfirmation(false)}
-        onConfirm={async () => {
+        onConfirmDeleteData={async () => {
           setIsDeleting(true);
           try {
-            // Use apiRequest which handles base URL for iOS and auth headers
             await apiRequest('DELETE', '/api/user/data');
-            
-            toast({
-              title: "Data Deleted",
-              description: "All your health data has been permanently deleted.",
-            });
-            
-            setShowDeleteConfirmation(false);
-            window.location.reload();
+            // Don't show toast here - the component will show "Data Deleted" step
           } catch (error: any) {
             console.error('Delete data error:', {
               message: error?.message,
@@ -1737,8 +1729,44 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               description: "Failed to delete your data. Please try again.",
               variant: "destructive",
             });
+            throw error; // Re-throw so the component knows it failed
           } finally {
             setIsDeleting(false);
+          }
+        }}
+        onConfirmDeleteAccount={async () => {
+          try {
+            await apiRequest('DELETE', '/api/user/account');
+            
+            toast({
+              title: "Account Deleted",
+              description: "Your account has been permanently deleted.",
+            });
+            
+            // Clear local storage and redirect to login
+            if (typeof window !== 'undefined') {
+              try {
+                const { Capacitor } = await import('@capacitor/core');
+                if (Capacitor.isNativePlatform()) {
+                  const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+                  await SecureStoragePlugin.remove({ key: 'auth_token' });
+                }
+              } catch (e) {
+                // Not on native platform
+              }
+              window.location.href = '/login';
+            }
+          } catch (error: any) {
+            console.error('Delete account error:', {
+              message: error?.message,
+              stack: error?.stack,
+            });
+            toast({
+              title: "Delete Failed",
+              description: "Failed to delete your account. Please try again.",
+              variant: "destructive",
+            });
+            throw error;
           }
         }}
         isDeleting={isDeleting}
