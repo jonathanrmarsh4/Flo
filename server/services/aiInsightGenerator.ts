@@ -19,6 +19,7 @@ import { profiles, healthDailyMetrics } from '../../shared/schema';
 import { eq, desc, and, gte } from 'drizzle-orm';
 import type { InsightCandidate } from './insightsEngineV2';
 import type { EvidenceTier } from './evidenceHierarchy';
+import { buildGoalContext, formatGoalContextForAI, type GoalContext } from './goalContextService';
 
 // ============================================================================
 // User Context for AI
@@ -134,19 +135,21 @@ export async function getUserContext(userId: string): Promise<UserContext> {
 // ============================================================================
 
 /**
- * Generate contextual, personalized insight using GPT-4o
+ * Generate contextual, personalized insight using Gemini 2.5 Pro
  * 
  * @param candidate - Insight candidate from analysis layers
  * @param userContext - User profile and body composition
  * @param baselines - Baseline data for involved variables
  * @param userId - Optional user ID for usage tracking
+ * @param goalContext - Optional goal context for actionable recommendations
  * @returns AI-generated insight with title, body, and action
  */
 export async function generateContextualInsight(
   candidate: InsightCandidate,
   userContext: UserContext,
   baselines: BaselineData[],
-  userId?: string
+  userId?: string,
+  goalContext?: GoalContext
 ): Promise<AIGeneratedInsight> {
   
   // Build evidence tier explanation
@@ -166,6 +169,19 @@ export async function generateContextualInsight(
   // Build baseline summary
   const baselineSummary = buildBaselineSummary(baselines);
   
+  // Build goal context for proactive recommendations
+  let goalContextSection = '';
+  if (userId && !goalContext) {
+    try {
+      goalContext = await buildGoalContext(userId);
+    } catch (err) {
+      logger.debug('[AI] Could not fetch goal context');
+    }
+  }
+  if (goalContext) {
+    goalContextSection = formatGoalContextForAI(goalContext);
+  }
+  
   // DEBUG: Log baseline data being passed to AI
   logger.info(`[AI Prompt Debug] Baseline data for "${candidate.independent}"`, {
     baselineCount: baselines.length,
@@ -174,18 +190,19 @@ export async function generateContextualInsight(
       current: b.current,
       unit: b.unit,
     })),
+    hasGoalContext: !!goalContextSection,
   });
 
   // Build correlation summary
   const correlationSummary = buildCorrelationSummary(candidate);
 
   // Create AI prompt
-  const prompt = `You are a health insights AI generating personalized, evidence-based recommendations.
+  const prompt = `You are a health insights AI generating personalized, evidence-based, PROACTIVE recommendations that help users achieve their goals.
 
 ## User Profile
 ${userContextSummary}
 
-## Correlation Found
+${goalContextSection ? `${goalContextSection}\n` : ''}## Correlation Found
 ${correlationSummary}
 
 ## Evidence Level
@@ -259,6 +276,14 @@ Generate a health insight with:
    - Use everyday language, avoid medical jargon
    - Include realistic timelines (weeks to months, not days)
    - Focus on sustainable behavior change, not quick fixes
+
+7. **Goal-Oriented Recommendations** (CRITICAL - use when goal context is provided):
+   - If user has nutrition gaps (protein, calories, etc.), make the action SPECIFIC to closing that gap
+   - Example: "You're 25g short on protein. Consider adding Greek yogurt (17g) or chicken breast (31g) at dinner to support your lean weight gain goal."
+   - If user has active weight goal, tie recommendations to that goal
+   - If user has active N-of-1 experiments, mention how the insight might affect experiment outcomes
+   - Be PROACTIVE: Don't just describe what happened, tell them what to DO TODAY to achieve their goal
+   - Use specific numbers from the goal context (e.g., "You need X more grams of protein")
 
 ## Output Format (JSON)
 {
