@@ -119,7 +119,33 @@ async function fetchTokenFromSecureStorage(): Promise<string | null> {
 // Before: 10 parallel queries = 10 native bridge calls = 200-500ms freeze
 // After: 10 parallel queries = 1 native bridge call = 20-50ms
 export async function getAuthToken(): Promise<string | null> {
-  // Use capability check instead of platform check - works when frontend is served from web URL
+  // CRITICAL FIX: For true native platforms, use SecureStorage
+  // For web (including Safari on iOS accessing get-flo.com), use localStorage
+  // This prevents expired SecureStorage tokens from overriding fresh localStorage tokens
+  const isNative = Capacitor.isNativePlatform();
+  
+  // For web platforms, always prefer localStorage - web login stores tokens there
+  if (!isNative) {
+    const now = Date.now();
+    
+    // Return cached token if still valid
+    if (cachedAuthToken && (now - tokenCacheTime) < TOKEN_CACHE_DURATION) {
+      return cachedAuthToken;
+    }
+    
+    const localToken = localStorage.getItem('auth_token');
+    if (localToken) {
+      cachedAuthToken = localToken;
+      tokenCacheTime = Date.now();
+      console.log('[AuthToken] Web platform - retrieved token from localStorage');
+      return localToken;
+    }
+    
+    console.log('[AuthToken] Web platform - no token in localStorage');
+    return null;
+  }
+  
+  // For native platforms, use SecureStorage with localStorage fallback
   const hasSecureStorage = hasSecureStorageCapability();
   
   if (hasSecureStorage) {
