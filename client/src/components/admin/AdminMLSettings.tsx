@@ -408,8 +408,8 @@ function PerMetricSensitivitySection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [editingMetric, setEditingMetric] = useState<string | null>(null);
   const [editedSettings, setEditedSettings] = useState<Record<string, Partial<MetricSensitivity>>>({});
+  const [savingMetric, setSavingMetric] = useState<string | null>(null);
 
   const { data: metricSettings, isLoading } = useQuery<MetricSensitivity[]>({
     queryKey: ['/api/admin/metric-sensitivity'],
@@ -417,16 +417,23 @@ function PerMetricSensitivitySection() {
 
   const updateMetricMutation = useMutation({
     mutationFn: async ({ metricType, updates }: { metricType: string; updates: Partial<MetricSensitivity> }) => {
+      setSavingMetric(metricType);
       return apiRequest('PATCH', `/api/admin/metric-sensitivity/${metricType}`, updates);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/metric-sensitivity'] });
       toast({ title: 'Saved', description: 'Per-metric sensitivity updated.' });
-      setEditingMetric(null);
-      setEditedSettings({});
+      // Only clear edits for the metric that was saved
+      setEditedSettings(prev => {
+        const newState = { ...prev };
+        delete newState[variables.metricType];
+        return newState;
+      });
+      setSavingMetric(null);
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message || 'Failed to update', variant: 'destructive' });
+      setSavingMetric(null);
     },
   });
 
@@ -486,7 +493,6 @@ function PerMetricSensitivitySection() {
                       checked={getEditedValue(metric.metricType, 'enabled', metric.enabled)}
                       onCheckedChange={(checked) => {
                         updateEditedValue(metric.metricType, 'enabled', checked);
-                        setEditingMetric(metric.metricType);
                       }}
                       data-testid={`switch-metric-${metric.metricType}`}
                     />
@@ -495,7 +501,7 @@ function PerMetricSensitivitySection() {
                     </span>
                   </div>
                   
-                  {editingMetric === metric.metricType && editedSettings[metric.metricType] && (
+                  {editedSettings[metric.metricType] && Object.keys(editedSettings[metric.metricType]).length > 0 && (
                     <button
                       onClick={() => handleSave(metric)}
                       disabled={updateMetricMutation.isPending}
@@ -516,7 +522,6 @@ function PerMetricSensitivitySection() {
                       value={getEditedValue(metric.metricType, 'zScoreThreshold', metric.zScoreThreshold)}
                       onChange={(e) => {
                         updateEditedValue(metric.metricType, 'zScoreThreshold', parseFloat(e.target.value) || 2.0);
-                        setEditingMetric(metric.metricType);
                       }}
                       step={0.1}
                       min={0.5}
@@ -533,7 +538,6 @@ function PerMetricSensitivitySection() {
                       value={getEditedValue(metric.metricType, 'percentageThreshold', metric.percentageThreshold)}
                       onChange={(e) => {
                         updateEditedValue(metric.metricType, 'percentageThreshold', parseFloat(e.target.value) || 15);
-                        setEditingMetric(metric.metricType);
                       }}
                       step={1}
                       min={1}
@@ -550,7 +554,6 @@ function PerMetricSensitivitySection() {
                       value={getEditedValue(metric.metricType, 'cooldownHours', metric.cooldownHours)}
                       onChange={(e) => {
                         updateEditedValue(metric.metricType, 'cooldownHours', parseInt(e.target.value) || 4);
-                        setEditingMetric(metric.metricType);
                       }}
                       step={1}
                       min={1}
@@ -566,7 +569,6 @@ function PerMetricSensitivitySection() {
                         checked={getEditedValue(metric.metricType, 'notifyOnAnomaly', metric.notifyOnAnomaly)}
                         onCheckedChange={(checked) => {
                           updateEditedValue(metric.metricType, 'notifyOnAnomaly', checked);
-                          setEditingMetric(metric.metricType);
                         }}
                         className="scale-75"
                         data-testid={`switch-notify-${metric.metricType}`}
