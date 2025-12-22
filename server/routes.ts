@@ -120,7 +120,6 @@ import {
   getMindfulnessSummary, 
   getNutritionSummary 
 } from "./services/nutritionMindfulnessAggregator";
-import { fatSecretService } from "./services/fatSecretService";
 import {
   createMedicalDocument,
   getMedicalDocuments,
@@ -19221,7 +19220,7 @@ ${healthContext}`;
   
   // ==================== FOOD LOGGING API ====================
   
-  // POST /api/food/search - Search for foods using FatSecret API with AI fallback
+  // POST /api/food/search - Search for foods using Gemini AI
   app.post('/api/food/search', isAuthenticated, async (req: any, res) => {
     try {
       const { query } = req.body;
@@ -19232,109 +19231,107 @@ ${healthContext}`;
         return res.status(400).json({ error: 'Query is required' });
       }
       
-      // Try FatSecret first
       let results: any[] = [];
-      try {
-        results = await fatSecretService.searchFoods(query, 20);
-        logger.info('[FoodSearch] FatSecret found foods', { query, count: results.length });
-      } catch (fatSecretError: any) {
-        logger.warn('[FoodSearch] FatSecret failed, will use AI fallback', { error: fatSecretError.message });
-      }
       
-      // If FatSecret returns no results, use AI to estimate nutrition
-      if (results.length === 0) {
-        logger.info('[FoodSearch] Using AI fallback for:', query);
-        try {
-          const { GoogleGenAI } = await import('@google/genai');
-          const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
-          
-          const prompt = `Parse this food/supplement description and provide nutrition estimates: "${query}"
+      try {
+        const { GoogleGenAI } = await import('@google/genai');
+        const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
+        
+        const prompt = `You are a nutrition expert. Parse this food description and provide ACCURATE nutrition estimates based on USDA data: "${query}"
 
-IMPORTANT: Include supplements, seasonings, and zero-calorie items like salt, creatine, vitamins, etc.
+CRITICAL: You MUST provide realistic, non-zero nutrition values for foods. Use standard USDA serving sizes and values.
 
-Return a JSON array of items mentioned. For each item provide ALL fields (use 0 or null for unknown values):
+Return a JSON array of food items. For each item, estimate realistic values:
 
-{
-  "name": "Item Name (capitalized properly)",
-  "type": "Generic",
-  "description": "Brief description with key nutrients",
-  "servingDescription": "amount like '1g' or '1 tsp'",
-  "calories": 0,
-  "protein": 0,
-  "carbs": 0,
-  "fat": 0,
-  "fiber": 0,
-  "sugar": 0,
-  "sodiumMg": 0,
-  "potassiumMg": 0,
-  "calciumMg": 0,
-  "ironMg": 0,
-  "magnesiumMg": 0,
-  "zincMg": 0,
-  "phosphorusMg": 0,
-  "cholesterolMg": 0,
-  "caffeineMg": 0,
-  "waterMl": 0
-}
+Example format (note: these are EXAMPLE values - calculate real values for the query):
+[
+  {
+    "name": "Grilled Chicken Breast",
+    "type": "Protein",
+    "description": "Lean protein source, boneless skinless",
+    "servingDescription": "100g",
+    "calories": 165,
+    "protein": 31,
+    "carbs": 0,
+    "fat": 3.6,
+    "fiber": 0,
+    "sugar": 0,
+    "sodiumMg": 74,
+    "potassiumMg": 256,
+    "calciumMg": 11,
+    "ironMg": 1,
+    "magnesiumMg": 29,
+    "zincMg": 1,
+    "phosphorusMg": 228,
+    "cholesterolMg": 85,
+    "caffeineMg": 0,
+    "waterMl": 65
+  }
+]
 
-REFERENCE VALUES for common supplements/seasonings:
-- Sea salt (1g): 0 calories, ~388mg sodium
-- Table salt (1g): 0 calories, ~387mg sodium  
-- Creatine monohydrate (5g): 0 calories, no macros (amino acid derivative)
-- Protein powder whey (30g): ~120 kcal, 25g protein, 2g carbs, 1g fat
-- Fish oil (1 softgel/1g): 9 kcal, 0 protein, 0 carbs, 1g fat (omega-3)
-- Magnesium supplement (1 capsule): 0 calories, ~200-400mg magnesium
-- Vitamin D (1000 IU): 0 calories
+COMMON REFERENCE VALUES (per 100g unless noted):
+- Chicken breast: 165 kcal, 31g protein, 3.6g fat
+- Rice (cooked): 130 kcal, 2.7g protein, 28g carbs
+- Mixed salad greens: 20 kcal, 2g protein, 3g carbs, 2g fiber
+- Taco shell (1 shell ~13g): 60 kcal, 1g protein, 8g carbs, 3g fat
+- Beef (ground, 85% lean): 250 kcal, 26g protein, 15g fat
+- Salmon: 208 kcal, 20g protein, 13g fat
+- Egg (1 large): 78 kcal, 6g protein, 5g fat
 
-Use typical USDA values. If multiple items mentioned, return multiple items.
-Return ONLY valid JSON array, no markdown.`;
+For supplements/zero-calorie items:
+- Salt (1g): 0 kcal, 387mg sodium
+- Creatine (5g): 0 kcal
+- Fish oil (1g): 9 kcal, 1g fat
 
-          const result = await genAI.models.generateContent({
-            model: 'gemini-2.0-flash',
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          });
-          
-          const responseText = result.text || '';
-          logger.debug('[FoodSearch] AI response:', responseText.substring(0, 200));
-          
-          // Parse AI response with string-to-number coercion
-          const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            const aiFoods = JSON.parse(jsonMatch[0]);
-            // Helper to coerce strings/null to numbers
-            const toNum = (val: any): number => {
-              if (val === null || val === undefined) return 0;
-              const num = typeof val === 'string' ? parseFloat(val) : Number(val);
-              return isNaN(num) ? 0 : num;
-            };
-            results = aiFoods.map((food: any, idx: number) => ({
-              id: `ai-${Date.now()}-${idx}`,
-              name: food.name || query,
-              type: 'AI Estimate',
-              description: food.description || '',
-              calories: toNum(food.calories),
-              protein: toNum(food.protein),
-              carbs: toNum(food.carbs),
-              fat: toNum(food.fat),
-              fiber: toNum(food.fiber),
-              sugar: toNum(food.sugar),
-              sodiumMg: toNum(food.sodiumMg),
-              potassiumMg: toNum(food.potassiumMg),
-              calciumMg: toNum(food.calciumMg),
-              ironMg: toNum(food.ironMg),
-              magnesiumMg: toNum(food.magnesiumMg),
-              zincMg: toNum(food.zincMg),
-              phosphorusMg: toNum(food.phosphorusMg),
-              cholesterolMg: toNum(food.cholesterolMg),
-              caffeineMg: toNum(food.caffeineMg),
-              waterMl: toNum(food.waterMl),
-              servingDescription: food.servingDescription || '1 serving',
-            }));
-            logger.info('[FoodSearch] AI generated foods', { count: results.length, foods: results.map((f: any) => ({ name: f.name, calories: f.calories, sodiumMg: f.sodiumMg })) });
-          }
-        } catch (aiError: any) {
-          logger.error('[FoodSearch] AI fallback failed:', aiError.message);
+Return ONLY a valid JSON array, no markdown code blocks.`;
+
+        const result = await genAI.models.generateContent({
+          model: 'gemini-2.0-flash',
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        
+        const responseText = result.text || '';
+        logger.info('[FoodSearch] AI raw response:', responseText.substring(0, 500));
+        
+        // Parse AI response with string-to-number coercion
+        const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const aiFoods = JSON.parse(jsonMatch[0]);
+          // Helper to coerce strings/null to numbers
+          const toNum = (val: any): number => {
+            if (val === null || val === undefined) return 0;
+            const num = typeof val === 'string' ? parseFloat(val) : Number(val);
+            return isNaN(num) ? 0 : num;
+          };
+          results = aiFoods.map((food: any, idx: number) => ({
+            id: `ai-${Date.now()}-${idx}`,
+            name: food.name || query,
+            type: 'AI Estimate',
+            description: food.description || '',
+            calories: toNum(food.calories),
+            protein: toNum(food.protein),
+            carbs: toNum(food.carbs),
+            fat: toNum(food.fat),
+            fiber: toNum(food.fiber),
+            sugar: toNum(food.sugar),
+            sodiumMg: toNum(food.sodiumMg),
+            potassiumMg: toNum(food.potassiumMg),
+            calciumMg: toNum(food.calciumMg),
+            ironMg: toNum(food.ironMg),
+            magnesiumMg: toNum(food.magnesiumMg),
+            zincMg: toNum(food.zincMg),
+            phosphorusMg: toNum(food.phosphorusMg),
+            cholesterolMg: toNum(food.cholesterolMg),
+            caffeineMg: toNum(food.caffeineMg),
+            waterMl: toNum(food.waterMl),
+            servingDescription: food.servingDescription || '1 serving',
+          }));
+          logger.info('[FoodSearch] AI generated foods', { count: results.length, foods: results.map((f: any) => ({ name: f.name, calories: f.calories, protein: f.protein, fat: f.fat })) });
+        } else {
+          logger.error('[FoodSearch] Failed to parse AI response - no JSON array found');
         }
+      } catch (aiError: any) {
+        logger.error('[FoodSearch] AI failed:', aiError.message);
       }
       
       res.json({ results });
@@ -19344,7 +19341,7 @@ Return ONLY valid JSON array, no markdown.`;
     }
   });
   
-  // POST /api/food/barcode - Lookup food by barcode
+  // POST /api/food/barcode - Lookup food by barcode (currently returns not found)
   app.post('/api/food/barcode', isAuthenticated, async (req: any, res) => {
     try {
       const { barcode } = req.body;
@@ -19353,10 +19350,10 @@ Return ONLY valid JSON array, no markdown.`;
         return res.status(400).json({ error: 'Barcode is required' });
       }
       
-      const food = await fatSecretService.findByBarcode(barcode);
-      logger.info('[FoodBarcode] Lookup', { barcode, found: !!food });
+      logger.info('[FoodBarcode] Lookup', { barcode, found: false });
       
-      res.json({ food });
+      // Barcode lookup not currently supported - use food search instead
+      res.json({ food: null });
     } catch (error: any) {
       logger.error('[FoodBarcode] Error:', error);
       res.status(500).json({ error: 'Failed to lookup barcode' });
