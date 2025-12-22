@@ -123,6 +123,12 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   const nextPlayTimeRef = useRef<number>(0);
   const batchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Playback stall detection - monitors ctx.currentTime advancement
+  const lastCtxTimeRef = useRef<number>(0);
+  const lastCtxCheckRef = useRef<number>(Date.now());
+  const stallCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const STALL_THRESHOLD_MS = 2000; // Consider stalled if ctx.currentTime doesn't advance for 2s while audio queued
+  
   // Minimum batch size in samples (target ~200ms of audio at 24kHz = 4800 samples)
   const MIN_BATCH_SAMPLES = 4800;
   
@@ -282,6 +288,8 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     
     // Schedule up to 3 buffers ahead for smooth playback
     const maxSchedule = Math.min(3, audioQueueRef.current.length);
+    let lastSource: AudioBufferSourceNode | null = null;
+    
     for (let i = 0; i < maxSchedule; i++) {
       const buffer = audioQueueRef.current.shift()!;
       
@@ -291,6 +299,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       source.start(scheduleTime);
       
       scheduleTime += buffer.duration;
+      lastSource = source;
       
       // Only log the first buffer to reduce noise
       if (i === 0) {
@@ -300,7 +309,26 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     
     nextPlayTimeRef.current = scheduleTime;
     
-    // Schedule next batch before current playback ends
+    // PRIMARY: Use onended callback on the last buffer to trigger next batch
+    // This is more reliable than setTimeout which can be throttled on mobile
+    if (lastSource) {
+      lastSource.onended = () => {
+        // Check if there's more audio to play or pending to flush
+        const hasPending = pendingAudioRef.current.length > 0;
+        const hasQueued = audioQueueRef.current.length > 0;
+        
+        if (hasPending || hasQueued) {
+          // Immediately trigger next batch - don't rely on timer
+          playNextAudio();
+        } else {
+          // No more audio - mark as done
+          isPlayingRef.current = false;
+          setState(prev => ({ ...prev, isSpeaking: false }));
+        }
+      };
+    }
+    
+    // BACKUP: Also schedule via setTimeout as a safety net (in case onended doesn't fire)
     const timeUntilDone = (scheduleTime - currentTime) * 1000;
     if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
     playbackTimeoutRef.current = setTimeout(() => {
