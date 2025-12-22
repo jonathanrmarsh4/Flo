@@ -19794,7 +19794,8 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       const userTimezone = userResult[0]?.timezone || 'UTC';
       
       // Calculate start/end in user's local timezone, then convert to UTC for query
-      const { formatInTimeZone, zonedTimeToUtc } = await import('date-fns-tz');
+      const { formatInTimeZone } = await import('date-fns-tz');
+      const { TZDate } = await import('@date-fns/tz');
       
       let start: Date;
       let end: Date;
@@ -19805,7 +19806,7 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       } else {
         // Get today's date in user's local timezone, then get midnight in that timezone
         const nowInUserTz = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
-        start = zonedTimeToUtc(`${nowInUserTz}T00:00:00`, userTimezone);
+        start = new TZDate(`${nowInUserTz}T00:00:00`, userTimezone);
       }
       
       if (endDate) {
@@ -19814,7 +19815,7 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       } else {
         // Get today's date in user's local timezone, then get end of day in that timezone
         const nowInUserTz = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
-        end = zonedTimeToUtc(`${nowInUserTz}T23:59:59.999`, userTimezone);
+        end = new TZDate(`${nowInUserTz}T23:59:59.999`, userTimezone);
       }
       
       // Query nutrition samples from healthkit_samples
