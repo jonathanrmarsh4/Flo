@@ -21,8 +21,9 @@ interface ActiveLifeEvent {
   source: string;
 }
 
-const getEventIcon = (eventType: string) => {
-  switch (eventType.toLowerCase()) {
+const getEventIcon = (eventType: string | null | undefined) => {
+  const type = eventType?.toLowerCase() || '';
+  switch (type) {
     case 'travel':
     case 'vacation':
     case 'jet_lag':
@@ -44,7 +45,8 @@ const getEventIcon = (eventType: string) => {
   }
 };
 
-const getEventLabel = (eventType: string): string => {
+const getEventLabel = (eventType: string | null | undefined): string => {
+  if (!eventType) return 'Event';
   const labels: Record<string, string> = {
     'travel': 'Traveling',
     'vacation': 'On Vacation',
@@ -62,8 +64,9 @@ const getEventLabel = (eventType: string): string => {
   return labels[eventType.toLowerCase()] || eventType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
 
-const getEventColor = (eventType: string, isDark: boolean) => {
-  switch (eventType.toLowerCase()) {
+const getEventColor = (eventType: string | null | undefined, isDark: boolean) => {
+  const type = eventType?.toLowerCase() || '';
+  switch (type) {
     case 'travel':
     case 'vacation':
     case 'jet_lag':
