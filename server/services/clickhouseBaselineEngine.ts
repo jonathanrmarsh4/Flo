@@ -950,65 +950,113 @@ export class ClickHouseBaselineEngine {
         'core_sleep_min': 60,         // Minimum 1 hour core sleep
       };
 
+      // CRITICAL FIX: Cumulative metrics (steps, active_energy, etc.) must use MAX per day
+      // before averaging across days. Otherwise we average partial syncs (8, 283, 7074)
+      // instead of daily totals, causing massive underreporting in insights.
+      const CUMULATIVE_METRICS = [
+        'steps', 'active_energy', 'exercise_minutes', 'workout_minutes',
+        'distance_walking_running', 'distance_km', 'stand_hours', 'stand_time',
+        'move_minutes', 'active_calories', 'flights_climbed'
+      ];
+
       // Build conditional WHERE clause for minimum thresholds
       // For sleep metrics, exclude values below threshold; for all others, include everything
       // Use IQR-based outlier filtering: exclude values outside [Q1 - 1.5*IQR, Q3 + 1.5*IQR]
-      // This uses a subquery to first calculate percentiles, then filter outliers before averaging
+      // IMPORTANT: For cumulative metrics, first get max per day, then calculate stats on daily values
       const sql = `
-        WITH percentiles AS (
-          SELECT
-            metric_type,
-            quantile(0.25)(value) as q1,
-            quantile(0.75)(value) as q3
-          FROM flo_health.health_metrics
-          WHERE health_id = {healthId:String}
-            AND recorded_at >= now() - INTERVAL {windowDays:UInt8} DAY
-            AND (
-              (metric_type = 'time_in_bed_min' AND value >= 240) OR
-              (metric_type = 'sleep_duration_min' AND value >= 180) OR
-              (metric_type = 'total_sleep_min' AND value >= 180) OR
-              (metric_type = 'deep_sleep_min' AND value >= 15) OR
-              (metric_type = 'rem_sleep_min' AND value >= 15) OR
-              (metric_type = 'core_sleep_min' AND value >= 60) OR
-              (metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
-            )
-          GROUP BY metric_type
-        )
-        SELECT
-          m.metric_type,
-          avg(m.value) as mean_value,
-          stddevPop(m.value) as std_dev,
-          min(m.value) as min_value,
-          max(m.value) as max_value,
-          count() as sample_count,
-          quantile(0.10)(m.value) as percentile_10,
-          quantile(0.25)(m.value) as percentile_25,
-          quantile(0.75)(m.value) as percentile_75,
-          quantile(0.90)(m.value) as percentile_90
-        FROM flo_health.health_metrics m
-        INNER JOIN percentiles p ON m.metric_type = p.metric_type
-        WHERE m.health_id = {healthId:String}
-          AND m.recorded_at >= now() - INTERVAL {windowDays:UInt8} DAY
-          -- Filter out naps/partial syncs for sleep metrics
-          AND (
-            (m.metric_type = 'time_in_bed_min' AND m.value >= 240) OR
-            (m.metric_type = 'sleep_duration_min' AND m.value >= 180) OR
-            (m.metric_type = 'total_sleep_min' AND m.value >= 180) OR
-            (m.metric_type = 'deep_sleep_min' AND m.value >= 15) OR
-            (m.metric_type = 'rem_sleep_min' AND m.value >= 15) OR
-            (m.metric_type = 'core_sleep_min' AND m.value >= 60) OR
-            (m.metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
+        WITH 
+          -- Step 1: For cumulative metrics, get max value per day (the final daily total)
+          daily_cumulative AS (
+            SELECT
+              metric_type,
+              toDate(local_date) as day,
+              max(value) as daily_value
+            FROM flo_health.health_metrics
+            WHERE health_id = {healthId:String}
+              AND recorded_at >= now() - INTERVAL {windowDays:UInt8} DAY
+              AND metric_type IN (${CUMULATIVE_METRICS.map(m => `'${m}'`).join(', ')})
+            GROUP BY metric_type, day
+          ),
+          -- Step 2: Calculate baselines for cumulative metrics using daily max values
+          cumulative_baselines AS (
+            SELECT
+              metric_type,
+              avg(daily_value) as mean_value,
+              stddevPop(daily_value) as std_dev,
+              min(daily_value) as min_value,
+              max(daily_value) as max_value,
+              count() as sample_count,
+              quantile(0.10)(daily_value) as percentile_10,
+              quantile(0.25)(daily_value) as percentile_25,
+              quantile(0.75)(daily_value) as percentile_75,
+              quantile(0.90)(daily_value) as percentile_90
+            FROM daily_cumulative
+            GROUP BY metric_type
+            HAVING count() >= 3
+          ),
+          -- Step 3: For non-cumulative metrics, use existing IQR-filtered averaging
+          percentiles AS (
+            SELECT
+              metric_type,
+              quantile(0.25)(value) as q1,
+              quantile(0.75)(value) as q3
+            FROM flo_health.health_metrics
+            WHERE health_id = {healthId:String}
+              AND recorded_at >= now() - INTERVAL {windowDays:UInt8} DAY
+              AND metric_type NOT IN (${CUMULATIVE_METRICS.map(m => `'${m}'`).join(', ')})
+              AND (
+                (metric_type = 'time_in_bed_min' AND value >= 240) OR
+                (metric_type = 'sleep_duration_min' AND value >= 180) OR
+                (metric_type = 'total_sleep_min' AND value >= 180) OR
+                (metric_type = 'deep_sleep_min' AND value >= 15) OR
+                (metric_type = 'rem_sleep_min' AND value >= 15) OR
+                (metric_type = 'core_sleep_min' AND value >= 60) OR
+                (metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
+              )
+            GROUP BY metric_type
+          ),
+          instantaneous_baselines AS (
+            SELECT
+              m.metric_type,
+              avg(m.value) as mean_value,
+              stddevPop(m.value) as std_dev,
+              min(m.value) as min_value,
+              max(m.value) as max_value,
+              count() as sample_count,
+              quantile(0.10)(m.value) as percentile_10,
+              quantile(0.25)(m.value) as percentile_25,
+              quantile(0.75)(m.value) as percentile_75,
+              quantile(0.90)(m.value) as percentile_90
+            FROM flo_health.health_metrics m
+            INNER JOIN percentiles p ON m.metric_type = p.metric_type
+            WHERE m.health_id = {healthId:String}
+              AND m.recorded_at >= now() - INTERVAL {windowDays:UInt8} DAY
+              AND m.metric_type NOT IN (${CUMULATIVE_METRICS.map(m => `'${m}'`).join(', ')})
+              -- Filter out naps/partial syncs for sleep metrics
+              AND (
+                (m.metric_type = 'time_in_bed_min' AND m.value >= 240) OR
+                (m.metric_type = 'sleep_duration_min' AND m.value >= 180) OR
+                (m.metric_type = 'total_sleep_min' AND m.value >= 180) OR
+                (m.metric_type = 'deep_sleep_min' AND m.value >= 15) OR
+                (m.metric_type = 'rem_sleep_min' AND m.value >= 15) OR
+                (m.metric_type = 'core_sleep_min' AND m.value >= 60) OR
+                (m.metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
+              )
+              -- IQR-based outlier filtering: exclude values outside [Q1 - 1.5*IQR, Q3 + 1.5*IQR]
+              -- When IQR is negligible (< 0.01), skip filtering to avoid floating-point issues
+              AND (
+                (p.q3 - p.q1) < 0.01 OR (
+                  m.value >= p.q1 - 1.5 * (p.q3 - p.q1)
+                  AND m.value <= p.q3 + 1.5 * (p.q3 - p.q1)
+                )
+              )
+            GROUP BY m.metric_type
+            HAVING count() >= 3
           )
-          -- IQR-based outlier filtering: exclude values outside [Q1 - 1.5*IQR, Q3 + 1.5*IQR]
-          -- When IQR is negligible (< 0.01), skip filtering to avoid floating-point issues
-          AND (
-            (p.q3 - p.q1) < 0.01 OR (
-              m.value >= p.q1 - 1.5 * (p.q3 - p.q1)
-              AND m.value <= p.q3 + 1.5 * (p.q3 - p.q1)
-            )
-          )
-        GROUP BY m.metric_type
-        HAVING count() >= 3
+        -- Combine cumulative and instantaneous baselines
+        SELECT * FROM cumulative_baselines
+        UNION ALL
+        SELECT * FROM instantaneous_baselines
       `;
 
       const rows = await clickhouse.query<{
