@@ -13,6 +13,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { useEffect, useState, useRef } from 'react';
 import { initializeNotifications } from "@/lib/notifications";
 import { initializeStripeNative } from "@/lib/stripe-native";
+import { triggerOpen3PMSurvey } from "@/lib/surveyEvents";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 import { TokenMismatchHandler } from "@/components/TokenMismatchHandler";
 import NotFound from "@/pages/not-found";
@@ -117,13 +118,27 @@ function Router() {
         const url = new URL(event.url);
         const path = url.pathname;
         const search = url.search;
+        const host = url.host;
         
-        console.log('[App] Navigating to:', path + search);
+        console.log('[App] Deep link parsed - host:', host, 'path:', path);
         
-        // Mark this launch URL as processed BEFORE navigating
+        // Mark this launch URL as processed BEFORE taking action
         if (isLaunchUrl) {
           processedLaunchUrlRef.current = event.url;
         }
+        
+        // Handle 3PM survey deep link from push notifications
+        // Format: flo://survey/3pm or path /survey/3pm
+        if (host === 'survey' && path === '/3pm' || path === '/survey/3pm') {
+          console.log('[App] 3PM Survey deep link detected - triggering modal');
+          // Navigate to dashboard first (if not already there)
+          setLocation('/');
+          // Trigger survey - the event system buffers the trigger until dashboard subscribes
+          triggerOpen3PMSurvey();
+          return;
+        }
+        
+        console.log('[App] Navigating to:', path + search);
         
         // Navigate to the path (wouter will handle hash routing)
         setLocation(path + search);

@@ -1,5 +1,6 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
+import { triggerOpen3PMSurvey } from '@/lib/surveyEvents';
 
 /**
  * Notification utility for in-app notifications
@@ -66,7 +67,15 @@ function setupListeners() {
   // Handle notification taps
   LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
     console.log('[Notifications] User tapped notification:', action.notification);
-    // Add navigation logic here if needed
+    
+    // Check if this is a 3PM survey notification
+    const notificationType = action?.notification?.extra?.type;
+    console.log('[Notifications] Local notification type:', notificationType);
+    
+    if (notificationType === 'survey_3pm') {
+      console.log('[Notifications] 3PM Survey local notification tapped - triggering modal');
+      triggerOpen3PMSurvey();
+    }
   });
 }
 

@@ -358,48 +358,18 @@ export async function scheduleDailyActionReminders(config: FlomentumNotification
 
 /**
  * Schedule 3PM Wellbeing Survey notification
- * This is a LOCAL notification that fires at 3PM in the user's device timezone
- * Much more reliable than server-side push notifications for time-sensitive reminders
+ * DISABLED: Server-side APNs push notifications are now the single source of truth
+ * for 3PM survey timing. This prevents duplicate notifications and ensures
+ * consistent timing across all devices using the user's stored timezone.
+ * The local notification was causing timing issues because it could fire at
+ * incorrect times if the device timezone or config was stale.
  */
 export async function scheduleThreePMSurvey(config: FlomentumNotificationConfig = DEFAULT_CONFIG) {
-  if (!Capacitor.isNativePlatform() || !config.threePMSurveyEnabled) {
-    return;
-  }
-
-  try {
-    const [hours, minutes] = config.threePMSurveyTime.split(':').map(Number);
-    const now = new Date();
-    const scheduledTime = new Date();
-    scheduledTime.setHours(hours, minutes, 0, 0);
-
-    // If time has passed today, schedule for tomorrow
-    if (scheduledTime <= now) {
-      scheduledTime.setDate(scheduledTime.getDate() + 1);
-    }
-
-    await LocalNotifications.schedule({
-      notifications: [{
-        id: 106, // Unique ID for 3PM survey
-        title: '3PM Check-In',
-        body: 'Quick 30-second wellbeing check - how are you feeling?',
-        schedule: {
-          at: scheduledTime,
-          every: 'day',
-        },
-        extra: { 
-          type: 'survey_3pm',
-          deepLink: 'flo://survey/3pm',
-        },
-        sound: undefined,
-        attachments: undefined,
-        actionTypeId: '',
-      }]
-    });
-
-    console.log(`[Flōmentum Notifications] 3PM survey scheduled for ${config.threePMSurveyTime} (next: ${scheduledTime.toLocaleString()})`);
-  } catch (error) {
-    console.error('[Flōmentum Notifications] Failed to schedule 3PM survey', error);
-  }
+  // DISABLED - Server APNs handles 3PM survey notifications now
+  // The reminderDeliveryService.ts on the server sends push notifications
+  // at the user's local 3PM using their stored timezone
+  console.log('[Flōmentum Notifications] 3PM survey - using server APNs (local scheduling disabled)');
+  return;
 }
 
 /**

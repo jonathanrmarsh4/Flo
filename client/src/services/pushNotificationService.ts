@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { apiRequest, getAuthToken } from '@/lib/queryClient';
+import { triggerOpen3PMSurvey } from '@/lib/surveyEvents';
 
 class PushNotificationService {
   private isInitialized = false;
@@ -99,6 +100,15 @@ class PushNotificationService {
     console.log('[PushNotifications] Adding pushNotificationActionPerformed listener...');
     await PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
       console.log('[PushNotifications] Notification tapped:', JSON.stringify(action));
+      
+      // Check if this is a 3PM survey notification
+      const notificationType = action?.notification?.data?.type || action?.notification?.extra?.type;
+      console.log('[PushNotifications] Notification type:', notificationType);
+      
+      if (notificationType === 'survey_3pm' || notificationType === '3pm_checkin') {
+        console.log('[PushNotifications] 3PM Survey notification tapped - triggering modal');
+        triggerOpen3PMSurvey();
+      }
     });
     console.log('[PushNotifications] PushNotificationActionPerformed listener added');
     

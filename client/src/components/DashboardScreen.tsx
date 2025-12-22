@@ -15,6 +15,7 @@ import { ThreePMSurveyModal } from './ThreePMSurveyModal';
 import { FeedbackSurveyModal } from './FeedbackSurveyModal';
 import { WhyModal, type WhyInsightResponse } from './WhyModal';
 import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical, Bell, ClipboardCheck, MessageCircle, AlertTriangle, ThermometerSnowflake, HeartPulse } from 'lucide-react';
+import { surveyEvents } from '@/lib/surveyEvents';
 import { NotificationsScreen } from './NotificationsScreen';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
@@ -197,6 +198,15 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
 
   const { data: planData } = usePlan();
   const { data: paywallModalsData } = usePaywallModals();
+
+  // Listen for survey events from push notifications
+  useEffect(() => {
+    const unsubscribe = surveyEvents.subscribe(() => {
+      console.log('[Dashboard] Survey event received - opening 3PM survey modal');
+      setShowSurveyModal(true);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const getDismissedFeedbackIds = (): string[] => {
     try {
