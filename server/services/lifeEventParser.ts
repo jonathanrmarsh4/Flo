@@ -150,7 +150,8 @@ const TRIGGER_WORDS = [
   'got injured', 'pulled a muscle', 'feeling fatigued', 'body aches',
   
   // Context-aware life events (affect ML sensitivity)
-  'traveling', 'travel', 'on vacation', 'vacation', 'on a trip', 'road trip', 'flying',
+  'traveling', 'travel', 'on vacation', 'vacation', 'on holidays', 'holiday', 'holidays',
+  'on a trip', 'road trip', 'flying', 'away from home', 'out of town',
   'jet lag', 'time zone', 'been sick', 'came down with', 'caught a cold', 'got sick',
   'rest day', 'recovery day', 'taking it easy', 'day off', 'injured my', 
   'dealing with stress', 'high stress', 'stressful week', 'busy week',
