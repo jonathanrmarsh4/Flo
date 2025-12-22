@@ -128,12 +128,13 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   
   // ===== FREEZE DETECTION & AUTO-RECONNECT =====
   const lastAudioReceivedRef = useRef<number>(Date.now());
+  const lastAudioSentRef = useRef<number>(Date.now()); // Track when we last sent audio to prevent false freezes
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const freezeCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptRef = useRef<number>(0);
   const isReconnectingRef = useRef<boolean>(false);
   const MAX_RECONNECT_ATTEMPTS = 3;
-  const FREEZE_TIMEOUT_MS = 8000; // Consider frozen if no audio for 8 seconds
+  const FREEZE_TIMEOUT_MS = 15000; // Consider frozen if no audio in EITHER direction for 15 seconds
   const HEARTBEAT_INTERVAL_MS = 15000; // Send heartbeat every 15 seconds
 
   // Wake lock management - keeps screen awake during voice chat
@@ -453,14 +454,22 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
                 }
               }, HEARTBEAT_INTERVAL_MS);
               
-              // Start freeze detection - check if audio stopped flowing
+              // Start freeze detection - check if audio stopped flowing in BOTH directions
+              // Only trigger freeze if NEITHER user is sending NOR Gemini is responding
               if (freezeCheckIntervalRef.current) clearInterval(freezeCheckIntervalRef.current);
               freezeCheckIntervalRef.current = setInterval(() => {
-                const timeSinceLastAudio = Date.now() - lastAudioReceivedRef.current;
+                const now = Date.now();
+                const timeSinceLastReceived = now - lastAudioReceivedRef.current;
+                const timeSinceLastSent = now - lastAudioSentRef.current;
                 
-                // Only check for freeze if we're supposed to be connected and speaking
-                if (wsRef.current?.readyState === WebSocket.OPEN && timeSinceLastAudio > FREEZE_TIMEOUT_MS) {
-                  console.warn('[GeminiLive] FREEZE DETECTED - No audio for', (timeSinceLastAudio / 1000).toFixed(1), 'seconds');
+                // Only consider frozen if BOTH directions have been idle for the timeout
+                // This prevents false freezes when user is speaking (sending audio)
+                const bothDirectionsIdle = timeSinceLastReceived > FREEZE_TIMEOUT_MS && 
+                                           timeSinceLastSent > FREEZE_TIMEOUT_MS;
+                
+                if (wsRef.current?.readyState === WebSocket.OPEN && bothDirectionsIdle) {
+                  console.warn('[GeminiLive] FREEZE DETECTED - No audio in either direction for', 
+                    (Math.min(timeSinceLastReceived, timeSinceLastSent) / 1000).toFixed(1), 'seconds');
                   
                   // Trigger auto-reconnect
                   if (!isReconnectingRef.current && reconnectAttemptRef.current < MAX_RECONNECT_ATTEMPTS) {
@@ -477,13 +486,11 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
                     setTimeout(() => {
                       if (isReconnectingRef.current) {
                         options.onError?.('Connection froze - reconnecting...');
-                        // The onclose handler will be called, but we set isReconnecting flag
-                        // so we can distinguish between user-initiated close and freeze-recovery
                       }
                     }, 500);
                   }
                 }
-              }, 2000); // Check every 2 seconds
+              }, 3000); // Check every 3 seconds
               
               options.onConnected?.();
               break;
@@ -664,6 +671,9 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
         // Convert to base64 using chunked method to avoid stack limits
         const base64Audio = uint8ToBase64(new Uint8Array(int16Data.buffer));
+
+        // Track when we last sent audio (for freeze detection)
+        lastAudioSentRef.current = Date.now();
 
         // Send PCM to server
         wsRef.current.send(JSON.stringify({
