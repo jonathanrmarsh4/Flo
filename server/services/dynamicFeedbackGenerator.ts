@@ -6,6 +6,7 @@ import { lifeEvents, userDailyMetrics, sleepNights } from '@shared/schema';
 import { eq, and, gte, desc } from 'drizzle-orm';
 import { behaviorAttributionEngine } from './behaviorAttributionEngine';
 import { getMetricHealthContext, getClassificationLabel } from './healthContextKnowledge';
+import { causalAnalysisService, CausalContext } from './causalAnalysisService';
 
 const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
 
@@ -402,6 +403,282 @@ Respond with JSON only:
     }
 
     return questions;
+  }
+
+  /**
+   * Generate check-in questions enriched with causal analysis.
+   * This version includes potential causes for the anomaly and actionable recommendations.
+   * 
+   * Example output: "Your deep sleep improved by 25%. This could be from your earlier bedtime 
+   * or the magnesium you took before bed. Keep it up! How are you feeling (1-10)?"
+   */
+  async generateQuestionsWithCausalContext(
+    userId: string,
+    anomalies: AnomalyResult[],
+    maxQuestions: number = 3,
+    userContext?: {
+      recentLifeEvents?: string[];
+      lastFeedbackHoursAgo?: number;
+      preferredName?: string;
+    }
+  ): Promise<GeneratedQuestion[]> {
+    if (anomalies.length === 0) {
+      return [];
+    }
+
+    const deliveryWindows: Array<'morning' | 'midday' | 'evening'> = ['morning', 'midday', 'evening'];
+    const effectiveMaxQuestions = Math.min(maxQuestions, deliveryWindows.length);
+
+    const sortedAnomalies = [...anomalies].sort((a, b) => {
+      const severityOrder = { low: 0, moderate: 1, high: 2 };
+      const severityDiff = severityOrder[b.severity] - severityOrder[a.severity];
+      if (severityDiff !== 0) return severityDiff;
+      return b.modelConfidence - a.modelConfidence;
+    });
+
+    const topAnomalies = sortedAnomalies.slice(0, effectiveMaxQuestions);
+    const questions: GeneratedQuestion[] = [];
+
+    try {
+      for (let i = 0; i < topAnomalies.length; i++) {
+        const focusAnomaly = topAnomalies[i];
+        const focusMetricName = METRIC_DISPLAY_NAMES[focusAnomaly.metricType] || focusAnomaly.metricType;
+        const focusDirection = focusAnomaly.direction === 'above' ? 'improved' : 'decreased';
+        const focusDeviationStr = formatDeviationDisplay(focusAnomaly.metricType, focusAnomaly.deviationPct);
+        
+        // Determine if this is a positive change (improvement)
+        const isImprovement = this.isPositiveChange(focusAnomaly);
+
+        // Get causal context SPECIFIC to this anomaly's metric
+        // This ensures each question references causes relevant to its focus metric
+        const causalContext = await causalAnalysisService.analyzeAnomalyCauses(userId, focusAnomaly);
+        
+        logger.info('[FeedbackGenerator] Gathered causal context for metric', {
+          focusMetric: focusAnomaly.metricType,
+          experimentsCount: causalContext.activeExperiments.length,
+          behaviorsCount: causalContext.notableBehaviors.length,
+          patternsCount: causalContext.positivePatterns.length,
+        });
+
+        // Build causal context section for prompt
+        const causalSection = this.buildCausalPromptSection(causalContext, isImprovement);
+
+        const prompt = `You are a health AI assistant generating a personalized check-in question that includes CAUSAL INSIGHT.
+
+DETECTED CHANGE:
+${focusMetricName} ${focusDirection} by ${focusDeviationStr} from baseline
+Change type: ${isImprovement ? 'POSITIVE IMPROVEMENT' : 'DECLINE/CONCERN'}
+
+${causalSection}
+
+${userContext?.preferredName ? `USER NAME: ${userContext.preferredName}` : ''}
+
+Generate a check-in question that:
+1. States the specific change (e.g., "Your deep sleep improved by 25%")
+2. ${isImprovement ? 'Mentions 1-2 likely causes from the causal context above' : 'Acknowledges the change without alarming'}
+3. ${isImprovement ? 'Encourages them to keep doing what\'s working' : 'Asks how they\'re feeling'}
+4. Ends with asking how they feel on a 1-10 scale
+5. Is warm and conversational, under 60 words
+6. Uses "Your data shows" instead of "I noticed"
+
+${isImprovement && causalContext.recommendations.length > 0 ? `
+IMPORTANT FOR IMPROVEMENTS: Include a brief cause suggestion like:
+- "This could be from [cause1] or [cause2]"
+- "Your [behavior] may be helping"
+- "Keep up the [recommendation]!"
+` : ''}
+
+Respond with JSON only:
+{
+  "questionText": "The check-in question with causal insight",
+  "urgency": "low|medium|high",
+  "causalInsight": "Brief summary of likely cause (1 sentence)"
+}`;
+
+        try {
+          const response = await genai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: prompt,
+            config: {
+              responseMimeType: 'application/json',
+              temperature: 0.7,
+            },
+          });
+
+          const text = response.text || '';
+          const parsed = JSON.parse(text);
+
+          const triggerMetrics: Record<string, { value: number; deviation: number }> = {};
+          for (const a of anomalies) {
+            triggerMetrics[a.metricType] = {
+              value: a.currentValue,
+              deviation: a.deviationPct,
+            };
+          }
+
+          const defaultUrgency = focusAnomaly.severity === 'high' ? 'high' : focusAnomaly.severity === 'moderate' ? 'medium' : 'low';
+          const isValidUrgency = parsed.urgency === 'low' || parsed.urgency === 'medium' || parsed.urgency === 'high';
+          const resolvedUrgency = isValidUrgency ? parsed.urgency : defaultUrgency;
+
+          questions.push({
+            questionText: parsed.questionText.trim(),
+            questionType: 'scale_1_10',
+            triggerPattern: focusAnomaly.patternFingerprint || 'single_metric',
+            triggerMetrics,
+            urgency: resolvedUrgency,
+            suggestedChannel: focusAnomaly.severity === 'high' ? 'push' : 'in_app',
+            focusMetric: focusAnomaly.metricType,
+            deliveryWindow: deliveryWindows[i],
+          });
+
+          logger.info('[FeedbackGenerator] Generated causal-enriched question', {
+            focusMetric: focusAnomaly.metricType,
+            isImprovement,
+            hasCausalInsight: !!parsed.causalInsight,
+            deliveryWindow: deliveryWindows[i],
+          });
+        } catch (error) {
+          logger.error('[FeedbackGenerator] Failed to generate causal question', {
+            focusMetric: focusAnomaly.metricType,
+            error,
+          });
+          // Fall back to enriched fallback with causal context
+          questions.push(this.generateCausalFallbackQuestion(focusAnomaly, anomalies, deliveryWindows[i], causalContext));
+        }
+      }
+    } catch (upstreamError) {
+      logger.error('[FeedbackGenerator] Upstream failure in generateQuestionsWithCausalContext', { upstreamError });
+      for (let i = 0; i < topAnomalies.length; i++) {
+        if (!questions.some(q => q.focusMetric === topAnomalies[i].metricType)) {
+          questions.push(this.generateFocusedFallbackQuestion(topAnomalies[i], anomalies, deliveryWindows[i]));
+        }
+      }
+    }
+
+    return questions;
+  }
+
+  /**
+   * Build the causal context section for the AI prompt
+   */
+  private buildCausalPromptSection(causalContext: CausalContext, isImprovement: boolean): string {
+    const sections: string[] = [];
+
+    // Active experiments
+    if (causalContext.activeExperiments.length > 0) {
+      const expList = causalContext.activeExperiments
+        .map(e => `${e.productName} (day ${e.daysIntoExperiment} of experiment)`)
+        .join(', ');
+      sections.push(`ACTIVE EXPERIMENTS: ${expList}`);
+    }
+
+    // Notable recent behaviors
+    if (causalContext.notableBehaviors.length > 0) {
+      const behaviorList = causalContext.notableBehaviors.slice(0, 4).map(b => {
+        const dir = b.deviation > 0 ? 'higher' : 'lower';
+        return `${b.description} (${Math.abs(Math.round(b.deviation))}% ${dir} than usual)`;
+      }).join(', ');
+      sections.push(`RECENT NOTABLE BEHAVIORS: ${behaviorList}`);
+    }
+
+    // Positive patterns (only for improvements)
+    if (isImprovement && causalContext.positivePatterns.length > 0) {
+      const patternList = causalContext.positivePatterns.slice(0, 3).map(p => 
+        `${p.description} (seen ${p.occurrenceCount} times before improvements)`
+      ).join(', ');
+      sections.push(`HISTORICALLY ASSOCIATED WITH IMPROVEMENT: ${patternList}`);
+    }
+
+    // Recommendations
+    if (causalContext.recommendations.length > 0) {
+      sections.push(`RECOMMENDATIONS: ${causalContext.recommendations.join(', ')}`);
+    }
+
+    if (sections.length === 0) {
+      return 'CAUSAL CONTEXT: No specific causes identified yet. Keep the response simple.';
+    }
+
+    return 'CAUSAL CONTEXT:\n' + sections.join('\n');
+  }
+
+  /**
+   * Determine if an anomaly represents a positive change (improvement)
+   */
+  private isPositiveChange(anomaly: AnomalyResult): boolean {
+    // Metrics where LOWER is better
+    const lowerIsBetter = [
+      'resting_heart_rate', 'rhr_bpm', 'respiratory_rate', 'respiratory_rate_bpm',
+      'blood_glucose', 'cgm_glucose', 'glucose', 'stress_level',
+      'wrist_temperature_deviation', 'body_temperature', 'sleep_latency',
+      'waso', 'awake_duration', 'sleep_fragmentation',
+    ];
+    
+    // Metrics where HIGHER is better
+    const higherIsBetter = [
+      'hrv', 'hrv_ms', 'hrv_rmssd', 'deep_sleep', 'rem_sleep', 'sleep_duration',
+      'deep_sleep_pct', 'rem_pct', 'sleep_efficiency', 'vo2_max',
+      'steps', 'active_energy', 'exercise_minutes', 'stand_hours',
+      'readiness_score', 'recovery_score', 'energy_level', 'time_in_range',
+    ];
+    
+    const metricLower = anomaly.metricType.toLowerCase();
+    
+    if (lowerIsBetter.some(m => metricLower.includes(m))) {
+      return anomaly.direction === 'below';
+    }
+    
+    if (higherIsBetter.some(m => metricLower.includes(m))) {
+      return anomaly.direction === 'above';
+    }
+    
+    // Default: above is improvement
+    return anomaly.direction === 'above';
+  }
+
+  /**
+   * Generate fallback question with causal context when AI generation fails
+   */
+  private generateCausalFallbackQuestion(
+    focusAnomaly: AnomalyResult,
+    allAnomalies: AnomalyResult[],
+    deliveryWindow: 'morning' | 'midday' | 'evening',
+    causalContext: CausalContext
+  ): GeneratedQuestion {
+    const metricName = METRIC_DISPLAY_NAMES[focusAnomaly.metricType] || focusAnomaly.metricType;
+    const isImprovement = this.isPositiveChange(focusAnomaly);
+    const direction = isImprovement ? 'improved' : 'been lower';
+    const deviationStr = formatDeviationDisplay(focusAnomaly.metricType, focusAnomaly.deviationPct);
+
+    // Build causal phrase if we have context
+    let causalPhrase = '';
+    if (isImprovement) {
+      if (causalContext.activeExperiments.length > 0) {
+        causalPhrase = ` This could be related to your ${causalContext.activeExperiments[0].productName} experiment.`;
+      } else if (causalContext.notableBehaviors.length > 0) {
+        causalPhrase = ` Your ${causalContext.notableBehaviors[0].description} may be helping.`;
+      } else if (causalContext.positivePatterns.length > 0) {
+        causalPhrase = ` Keep doing what's working!`;
+      }
+    }
+
+    const triggerMetrics: Record<string, { value: number; deviation: number }> = {};
+    for (const a of allAnomalies) {
+      triggerMetrics[a.metricType] = {
+        value: a.currentValue,
+        deviation: a.deviationPct,
+      };
+    }
+
+    return {
+      questionText: `Your ${metricName} has ${direction} by ${deviationStr} from your baseline.${causalPhrase} On a scale of 1-10, how are you feeling?`,
+      questionType: 'scale_1_10',
+      triggerPattern: focusAnomaly.patternFingerprint || 'single_metric',
+      triggerMetrics,
+      urgency: focusAnomaly.severity === 'high' ? 'high' : focusAnomaly.severity === 'moderate' ? 'medium' : 'low',
+      suggestedChannel: focusAnomaly.severity === 'high' ? 'push' : 'in_app',
+      focusMetric: focusAnomaly.metricType,
+      deliveryWindow,
+    };
   }
 
   private generateFocusedFallbackQuestion(

@@ -90,7 +90,9 @@ class CorrelationInsightService {
 
     let feedbackQuestions: GeneratedQuestion[] = [];
     if (anomalies.length > 0) {
-      const allQuestions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
+      // Use causal-enriched question generation for better insight quality
+      // This includes potential causes and actionable recommendations in the check-in text
+      const allQuestions = await dynamicFeedbackGenerator.generateQuestionsWithCausalContext(userId, anomalies, 3);
       
       // Only filter based on specific focusMetric (e.g., "resting_heart_rate"), not generic patterns like "single_metric"
       feedbackQuestions = allQuestions.filter(q => {
