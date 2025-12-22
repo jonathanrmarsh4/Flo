@@ -8566,6 +8566,76 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // Seed default metric sensitivity settings (admin only)
+  app.post("/api/admin/metric-sensitivity/seed", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { getSupabaseClient } = await import("./services/supabaseClient");
+      const supabase = getSupabaseClient();
+      
+      // Define default global sensitivity settings for common metrics
+      const defaults = [
+        { metric_type: 'water_intake', z_score_threshold: 2.0, percentage_threshold: 40.0, notify_on_anomaly: true, suppressed_by_events: ['travel', 'equipment_unavailable', 'illness'] },
+        { metric_type: 'steps', z_score_threshold: 2.0, percentage_threshold: 30.0, notify_on_anomaly: true, suppressed_by_events: ['travel', 'illness', 'injury', 'rest_day'] },
+        { metric_type: 'active_energy', z_score_threshold: 2.0, percentage_threshold: 25.0, notify_on_anomaly: true, suppressed_by_events: ['travel', 'illness', 'injury', 'rest_day'] },
+        { metric_type: 'exercise_minutes', z_score_threshold: 2.0, percentage_threshold: 50.0, notify_on_anomaly: true, suppressed_by_events: ['travel', 'illness', 'injury', 'rest_day'] },
+        { metric_type: 'hrv_ms', z_score_threshold: 1.5, percentage_threshold: 15.0, notify_on_anomaly: true, suppressed_by_events: ['alcohol', 'illness', 'stress', 'poor_sleep', 'travel'] },
+        { metric_type: 'resting_heart_rate_bpm', z_score_threshold: 1.5, percentage_threshold: 8.0, notify_on_anomaly: true, suppressed_by_events: ['alcohol', 'illness', 'stress', 'caffeine'] },
+        { metric_type: 'sleep_duration_min', z_score_threshold: 1.5, percentage_threshold: 20.0, notify_on_anomaly: true, suppressed_by_events: ['travel', 'social_event', 'stress'] },
+        { metric_type: 'deep_sleep_min', z_score_threshold: 2.0, percentage_threshold: 25.0, notify_on_anomaly: true, suppressed_by_events: ['alcohol', 'travel', 'stress'] },
+        { metric_type: 'rem_sleep_min', z_score_threshold: 2.0, percentage_threshold: 25.0, notify_on_anomaly: true, suppressed_by_events: ['alcohol', 'travel', 'stress'] },
+        { metric_type: 'respiratory_rate_bpm', z_score_threshold: 2.0, percentage_threshold: 10.0, notify_on_anomaly: true, suppressed_by_events: ['illness', 'anxiety'] },
+        { metric_type: 'oxygen_saturation_pct', z_score_threshold: 2.0, percentage_threshold: 3.0, notify_on_anomaly: true, suppressed_by_events: ['altitude', 'illness'] },
+        { metric_type: 'body_temperature_deviation', z_score_threshold: 2.0, percentage_threshold: 0.4, notify_on_anomaly: true, suppressed_by_events: ['illness', 'menstrual_cycle', 'exercise'] },
+      ];
+      
+      let inserted = 0;
+      let skipped = 0;
+      
+      for (const d of defaults) {
+        // Check if this metric already exists
+        const { data: existing } = await supabase
+          .from('metric_sensitivity_overrides')
+          .select('id')
+          .eq('metric_type', d.metric_type)
+          .is('health_id', null)
+          .single();
+        
+        if (existing) {
+          skipped++;
+          continue;
+        }
+        
+        // Insert new default
+        const { error } = await supabase
+          .from('metric_sensitivity_overrides')
+          .insert({
+            health_id: null,
+            metric_type: d.metric_type,
+            z_score_threshold: d.z_score_threshold,
+            percentage_threshold: d.percentage_threshold,
+            notify_on_anomaly: d.notify_on_anomaly,
+            suppressed_by_events: d.suppressed_by_events,
+            enabled: true,
+            min_sample_count: 7,
+            notify_on_improvement: false,
+            cooldown_hours: 4,
+          });
+        
+        if (error) {
+          logger.error(`[Admin] Failed to seed metric ${d.metric_type}:`, error);
+        } else {
+          inserted++;
+        }
+      }
+      
+      logger.info(`[Admin] Seeded metric sensitivity defaults: ${inserted} inserted, ${skipped} skipped (already exist)`);
+      res.json({ success: true, inserted, skipped });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to seed metric sensitivity defaults:', error);
+      res.status(500).json({ error: "Failed to seed metric sensitivity defaults" });
+    }
+  });
+
   // Get active life events for a user (admin or self)
   app.get("/api/life-events/active", isAuthenticated, async (req: any, res) => {
     try {

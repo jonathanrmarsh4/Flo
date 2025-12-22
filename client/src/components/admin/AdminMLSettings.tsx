@@ -600,14 +600,50 @@ function PerMetricSensitivitySection() {
           </div>
 
           {(!metricSettings || metricSettings.length === 0) && (
-            <div className="text-center py-8 text-white/40 text-sm">
-              <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p>No per-metric settings found.</p>
-              <p className="text-[10px] mt-1">Run the Supabase migration to seed default settings.</p>
-            </div>
+            <SeedDefaultsSection onSeeded={() => queryClient.invalidateQueries({ queryKey: ['/api/admin/metric-sensitivity'] })} />
           )}
         </CollapsibleContent>
       </Collapsible>
+    </div>
+  );
+}
+
+function SeedDefaultsSection({ onSeeded }: { onSeeded: () => void }) {
+  const { toast } = useToast();
+  
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/admin/metric-sensitivity/seed', {});
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: 'Defaults Seeded', 
+        description: `Created ${data.inserted} metric sensitivity settings.` 
+      });
+      onSeeded();
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to seed defaults', 
+        variant: 'destructive' 
+      });
+    },
+  });
+
+  return (
+    <div className="text-center py-8 text-white/40 text-sm">
+      <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+      <p>No per-metric settings found.</p>
+      <p className="text-[10px] mt-2 mb-4">Seed the default sensitivity settings for 12 key health metrics.</p>
+      <button
+        onClick={() => seedMutation.mutate()}
+        disabled={seedMutation.isPending}
+        className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-medium disabled:opacity-50"
+        data-testid="button-seed-metric-defaults"
+      >
+        {seedMutation.isPending ? 'Seeding...' : 'Seed Default Settings'}
+      </button>
     </div>
   );
 }
