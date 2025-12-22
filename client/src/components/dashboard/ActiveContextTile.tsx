@@ -167,6 +167,11 @@ export function ActiveContextTile({ isDark }: ActiveContextTileProps) {
 
       <div className="space-y-3">
         {events.map((event) => {
+          // Skip events with missing required data to prevent crashes
+          if (!event || !event.starts_at) {
+            return null;
+          }
+          
           const Icon = getEventIcon(event.event_type);
           const colors = getEventColor(event.event_type, isDark);
           const endsAt = event.ends_at ? parseISO(event.ends_at) : null;
