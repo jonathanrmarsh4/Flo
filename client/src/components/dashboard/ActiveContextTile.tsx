@@ -11,13 +11,13 @@ interface ActiveContextTileProps {
 
 interface ActiveLifeEvent {
   id: string;
-  event_type: string;
+  eventType: string;
   details: Record<string, any>;
-  affected_metrics: string[];
-  adjustment_type: string;
-  adjustment_value: number;
-  starts_at: string;
-  ends_at: string | null;
+  affectedMetrics: string[];
+  suppressionAction: string;
+  thresholdMultiplier: number;
+  happenedAt: string;
+  endsAt: string | null;
   source: string;
 }
 
@@ -168,14 +168,14 @@ export function ActiveContextTile({ isDark }: ActiveContextTileProps) {
       <div className="space-y-3">
         {events.map((event) => {
           // Skip events with missing required data to prevent crashes
-          if (!event || !event.starts_at) {
+          if (!event || !event.happenedAt) {
             return null;
           }
           
-          const Icon = getEventIcon(event.event_type);
-          const colors = getEventColor(event.event_type, isDark);
-          const endsAt = event.ends_at ? parseISO(event.ends_at) : null;
-          const startsAt = parseISO(event.starts_at);
+          const Icon = getEventIcon(event.eventType);
+          const colors = getEventColor(event.eventType, isDark);
+          const endsAt = event.endsAt ? parseISO(event.endsAt) : null;
+          const startsAt = parseISO(event.happenedAt);
           
           return (
             <div 
@@ -191,7 +191,7 @@ export function ActiveContextTile({ isDark }: ActiveContextTileProps) {
                       className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}
                       data-testid={`text-event-label-${event.id}`}
                     >
-                      {getEventLabel(event.event_type)}
+                      {getEventLabel(event.eventType)}
                     </span>
                     {event.details?.location && (
                       <span 
@@ -229,9 +229,9 @@ export function ActiveContextTile({ isDark }: ActiveContextTileProps) {
                 )}
               </div>
 
-              {event.affected_metrics && event.affected_metrics.length > 0 && (
+              {event.affectedMetrics && event.affectedMetrics.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1" data-testid={`metrics-list-${event.id}`}>
-                  {event.affected_metrics.slice(0, 4).map((metric, index) => (
+                  {event.affectedMetrics.slice(0, 4).map((metric, index) => (
                     <span 
                       key={metric}
                       className={`text-xs px-1.5 py-0.5 rounded ${
@@ -242,12 +242,12 @@ export function ActiveContextTile({ isDark }: ActiveContextTileProps) {
                       {metric.replace(/_/g, ' ')}
                     </span>
                   ))}
-                  {event.affected_metrics.length > 4 && (
+                  {event.affectedMetrics.length > 4 && (
                     <span 
                       className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}
                       data-testid={`text-more-metrics-${event.id}`}
                     >
-                      +{event.affected_metrics.length - 4} more
+                      +{event.affectedMetrics.length - 4} more
                     </span>
                   )}
                 </div>
