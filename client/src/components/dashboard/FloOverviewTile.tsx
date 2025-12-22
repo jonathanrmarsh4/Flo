@@ -1,5 +1,19 @@
-import { TrendingDown, TrendingUp, Calendar, Sparkles } from 'lucide-react';
+import { TrendingDown, TrendingUp, Calendar, Sparkles, Upload, ChevronRight } from 'lucide-react';
 import { WhyButton } from '../WhyButton';
+import { Link } from 'wouter';
+
+// Required biomarkers for PhenoAge calculation
+const PHENOAGE_REQUIRED_BIOMARKERS = [
+  'Albumin',
+  'Creatinine', 
+  'Glucose',
+  'CRP',
+  'Lymphocyte %',
+  'MCV',
+  'RDW',
+  'Alk Phos',
+  'WBC'
+];
 
 interface FloOverviewTileProps {
   isDark: boolean;
@@ -32,6 +46,17 @@ export function FloOverviewTile({
 }: FloOverviewTileProps) {
   const hasMissingMetrics = missingMetrics && missingMetrics.length > 0;
   const canCalculateBioAge = bioAge !== null && bioAge !== undefined && !hasMissingMetrics;
+  
+  // Check if user has NO lab work at all:
+  // - bioAge is null/undefined AND
+  // - floScore is null/undefined AND
+  // - Either missingMetrics is null/undefined (no data returned) OR ALL 9 required biomarkers are missing
+  // If user has partial data (some biomarkers), show the detailed view with specific missing items
+  const hasNoLabWork = (
+    (bioAge === null || bioAge === undefined) && 
+    (floScore === null || floScore === undefined) &&
+    (!missingMetrics || missingMetrics.length === PHENOAGE_REQUIRED_BIOMARKERS.length)
+  );
   const getScoreColor = (score: number | null | undefined) => {
     if (score === null || score === undefined) return isDark ? 'text-white/30' : 'text-gray-400';
     if (score >= 80) return 'text-green-500';
@@ -47,6 +72,41 @@ export function FloOverviewTile({
   };
 
   const scoreBadge = getScoreBadge(floScore);
+
+  // Compact banner for new users without any lab work
+  if (hasNoLabWork) {
+    return (
+      <Link href="/upload" data-testid="tile-flo-overview-banner">
+        <div 
+          className={`backdrop-blur-xl rounded-2xl border p-4 transition-all cursor-pointer hover-elevate ${
+            isDark 
+              ? 'bg-gradient-to-r from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20' 
+              : 'bg-gradient-to-r from-purple-50 via-blue-50 to-teal-50 border-black/10'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl ${
+              isDark ? 'bg-purple-500/20' : 'bg-purple-100'
+            }`}>
+              <Upload className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Discover Your Biological Age
+                </span>
+              </div>
+              <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                Upload blood work with: {PHENOAGE_REQUIRED_BIOMARKERS.slice(0, 5).join(', ')}...
+              </p>
+            </div>
+            <ChevronRight className={`w-5 h-5 flex-shrink-0 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
   return (
     <div 
