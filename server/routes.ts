@@ -20051,6 +20051,11 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
               name: f.name,
               portion: f.portion,
               quantity: 1,
+              // Include per-item nutrition so meals display correctly in Today's Meals
+              calories: f.calories || 0,
+              protein: f.protein || 0,
+              carbs: f.carbs || 0,
+              fat: f.fats || 0,
             })),
             saved_meal_id: meal.id,
           },
