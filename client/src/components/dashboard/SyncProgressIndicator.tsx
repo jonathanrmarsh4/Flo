@@ -15,9 +15,10 @@ interface SyncStatusResponse {
 
 interface SyncProgressIndicatorProps {
   isDark: boolean;
+  hasDashboardData?: boolean; // If true, user already has established data - skip sync indicator
 }
 
-export function SyncProgressIndicator({ isDark }: SyncProgressIndicatorProps) {
+export function SyncProgressIndicator({ isDark, hasDashboardData }: SyncProgressIndicatorProps) {
   const { data: syncStatus, isLoading, error } = useQuery<SyncStatusResponse>({
     queryKey: ['/api/dashboard/sync-status'],
     refetchInterval: (query) => {
@@ -28,6 +29,12 @@ export function SyncProgressIndicator({ isDark }: SyncProgressIndicatorProps) {
     },
     staleTime: 2000,
   });
+
+  // If user already has dashboard data (floScore, readiness, etc.), they're an established user
+  // Don't show sync progress even if backend metadata is stale
+  if (hasDashboardData) {
+    return null;
+  }
 
   if (isLoading) {
     return null;

@@ -369,6 +369,10 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
     const tileContent = (() => {
       switch (tileId) {
         case 'heart-metabolic':
+          // Hide tile entirely when there's no cardiometabolic data (use null check, not falsy - 0 is valid)
+          if (dashboardData?.componentScores?.cardiometabolic == null) {
+            return null;
+          }
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
               <HeartMetabolicTile 
@@ -657,7 +661,10 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
             {/* AnomalyAlertTile removed - using ML Feedback Banner above instead */}
 
             {/* Sync Progress Indicator - Shows when HealthKit/ClickHouse is syncing */}
-            <SyncProgressIndicator isDark={isDark} />
+            <SyncProgressIndicator 
+              isDark={isDark} 
+              hasDashboardData={dashboardData?.floScore != null || dashboardData?.componentScores?.readiness != null}
+            />
 
             {/* Active Context Tile - Shows current life events affecting ML sensitivity */}
             <ActiveContextTile isDark={isDark} />
