@@ -49,12 +49,12 @@ export function FloOverviewTile({
   
   // Check if user has NO lab work at all:
   // - bioAge is null/undefined AND
-  // - floScore is null/undefined AND
   // - Either missingMetrics is null/undefined (no data returned) OR ALL 9 required biomarkers are missing
+  // Note: floScore can have a value from HealthKit (readiness, etc.) even without lab work,
+  // so we don't require floScore to be null for the compact banner
   // If user has partial data (some biomarkers), show the detailed view with specific missing items
   const hasNoLabWork = (
     (bioAge === null || bioAge === undefined) && 
-    (floScore === null || floScore === undefined) &&
     (!missingMetrics || missingMetrics.length === PHENOAGE_REQUIRED_BIOMARKERS.length)
   );
   const getScoreColor = (score: number | null | undefined) => {
