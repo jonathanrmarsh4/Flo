@@ -287,19 +287,33 @@ export function useGrokVoice(options: UseGrokVoiceOptions = {}) {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
+          sampleRate: 16000,
         },
       });
 
       streamRef.current = stream;
+      console.log('[GrokVoice] Got media stream, tracks:', stream.getAudioTracks().length);
 
-      const ctx = new AudioContext();
+      const ctx = new AudioContext({ sampleRate: 16000 });
       captureContextRef.current = ctx;
+      
+      console.log('[GrokVoice] AudioContext created, state:', ctx.state, 'sampleRate:', ctx.sampleRate);
+      
+      // Resume AudioContext if suspended (required by most browsers)
+      if (ctx.state === 'suspended') {
+        console.log('[GrokVoice] Resuming suspended AudioContext...');
+        await ctx.resume();
+        console.log('[GrokVoice] AudioContext resumed, state:', ctx.state);
+      }
 
       const source = ctx.createMediaStreamSource(stream);
       sourceRef.current = source;
 
-      const processor = ctx.createScriptProcessor(4096, 1, 1);
+      // Use ScriptProcessor with smaller buffer for lower latency
+      const processor = ctx.createScriptProcessor(2048, 1, 1);
       processorRef.current = processor;
+      
+      console.log('[GrokVoice] ScriptProcessor created, bufferSize:', processor.bufferSize);
 
       let audioChunkCount = 0;
       processor.onaudioprocess = (e) => {
@@ -318,6 +332,13 @@ export function useGrokVoice(options: UseGrokVoiceOptions = {}) {
         }
 
         const inputData = e.inputBuffer.getChannelData(0);
+        
+        // Check if we have actual audio data (not silence)
+        if (audioChunkCount <= 3) {
+          const maxVal = Math.max(...Array.from(inputData).map(Math.abs));
+          console.log('[GrokVoice] Audio sample check, maxValue:', maxVal.toFixed(4));
+        }
+        
         const downsampled = downsample(inputData, ctx.sampleRate, 16000);
 
         const int16Array = new Int16Array(downsampled.length);
@@ -332,6 +353,8 @@ export function useGrokVoice(options: UseGrokVoiceOptions = {}) {
 
       source.connect(processor);
       processor.connect(ctx.destination);
+      
+      console.log('[GrokVoice] Audio pipeline connected');
 
       setState(prev => ({ ...prev, isListening: true }));
       console.log('[GrokVoice] Microphone started');
