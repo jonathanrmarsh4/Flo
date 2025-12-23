@@ -60,6 +60,12 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Cumulative Metrics Aggregation Fix (Complete):** ClickHouse queries now use `max(value)` for cumulative daily metrics (steps, active_energy, exercise_minutes, etc.) instead of `avg(value)`. Fixed in THREE locations: (1) `detectAnomalies()` for real-time anomaly detection, (2) `getMetricsForAnalysis()` for trend calculations, and (3) `calculateBaselines()` for 90-day baseline computation. The baseline fix uses a CTE-based approach: first gets MAX per day (daily totals), then averages those daily values. This prevents partial HealthKit syncs (e.g., 8, 283, 7074 steps) from polluting baselines and causing insights to show incorrect low step counts like "362 steps" when actual was 6000+.
 - **Goal-Oriented Proactive Notifications:** New `GoalContextService` fetches user weight goals, active N1 experiments, and today's nutrition intake. Calculates nutrition gaps (protein, calories, fiber) with actionable messages like "You're 25g short on protein. Consider adding Greek yogurt at dinner to support your lean weight gain goal." This context is injected into the AI insight generator for proactive, goal-oriented recommendations.
 - **Causal Analysis for Check-In Questions:** New `CausalAnalysisService` aggregates potential causes for health anomalies: active N-of-1 experiments (with day count), notable yesterday behaviors (with deviation from baseline), and historical positive patterns that preceded similar improvements. The `dynamicFeedbackGenerator.generateQuestionsWithCausalContext()` method now fetches per-anomaly causal context to generate questions like "Your deep sleep improved by 25%. This could be from your magnesium experiment or earlier bedtime. Keep it up! How are you feeling (1-10)?" Architecture ensures each question references causes relevant to its specific focus metric.
+- **3PM Survey Notification Fix (Complete Rewrite):** After ~20 failed fix attempts, the 3PM survey notification system was completely rewritten with a simple, bulletproof approach:
+  - Uses `formatInTimeZone(nowUTC, userTimezone, 'HH')` from date-fns-tz to get user's local hour
+  - Simple check: Is it between 3PM (15:00) and 6PM (18:00) in user's timezone?
+  - Tracks sends by user's local date via `notification_sends` table to prevent duplicates
+  - No complex eligibility windows or catch-up logic - just a clean 3-6PM window
+  - Australia/Perth (UTC+8) should now correctly receive notifications at 3PM local (7AM UTC)
 
 ## External Dependencies
 
