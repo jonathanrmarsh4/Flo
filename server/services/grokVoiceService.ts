@@ -96,9 +96,9 @@ class GrokVoiceService {
           },
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.5,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 500,
+            threshold: 0.3,  // Lower threshold for more sensitive speech detection
+            prefix_padding_ms: 200,
+            silence_duration_ms: 400,
           },
           tools: [
             { type: 'web_search' },
@@ -113,6 +113,13 @@ class GrokVoiceService {
     ws.on('message', (data: Buffer) => {
       try {
         const message = JSON.parse(data.toString());
+        // Log all incoming message types for debugging
+        logger.debug('[GrokVoice] Received message', { 
+          sessionId, 
+          type: message.type,
+          hasAudio: !!message.delta || !!message.audio,
+          keys: Object.keys(message).slice(0, 5)
+        });
         this.handleMessage(sessionId, message, callbacks);
       } catch (err: any) {
         logger.error('[GrokVoice] Failed to parse message', { sessionId, error: err.message });
