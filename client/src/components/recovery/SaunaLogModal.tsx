@@ -27,12 +27,17 @@ const FEELING_LABELS = [
 ];
 
 export function SaunaLogModal({ isDark, onClose, onSave, isLoading }: SaunaLogModalProps) {
-  const [duration, setDuration] = useState(15);
-  const [temperature, setTemperature] = useState(175);
+  // Use string state for inputs to allow natural editing (backspace, delete, etc.)
+  const [durationStr, setDurationStr] = useState('15');
+  const [temperatureStr, setTemperatureStr] = useState('175');
   const [temperatureUnit, setTemperatureUnit] = useState<'F' | 'C'>('F');
   const [timing, setTiming] = useState<'post-workout' | 'separate'>('separate');
   const [feeling, setFeeling] = useState(2);
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Parse numeric values for use
+  const duration = parseInt(durationStr) || 0;
+  const temperature = parseInt(temperatureStr) || 0;
 
   const handleSave = () => {
     const data: SaunaSessionData = {
@@ -61,7 +66,8 @@ export function SaunaLogModal({ isDark, onClose, onSave, isLoading }: SaunaLogMo
 
   const toggleTemperatureUnit = () => {
     const newUnit = temperatureUnit === 'F' ? 'C' : 'F';
-    setTemperature(convertTemp(temperature, temperatureUnit, newUnit));
+    const converted = convertTemp(temperature, temperatureUnit, newUnit);
+    setTemperatureStr(String(converted));
     setTemperatureUnit(newUnit);
   };
 
@@ -157,16 +163,16 @@ export function SaunaLogModal({ isDark, onClose, onSave, isLoading }: SaunaLogMo
                 isDark ? 'text-white/40' : 'text-gray-400'
               }`} />
               <input
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 1))}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={durationStr}
+                onChange={(e) => setDurationStr(e.target.value.replace(/[^0-9]/g, ''))}
                 className={`w-full pl-12 pr-20 py-4 rounded-xl border text-lg ${
                   isDark 
                     ? 'bg-white/5 border-white/10 text-white' 
                     : 'bg-white border-gray-200 text-gray-900'
                 }`}
-                min="1"
-                max="120"
                 data-testid="input-sauna-duration"
               />
               <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm ${
@@ -179,7 +185,7 @@ export function SaunaLogModal({ isDark, onClose, onSave, isLoading }: SaunaLogMo
               {[10, 15, 20, 30].map((preset) => (
                 <button
                   key={preset}
-                  onClick={() => setDuration(preset)}
+                  onClick={() => setDurationStr(String(preset))}
                   className={`py-2 rounded-lg text-sm transition-all ${
                     duration === preset
                       ? isDark 
@@ -207,9 +213,11 @@ export function SaunaLogModal({ isDark, onClose, onSave, isLoading }: SaunaLogMo
                   isDark ? 'text-white/40' : 'text-gray-400'
                 }`} />
                 <input
-                  type="number"
-                  value={temperature}
-                  onChange={(e) => setTemperature(parseInt(e.target.value) || 0)}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={temperatureStr}
+                  onChange={(e) => setTemperatureStr(e.target.value.replace(/[^0-9]/g, ''))}
                   className={`w-full pl-12 pr-4 py-4 rounded-xl border text-lg ${
                     isDark 
                       ? 'bg-white/5 border-white/10 text-white' 

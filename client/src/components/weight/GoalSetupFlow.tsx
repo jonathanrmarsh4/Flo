@@ -348,8 +348,8 @@ export function GoalSetupFlow({
                             <FormControl>
                               <div className="relative">
                                 <Input
-                                  type="number"
-                                  step="0.1"
+                                  type="text"
+                                  inputMode="decimal"
                                   placeholder={goalType === 'LOSE' ? '70.0' : goalType === 'GAIN' ? '80.0' : currentWeight?.toString() || '75.0'}
                                   className={`text-2xl text-center h-14 ${
                                     isDark 

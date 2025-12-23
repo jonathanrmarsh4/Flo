@@ -159,8 +159,8 @@ export function BodyCompSheet({
                   <FormControl>
                     <div className="relative">
                       <Input
-                        type="number"
-                        step="0.1"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="18.5"
                         className={`text-xl text-center h-12 ${
                           isDark 
@@ -193,8 +193,8 @@ export function BodyCompSheet({
                   <FormControl>
                     <div className="relative">
                       <Input
-                        type="number"
-                        step="0.1"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="62.0"
                         className={`text-xl text-center h-12 ${
                           isDark 

@@ -145,8 +145,8 @@ export function ManualWeighInSheet({
                   <FormControl>
                     <div className="relative">
                       <Input
-                        type="number"
-                        step="0.1"
+                        type="text"
+                        inputMode="decimal"
                         placeholder={unit === 'kg' ? '75.5' : '166.4'}
                         className={`text-2xl text-center h-14 ${
                           isDark 

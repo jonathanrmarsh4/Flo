@@ -27,12 +27,18 @@ const FEELING_LABELS = [
 ];
 
 export function IceBathLogModal({ isDark, onClose, onSave, isLoading }: IceBathLogModalProps) {
-  const [durationMinutes, setDurationMinutes] = useState(3);
-  const [durationSeconds, setDurationSeconds] = useState(0);
-  const [temperature, setTemperature] = useState(50);
+  // Use string state for inputs to allow natural editing (backspace, delete, etc.)
+  const [durationMinutesStr, setDurationMinutesStr] = useState('3');
+  const [durationSecondsStr, setDurationSecondsStr] = useState('0');
+  const [temperatureStr, setTemperatureStr] = useState('50');
   const [temperatureUnit, setTemperatureUnit] = useState<'F' | 'C'>('F');
   const [feeling, setFeeling] = useState(2);
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Parse numeric values for use
+  const durationMinutes = parseInt(durationMinutesStr) || 0;
+  const durationSeconds = parseInt(durationSecondsStr) || 0;
+  const temperature = parseInt(temperatureStr) || 0;
 
   const handleSave = () => {
     const data: IceBathSessionData = {
@@ -61,7 +67,8 @@ export function IceBathLogModal({ isDark, onClose, onSave, isLoading }: IceBathL
 
   const toggleTemperatureUnit = () => {
     const newUnit = temperatureUnit === 'F' ? 'C' : 'F';
-    setTemperature(convertTemp(temperature, temperatureUnit, newUnit));
+    const converted = convertTemp(temperature, temperatureUnit, newUnit);
+    setTemperatureStr(String(converted));
     setTemperatureUnit(newUnit);
   };
 
@@ -160,16 +167,16 @@ export function IceBathLogModal({ isDark, onClose, onSave, isLoading }: IceBathL
                   isDark ? 'text-white/40' : 'text-gray-400'
                 }`} />
                 <input
-                  type="number"
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(Math.max(0, Math.min(60, parseInt(e.target.value) || 0)))}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={durationMinutesStr}
+                  onChange={(e) => setDurationMinutesStr(e.target.value.replace(/[^0-9]/g, ''))}
                   className={`w-full pl-12 pr-4 py-4 rounded-xl border text-lg ${
                     isDark 
                       ? 'bg-white/5 border-white/10 text-white' 
                       : 'bg-white border-gray-200 text-gray-900'
                   }`}
-                  min="0"
-                  max="60"
                   data-testid="input-icebath-minutes"
                 />
                 <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm ${
@@ -180,16 +187,16 @@ export function IceBathLogModal({ isDark, onClose, onSave, isLoading }: IceBathL
               </div>
               <div className="relative flex-1">
                 <input
-                  type="number"
-                  value={durationSeconds}
-                  onChange={(e) => setDurationSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={durationSecondsStr}
+                  onChange={(e) => setDurationSecondsStr(e.target.value.replace(/[^0-9]/g, ''))}
                   className={`w-full pl-4 pr-4 py-4 rounded-xl border text-lg ${
                     isDark 
                       ? 'bg-white/5 border-white/10 text-white' 
                       : 'bg-white border-gray-200 text-gray-900'
                   }`}
-                  min="0"
-                  max="59"
                   data-testid="input-icebath-seconds"
                 />
                 <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm ${
@@ -210,8 +217,8 @@ export function IceBathLogModal({ isDark, onClose, onSave, isLoading }: IceBathL
                 <button
                   key={preset.label}
                   onClick={() => {
-                    setDurationMinutes(preset.min);
-                    setDurationSeconds(preset.sec);
+                    setDurationMinutesStr(String(preset.min));
+                    setDurationSecondsStr(String(preset.sec));
                   }}
                   className={`py-2 rounded-lg text-sm transition-all ${
                     durationMinutes === preset.min && durationSeconds === preset.sec
@@ -243,9 +250,11 @@ export function IceBathLogModal({ isDark, onClose, onSave, isLoading }: IceBathL
                   isDark ? 'text-white/40' : 'text-gray-400'
                 }`} />
                 <input
-                  type="number"
-                  value={temperature}
-                  onChange={(e) => setTemperature(parseInt(e.target.value) || 0)}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={temperatureStr}
+                  onChange={(e) => setTemperatureStr(e.target.value.replace(/[^0-9]/g, ''))}
                   className={`w-full pl-12 pr-4 py-4 rounded-xl border text-lg ${
                     isDark 
                       ? 'bg-white/5 border-white/10 text-white' 

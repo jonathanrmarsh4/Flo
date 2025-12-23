@@ -779,8 +779,9 @@ export default function NewAssessmentWizard() {
                 <div>
                   <Label className="text-white/70 text-xs">Amount</Label>
                   <Input
-                    type="number"
-                    value={config.dosageAmount}
+                    type="text"
+                    inputMode="decimal"
+                    value={config.dosageAmount || ''}
                     onChange={(e) => setConfig({ ...config, dosageAmount: parseFloat(e.target.value) || 0 })}
                     className="mt-1 bg-white/5 border-white/20 text-white"
                     data-testid="input-dosage-amount"

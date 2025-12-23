@@ -427,11 +427,11 @@ export default function SleepLogger() {
                 Minutes awake during the night
               </Label>
               <Input
-                type="number"
-                min="0"
-                max="480"
-                value={awakeMinutes}
-                onChange={(e) => setAwakeMinutes(Math.max(0, parseInt(e.target.value) || 0))}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={awakeMinutes === 0 ? '' : String(awakeMinutes)}
+                onChange={(e) => setAwakeMinutes(parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0)}
                 placeholder="0"
                 className={`mt-2 ${isDark ? 'bg-white/10 border-white/20 text-white' : ''}`}
                 data-testid="input-awake-minutes"
@@ -669,11 +669,11 @@ function ManualEntryDialog({ isDark, open, onOpenChange, entry, onSave, isPendin
           <div>
             <Label className={isDark ? 'text-white/80' : ''}>Minutes awake during night</Label>
             <Input
-              type="number"
-              min="0"
-              max="480"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={minutesAwake}
-              onChange={(e) => setMinutesAwake(e.target.value)}
+              onChange={(e) => setMinutesAwake(e.target.value.replace(/[^0-9]/g, ''))}
               className={`mt-2 ${isDark ? 'bg-white/5 border-white/20 text-white' : ''}`}
               data-testid="input-minutes-awake"
             />
