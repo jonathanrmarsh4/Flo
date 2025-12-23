@@ -282,19 +282,22 @@ export function useGrokVoice(options: UseGrokVoiceOptions = {}) {
     console.log('[GrokVoice] Starting microphone...');
 
     try {
+      // xAI API requires 24kHz sample rate for PCM16 audio
+      const TARGET_SAMPLE_RATE = 24000;
+      
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 16000,
+          sampleRate: TARGET_SAMPLE_RATE,
         },
       });
 
       streamRef.current = stream;
       console.log('[GrokVoice] Got media stream, tracks:', stream.getAudioTracks().length);
 
-      const ctx = new AudioContext({ sampleRate: 16000 });
+      const ctx = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
       captureContextRef.current = ctx;
       
       console.log('[GrokVoice] AudioContext created, state:', ctx.state, 'sampleRate:', ctx.sampleRate);
@@ -339,7 +342,8 @@ export function useGrokVoice(options: UseGrokVoiceOptions = {}) {
           console.log('[GrokVoice] Audio sample check, maxValue:', maxVal.toFixed(4));
         }
         
-        const downsampled = downsample(inputData, ctx.sampleRate, 16000);
+        // xAI requires 24kHz - downsample from actual capture rate to 24000
+        const downsampled = downsample(inputData, ctx.sampleRate, 24000);
 
         const int16Array = new Int16Array(downsampled.length);
         for (let i = 0; i < downsampled.length; i++) {

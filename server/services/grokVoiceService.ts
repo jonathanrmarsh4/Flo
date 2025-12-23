@@ -89,7 +89,7 @@ class GrokVoiceService {
           modalities: ['text', 'audio'],
           instructions: config.systemInstruction,
           voice: config.voiceName?.toLowerCase() || 'ara',
-          // Use both formats for compatibility
+          // xAI uses 24kHz sample rate for PCM16 audio
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           // Also use nested audio format as per xAI docs
@@ -97,13 +97,13 @@ class GrokVoiceService {
             input: {
               format: {
                 type: 'audio/pcm',
-                rate: 16000,
+                rate: 24000,
               },
             },
             output: {
               format: {
                 type: 'audio/pcm',
-                rate: 16000,
+                rate: 24000,
               },
             },
           },
