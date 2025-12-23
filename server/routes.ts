@@ -20017,6 +20017,7 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       }
       
       // Get user's health_id
+      const { getHealthId } = await import('./services/healthStorageRouter');
       const healthId = await getHealthId(userId);
       
       if (!healthId) {
