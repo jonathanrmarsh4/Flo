@@ -274,8 +274,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       
+      // CRITICAL: Flush pending notifications BEFORE deleting data to prevent zombie notifications
+      const { flushPendingNotifications, clearBaselineCache } = await import('./services/notificationEligibilityService');
+      await flushPendingNotifications(userId);
+      clearBaselineCache(userId);
+      
       // Delete all user data (sessions, measurements, uploads, records)
       await storage.deleteUserData(userId);
+      
+      logger.info(`[DataDeletion] User data deleted and notifications flushed for user ${userId}`);
       
       res.status(204).send();
     } catch (error) {
@@ -291,10 +298,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.info(`[AccountDeletion] User ${userId} requested self-account deletion`);
       
+      // CRITICAL: Flush pending notifications BEFORE deleting account to prevent zombie notifications
+      const { flushPendingNotifications, clearBaselineCache } = await import('./services/notificationEligibilityService');
+      await flushPendingNotifications(userId);
+      clearBaselineCache(userId);
+      
       // Use the user's own ID as the "admin" for audit purposes (self-deletion)
       await storage.deleteUser(userId, userId);
       
-      logger.info(`[AccountDeletion] Account deleted successfully for user ${userId}`);
+      logger.info(`[AccountDeletion] Account deleted and notifications flushed for user ${userId}`);
       
       res.status(204).send();
     } catch (error) {

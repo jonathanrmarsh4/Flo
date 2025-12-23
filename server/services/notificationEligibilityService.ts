@@ -5,6 +5,7 @@
  * 1. Notification flooding for new users (require 14+ days baseline)
  * 2. Historical backfill notifications (require data within 24h)
  * 3. Notifications to logged-out users
+ * 4. Notifications during HealthKit backfill (require backfill complete + 24h elapsed)
  * 
  * This is the SINGLE choke-point that every notification must pass through.
  */
@@ -19,9 +20,21 @@ import { getSupabaseClient } from './supabaseClient';
 const MIN_BASELINE_DAYS = 14;
 const MIN_DATA_POINTS = 42; // At least 3 data points per day on average
 const RECENCY_HOURS = 24; // Data must be from within the last 24 hours
+const BACKFILL_COOLDOWN_HOURS = 24; // Must wait 24h after backfill completes before ML notifications
 
 // In-memory cache for baseline eligibility (avoids repeated DB calls)
 const baselineCache = new Map<string, { eligible: boolean; timestamp: number }>();
+// In-memory cache for backfill status (avoids repeated DB calls)
+// Stores full backfill state so we can recalculate hoursElapsed on cache hits
+interface BackfillCacheEntry {
+  timestamp: number;
+  // If isComplete is true, we need backfillDate to recalculate hoursElapsed
+  isComplete: boolean;
+  backfillDate: Date | null;  // When backfill was marked complete
+  noHealthId?: boolean;       // True if user has no health profile yet
+  profileError?: boolean;     // True if we couldn't fetch profile
+}
+const backfillCache = new Map<string, BackfillCacheEntry>();
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 interface EligibilityCheck {
@@ -44,6 +57,7 @@ interface NotificationOptions {
  * - User doesn't have 14+ days of baseline data
  * - User has no active device tokens
  * - Source data is older than 24 hours (historical backfill)
+ * - HealthKit backfill is not complete OR less than 24h since backfill completed
  */
 export async function checkNotificationEligibility(
   userId: string,
@@ -52,7 +66,23 @@ export async function checkNotificationEligibility(
   const { sourceTimestamp, skipBaselineCheck = false, notificationType } = options;
 
   try {
-    // 1. Check if source data is recent (not historical backfill)
+    // 1. CRITICAL: Check if HealthKit backfill is complete + 24h has elapsed
+    // This is the PRIMARY gate to prevent notification flooding for new users
+    const backfillStatus = await checkBackfillComplete(userId);
+    if (!backfillStatus.isReady) {
+      logger.info(`[NotificationEligibility] BLOCKED: Backfill not ready for user ${userId}`, {
+        backfillComplete: backfillStatus.isComplete,
+        hoursElapsed: backfillStatus.hoursElapsed,
+        requiredHours: BACKFILL_COOLDOWN_HOURS,
+        notificationType,
+      });
+      return {
+        eligible: false,
+        reason: backfillStatus.reason,
+      };
+    }
+
+    // 2. Check if source data is recent (not historical backfill)
     if (sourceTimestamp) {
       const sourceDate = typeof sourceTimestamp === 'string' 
         ? new Date(sourceTimestamp) 
@@ -72,7 +102,7 @@ export async function checkNotificationEligibility(
       }
     }
 
-    // 2. Check if user has active device tokens (they might have logged out)
+    // 3. Check if user has active device tokens (they might have logged out)
     const activeTokens = await db
       .select({ id: deviceTokens.id })
       .from(deviceTokens)
@@ -92,12 +122,12 @@ export async function checkNotificationEligibility(
       };
     }
 
-    // 3. Skip baseline check if explicitly requested (for critical system notifications)
+    // 4. Skip baseline check if explicitly requested (for critical system notifications)
     if (skipBaselineCheck) {
       return { eligible: true };
     }
 
-    // 4. Check baseline eligibility (cached)
+    // 5. Check baseline eligibility (cached)
     const cacheKey = `baseline:${userId}`;
     const cached = baselineCache.get(cacheKey);
     const now = Date.now();
@@ -113,7 +143,7 @@ export async function checkNotificationEligibility(
       return { eligible: true };
     }
 
-    // 5. Check baseline from ClickHouse/Supabase
+    // 6. Check baseline from ClickHouse/Supabase
     const baselineResult = await checkBaselineEstablished(userId);
     
     // Cache the result
@@ -144,6 +174,154 @@ export async function checkNotificationEligibility(
     // The flood incident happened precisely when data checks failed
     logger.error(`[NotificationEligibility] Error checking eligibility for user ${userId} - BLOCKING notification:`, error);
     return { eligible: false, reason: 'Error checking eligibility (fail-closed for safety)' };
+  }
+}
+
+/**
+ * CRITICAL: Check if HealthKit backfill is complete AND 24 hours have elapsed.
+ * This is the primary gate to prevent notification flooding for new users during backfill.
+ * 
+ * Returns isReady: true only if:
+ * 1. clickhouse_backfill_complete is true in profiles table
+ * 2. At least 24 hours have passed since clickhouse_backfill_date
+ * 
+ * Uses caching to reduce database load. IMPORTANT: Cache stores the backfillDate so we
+ * can RECALCULATE hoursElapsed on cache hits - this ensures users become eligible once
+ * 24h passes without waiting for cache to expire.
+ */
+async function checkBackfillComplete(userId: string): Promise<{
+  isReady: boolean;
+  isComplete: boolean;
+  hoursElapsed: number;
+  reason: string;
+}> {
+  const now = Date.now();
+  const cacheKey = `backfill:${userId}`;
+  const cached = backfillCache.get(cacheKey);
+  
+  // Use cached result if fresh
+  if (cached && (now - cached.timestamp) < CACHE_TTL_MS) {
+    // Handle permanent blocking cases (no health ID, profile error, backfill not started)
+    if (cached.noHealthId) {
+      return { isReady: false, isComplete: false, hoursElapsed: 0, reason: 'Cached: No health profile exists yet' };
+    }
+    if (cached.profileError) {
+      return { isReady: false, isComplete: false, hoursElapsed: 0, reason: 'Cached: Profile error (fail-closed)' };
+    }
+    if (!cached.isComplete) {
+      return { isReady: false, isComplete: false, hoursElapsed: 0, reason: 'Cached: HealthKit backfill in progress' };
+    }
+    
+    // Backfill is complete - RECALCULATE hoursElapsed to allow transition to ready
+    if (!cached.backfillDate) {
+      return { isReady: false, isComplete: true, hoursElapsed: 0, reason: 'Cached: Backfill just completed - waiting 24h' };
+    }
+    
+    const hoursElapsed = (Date.now() - cached.backfillDate.getTime()) / (1000 * 60 * 60);
+    if (hoursElapsed >= BACKFILL_COOLDOWN_HOURS) {
+      // User is NOW ready - update cache to reflect this
+      backfillCache.set(cacheKey, { ...cached, timestamp: now });
+      return { isReady: true, isComplete: true, hoursElapsed: Math.round(hoursElapsed), reason: 'Cached: Ready for ML notifications' };
+    }
+    return { 
+      isReady: false, 
+      isComplete: true, 
+      hoursElapsed: Math.round(hoursElapsed), 
+      reason: `Cached: Backfill completed ${Math.round(hoursElapsed)}h ago - need ${BACKFILL_COOLDOWN_HOURS}h` 
+    };
+  }
+  
+  try {
+    const healthId = await getHealthId(userId);
+    if (!healthId) {
+      // No health ID yet = brand new user, definitely not ready
+      backfillCache.set(cacheKey, { timestamp: now, isComplete: false, backfillDate: null, noHealthId: true });
+      return {
+        isReady: false,
+        isComplete: false,
+        hoursElapsed: 0,
+        reason: 'No health profile exists yet',
+      };
+    }
+    
+    const supabase = getSupabaseClient();
+    
+    // Query the profiles table for backfill status
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('clickhouse_backfill_complete, clickhouse_backfill_date')
+      .eq('health_id', healthId)
+      .single();
+    
+    if (error || !profile) {
+      // Profile doesn't exist or error - fail closed
+      backfillCache.set(cacheKey, { timestamp: now, isComplete: false, backfillDate: null, profileError: true });
+      return {
+        isReady: false,
+        isComplete: false,
+        hoursElapsed: 0,
+        reason: 'Profile not found or error checking backfill status',
+      };
+    }
+    
+    // Check if backfill is marked complete
+    if (!profile.clickhouse_backfill_complete) {
+      backfillCache.set(cacheKey, { timestamp: now, isComplete: false, backfillDate: null });
+      return {
+        isReady: false,
+        isComplete: false,
+        hoursElapsed: 0,
+        reason: 'HealthKit backfill in progress - no notifications until complete',
+      };
+    }
+    
+    // Check if 24 hours have elapsed since backfill completed
+    const backfillDate = profile.clickhouse_backfill_date 
+      ? new Date(profile.clickhouse_backfill_date)
+      : null;
+    
+    if (!backfillDate) {
+      // Backfill complete but no date - assume just completed, block notifications
+      backfillCache.set(cacheKey, { timestamp: now, isComplete: true, backfillDate: null });
+      return {
+        isReady: false,
+        isComplete: true,
+        hoursElapsed: 0,
+        reason: 'Backfill just completed - waiting 24h before ML notifications',
+      };
+    }
+    
+    const hoursElapsed = (Date.now() - backfillDate.getTime()) / (1000 * 60 * 60);
+    
+    // Cache the state with the backfillDate so we can recalculate on cache hits
+    backfillCache.set(cacheKey, { timestamp: now, isComplete: true, backfillDate });
+    
+    if (hoursElapsed < BACKFILL_COOLDOWN_HOURS) {
+      return {
+        isReady: false,
+        isComplete: true,
+        hoursElapsed: Math.round(hoursElapsed),
+        reason: `Backfill completed ${Math.round(hoursElapsed)}h ago - need ${BACKFILL_COOLDOWN_HOURS}h before ML notifications`,
+      };
+    }
+    
+    // All checks passed - user is ready for ML notifications
+    return {
+      isReady: true,
+      isComplete: true,
+      hoursElapsed: Math.round(hoursElapsed),
+      reason: 'Ready for ML notifications',
+    };
+  } catch (error) {
+    // CRITICAL: Fail closed on errors to prevent notification flooding
+    logger.error(`[NotificationEligibility] Error checking backfill status for user ${userId}:`, error);
+    backfillCache.set(cacheKey, { timestamp: now, isComplete: false, backfillDate: null, profileError: true });
+    return {
+      isReady: false,
+      isComplete: false,
+      hoursElapsed: 0,
+      reason: 'Error checking backfill status (fail-closed for safety)',
+    };
   }
 }
 
@@ -192,18 +370,20 @@ async function checkBaselineEstablished(userId: string): Promise<{
 }
 
 /**
- * Clear baseline cache for a user (call when user syncs significant new data)
+ * Clear baseline and backfill caches for a user (call when user syncs significant new data or logs out)
  */
 export function clearBaselineCache(userId: string): void {
   baselineCache.delete(`baseline:${userId}`);
+  backfillCache.delete(`backfill:${userId}`);
 }
 
 /**
- * Clear all baseline caches (for admin/testing)
+ * Clear all baseline and backfill caches (for admin/testing)
  */
 export function clearAllBaselineCaches(): void {
   baselineCache.clear();
-  logger.info('[NotificationEligibility] All baseline caches cleared');
+  backfillCache.clear();
+  logger.info('[NotificationEligibility] All baseline and backfill caches cleared');
 }
 
 /**
