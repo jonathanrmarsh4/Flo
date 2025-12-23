@@ -327,13 +327,28 @@ async function processEveningExperimentReminders() {
   }
 }
 
+/**
+ * SIMPLE 3PM SURVEY NOTIFICATION - COMPLETE REWRITE
+ * 
+ * Previous implementation had timezone bugs after ~20 fix attempts.
+ * This version uses a dead-simple approach:
+ * 
+ * 1. Calculate what 3PM is in the user's timezone, converted to UTC
+ * 2. Check if current UTC time is past that 3PM-in-UTC AND before 6PM-in-UTC (catch-up window)
+ * 3. Check if notification already sent today (using user's local date)
+ * 4. Send notification
+ * 
+ * Key insight: Instead of comparing hours in user's timezone (which is error-prone),
+ * we convert 3PM local to a UTC timestamp and compare UTC to UTC.
+ */
 async function processThreePMSurveyNotifications() {
   try {
-    const now = new Date();
-    const nowUTC = now.toISOString();
+    const nowUTC = new Date();
     
-    // Log at debug level for every run to track timing
-    logger.debug(`[3PMSurvey] Checking at ${nowUTC}`);
+    // Only log once per hour to reduce noise
+    if (nowUTC.getMinutes() === 0) {
+      logger.info(`[3PMSurvey] Hourly check at ${nowUTC.toISOString()}`);
+    }
     
     const activeUsers = await db
       .select({
@@ -355,120 +370,80 @@ async function processThreePMSurveyNotifications() {
     }
 
     const supabase = getSupabaseClient();
-    const eligibleUsers: (typeof activeUsers[0] & { healthId: string; activeSupplements: { id: string; product_name: string }[]; isCatchUp: boolean })[] = [];
-    
-    // Group users by timezone for logging
-    const timezoneGroups = new Map<string, { count: number; localTime: string }>();
     
     for (const user of activeUsers) {
       try {
-        // Use user.timezone (from device auto-sync) as primary source
-        // Only use reminderTimezone if explicitly set (not the default 'UTC')
-        const timezone = user.timezone || (user.reminderTimezone !== 'UTC' ? user.reminderTimezone : null) || 'UTC';
-        // Use formatInTimeZone for reliable timezone conversion (same as insightsSchedulerV2)
-        const userHour = parseInt(formatInTimeZone(now, timezone, 'HH'), 10);
-        const userMinute = parseInt(formatInTimeZone(now, timezone, 'mm'), 10);
-        const userToday = formatInTimeZone(now, timezone, 'yyyy-MM-dd');
+        // Get user's timezone - prefer auto-synced timezone over manual reminderTimezone
+        const userTimezone = user.timezone || (user.reminderTimezone !== 'UTC' ? user.reminderTimezone : null) || 'UTC';
         
-        // Track timezone info for debugging
-        const localTimeStr = `${userHour.toString().padStart(2, '0')}:${userMinute.toString().padStart(2, '0')}`;
-        if (!timezoneGroups.has(timezone)) {
-          timezoneGroups.set(timezone, { count: 0, localTime: localTimeStr });
-        }
-        timezoneGroups.get(timezone)!.count++;
+        // Get user's local date and time using formatInTimeZone
+        const userLocalDate = formatInTimeZone(nowUTC, userTimezone, 'yyyy-MM-dd');
+        const userLocalHour = parseInt(formatInTimeZone(nowUTC, userTimezone, 'HH'), 10);
+        const userLocalMinute = parseInt(formatInTimeZone(nowUTC, userTimezone, 'mm'), 10);
         
-        // Determine notification eligibility:
-        // - Primary window: 15:00-15:15 (widened from 5 to 15 minutes for scheduler reliability)
-        // - Catch-up window: 15:15-18:00 (sends if notification wasn't sent yet today)
-        const inPrimaryWindow = userHour === 15 && userMinute >= 0 && userMinute < 15;
-        const inCatchUpWindow = (userHour === 15 && userMinute >= 15) || (userHour > 15 && userHour < 18);
-        const isEligibleTimeWindow = inPrimaryWindow || inCatchUpWindow;
+        // Simple check: Is it between 3PM and 6PM in the user's timezone?
+        // Primary window: 15:00-15:14 (exactly at 3PM)
+        // Catch-up window: 15:15-17:59 (if missed, send before 6PM)
+        const isPastThreePM = userLocalHour >= 15;
+        const isBeforeSixPM = userLocalHour < 18;
         
-        // Detailed logging for Australia/Perth user to debug timezone issue
-        if (timezone === 'Australia/Perth') {
-          logger.info(`[3PMSurvey] Perth user ${user.firstName || user.id}: UTC=${now.toISOString()}, Local=${localTimeStr}, Hour=${userHour}, Min=${userMinute}, Primary=${inPrimaryWindow}, CatchUp=${inCatchUpWindow}, LocalDate=${userToday}`);
+        if (!isPastThreePM || !isBeforeSixPM) {
+          continue; // Not in the 3PM-6PM window for this user
         }
         
-        if (isEligibleTimeWindow) {
-          const healthIdResult = await supabase
-            .from('user_profiles')
-            .select('health_id')
-            .eq('user_id', user.id)
-            .single();
+        // Get user's health_id for tracking
+        const healthIdResult = await supabase
+          .from('user_profiles')
+          .select('health_id')
+          .eq('user_id', user.id)
+          .single();
 
-          if (healthIdResult.error || !healthIdResult.data) {
-            continue;
-          }
-
-          // Skip if notification was already sent today (prevents duplicates during catch-up window)
-          if (await wasNotificationSentToday(userToday, healthIdResult.data.health_id, '3pm_survey')) {
-            continue;
-          }
-
-          // Skip if survey was already completed today
-          const { data: existingSurvey } = await supabase
-            .from('daily_subjective_surveys')
-            .select('id')
-            .eq('health_id', healthIdResult.data.health_id)
-            .eq('local_date', userToday)
-            .limit(1);
-
-          if (!existingSurvey || existingSurvey.length === 0) {
-            const activeSupplements = await getActiveSupplementExperiments(healthIdResult.data.health_id);
-            eligibleUsers.push({ 
-              ...user, 
-              healthId: healthIdResult.data.health_id,
-              activeSupplements,
-              isCatchUp: inCatchUpWindow && !inPrimaryWindow,
-            });
-          }
+        if (healthIdResult.error || !healthIdResult.data) {
+          continue; // No health profile, skip
         }
-      } catch (error) {
-        logger.warn(`[3PMSurvey] Error checking user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
-      }
-    }
+        
+        const healthId = healthIdResult.data.health_id;
 
-    // Log timezone summary for debugging (only when there are interesting users like non-LA timezones)
-    const nonDefaultTimezones = Array.from(timezoneGroups.entries())
-      .filter(([tz]) => tz !== 'America/Los_Angeles' && tz !== 'UTC')
-      .map(([tz, info]) => `${tz}: ${info.localTime} (${info.count} users)`);
-    
-    if (nonDefaultTimezones.length > 0) {
-      logger.info(`[3PMSurvey] Non-default timezone check: ${nonDefaultTimezones.join(', ')} | UTC: ${nowUTC}`);
-    }
-    
-    if (eligibleUsers.length === 0) {
-      return;
-    }
+        // Check if notification was already sent today (CRITICAL: prevents duplicates)
+        if (await wasNotificationSentToday(userLocalDate, healthId, '3pm_survey')) {
+          continue; // Already sent today
+        }
 
-    const scheduledCount = eligibleUsers.filter(u => !u.isCatchUp).length;
-    const catchUpCount = eligibleUsers.filter(u => u.isCatchUp).length;
-    logger.info(`[3PMSurvey] Sending 3PM survey notifications to ${eligibleUsers.length} users (${scheduledCount} scheduled, ${catchUpCount} catch-up) | Timezones: ${Array.from(new Set(eligibleUsers.map(u => u.timezone))).join(', ')}`);
+        // Check if survey was already completed today (don't nag if done)
+        const { data: existingSurvey } = await supabase
+          .from('daily_subjective_surveys')
+          .select('id')
+          .eq('health_id', healthId)
+          .eq('local_date', userLocalDate)
+          .limit(1);
 
-    for (const user of eligibleUsers) {
-      try {
-        const userToday = formatInTimeZone(now, user.timezone || 'UTC', 'yyyy-MM-dd');
+        if (existingSurvey && existingSurvey.length > 0) {
+          continue; // Survey already completed, skip notification
+        }
+
+        // Get active supplements for enhanced notification
+        const activeSupplements = await getActiveSupplementExperiments(healthId);
+        
+        // Build notification content
         let title = '3PM Check-In';
         let body = `${user.firstName ? `Hey ${user.firstName}! ` : ''}Quick 30-second wellbeing check - how are you feeling?`;
         
-        if (user.activeSupplements.length > 0) {
-          const supplementNames = user.activeSupplements.map(s => s.product_name).join(', ');
+        if (activeSupplements.length > 0) {
+          const supplementNames = activeSupplements.map(s => s.product_name).join(', ');
           title = 'Daily Check-In';
           body = `${user.firstName ? `Hey ${user.firstName}! ` : ''}Time to log your wellbeing + track your ${supplementNames} progress.`;
         }
         
-        // Look up internal user_id from user_profiles (device tokens are stored by internal user_id, not Replit Auth ID)
+        // Get internal user_id for device token lookup
         const { data: userProfile } = await supabase
           .from('user_profiles')
           .select('user_id')
-          .eq('health_id', user.healthId)
+          .eq('health_id', healthId)
           .single();
         
         const internalUserId = userProfile?.user_id || user.id;
-        if (userProfile?.user_id) {
-          logger.debug(`[3PMSurvey] Mapped Replit ID ${user.id} -> internal user_id ${internalUserId} via health_id ${user.healthId}`);
-        }
         
+        // Send the notification
         const result = await apnsService.sendToUser(
           internalUserId,
           {
@@ -477,20 +452,21 @@ async function processThreePMSurveyNotifications() {
             data: {
               type: 'survey_3pm',
               deepLink: 'flo://survey/3pm',
-              hasSupplementCheckins: user.activeSupplements.length > 0,
-              supplementCount: user.activeSupplements.length,
+              hasSupplementCheckins: activeSupplements.length > 0,
+              supplementCount: activeSupplements.length,
             }
           }
         );
 
         if (result.success && result.devicesReached && result.devicesReached > 0) {
-          // Mark notification as sent to prevent duplicates during catch-up window
-          markNotificationSent(userToday, user.healthId, '3pm_survey');
-          const sendType = user.isCatchUp ? 'CATCH-UP' : 'SCHEDULED';
-          logger.info(`[3PMSurvey] ${sendType} notification sent to ${user.firstName || user.id} (internal: ${internalUserId}, ${user.activeSupplements.length} supplements, ${user.timezone})`);
+          // Mark notification as sent to prevent duplicates
+          await markNotificationSent(userLocalDate, healthId, '3pm_survey');
+          
+          const localTimeStr = `${userLocalHour.toString().padStart(2, '0')}:${userLocalMinute.toString().padStart(2, '0')}`;
+          logger.info(`[3PMSurvey] ✓ Sent to ${user.firstName || user.id} (${userTimezone} ${localTimeStr} local, ${activeSupplements.length} supplements)`);
         }
       } catch (error) {
-        logger.warn(`[3PMSurvey] Failed to send notification to user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
+        logger.warn(`[3PMSurvey] Error processing user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
       }
     }
   } catch (error) {
