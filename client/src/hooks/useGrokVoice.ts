@@ -301,8 +301,21 @@ export function useGrokVoice(options: UseGrokVoiceOptions = {}) {
       const processor = ctx.createScriptProcessor(4096, 1, 1);
       processorRef.current = processor;
 
+      let audioChunkCount = 0;
       processor.onaudioprocess = (e) => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        audioChunkCount++;
+        
+        // Log every 50th chunk to avoid spam
+        if (audioChunkCount === 1 || audioChunkCount % 50 === 0) {
+          console.log('[GrokVoice] Audio chunk', audioChunkCount, 'wsState:', wsRef.current?.readyState);
+        }
+        
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          if (audioChunkCount <= 5) {
+            console.warn('[GrokVoice] WebSocket not ready, dropping audio chunk');
+          }
+          return;
+        }
 
         const inputData = e.inputBuffer.getChannelData(0);
         const downsampled = downsample(inputData, ctx.sampleRate, 16000);
