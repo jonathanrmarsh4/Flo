@@ -152,6 +152,18 @@ class GrokVoiceService {
         logger.info('[GrokVoice] Session updated', { sessionId });
         break;
 
+      case 'conversation.created':
+        logger.info('[GrokVoice] Conversation created', { sessionId });
+        break;
+
+      case 'ping':
+        // Respond to ping to keep connection alive
+        const pingSession = this.sessions.get(sessionId);
+        if (pingSession?.ws) {
+          pingSession.ws.send(JSON.stringify({ type: 'pong' }));
+        }
+        break;
+
       case 'input_audio_buffer.speech_started':
         logger.debug('[GrokVoice] Speech started', { sessionId });
         break;
@@ -208,11 +220,26 @@ class GrokVoiceService {
     }
   }
 
+  private audioChunkCount: Map<string, number> = new Map();
+  
   sendAudio(sessionId: string, audioData: string): void {
     const session = this.sessions.get(sessionId);
     if (!session || !session.isConnected) {
       logger.warn('[GrokVoice] Cannot send audio - session not connected', { sessionId });
       return;
+    }
+
+    // Track audio chunks for debugging
+    const count = (this.audioChunkCount.get(sessionId) || 0) + 1;
+    this.audioChunkCount.set(sessionId, count);
+    
+    // Log every 50th chunk to avoid spam
+    if (count % 50 === 1) {
+      logger.debug('[GrokVoice] Sending audio chunk', { 
+        sessionId, 
+        chunkNumber: count,
+        audioDataLength: audioData.length 
+      });
     }
 
     const message = {
