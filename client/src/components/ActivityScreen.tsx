@@ -1126,6 +1126,26 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
     },
   });
   
+  // Delete logged meal mutation
+  const [deletingMealId, setDeletingMealId] = useState<string | null>(null);
+  const deleteMealMutation = useMutation({
+    mutationFn: (mealId: string) => apiRequest('DELETE', `/api/food/meals/${mealId}`),
+    onMutate: (mealId) => {
+      setDeletingMealId(mealId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/food/meals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/nutrition/daily'] });
+      toast({ description: 'Meal deleted' });
+    },
+    onError: () => {
+      toast({ description: 'Failed to delete meal', variant: 'destructive' });
+    },
+    onSettled: () => {
+      setDeletingMealId(null);
+    },
+  });
+  
   const todaysMeals: LoggedMeal[] = (mealsData?.meals || []).map(m => ({
     id: m.id,
     meal: m.meal,
@@ -1177,6 +1197,10 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
   
   const handleRemoveSavedMeal = (mealId: string) => {
     removeSavedMealMutation.mutate(mealId);
+  };
+  
+  const handleDeleteMeal = (meal: LoggedMeal) => {
+    deleteMealMutation.mutate(meal.id);
   };
 
   if (isLoading) {
@@ -1558,7 +1582,9 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
         todaysTotals={todaysTotals}
         onMealClick={(date) => setShowMealDetails(date)}
         onSaveMeal={handleSaveMeal}
+        onDeleteMeal={handleDeleteMeal}
         savedMealIds={savedMealIds}
+        deletingMealId={deletingMealId}
       />
       
       <SavedMealsCard

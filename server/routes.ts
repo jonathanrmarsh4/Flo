@@ -20002,6 +20002,90 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
     }
   });
 
+  // DELETE /api/food/meals/:mealId - Delete a logged meal and its associated samples
+  app.delete('/api/food/meals/:mealId', isAuthenticated, async (req: any, res) => {
+    try {
+      // Support both JWT (claims.sub) and session (id) auth patterns
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      
+      const { mealId } = req.params;
+      if (!mealId) {
+        return res.status(400).json({ message: 'Missing mealId' });
+      }
+      
+      // Get user's health_id
+      const { getUserProfile } = await import('./services/healthStorageRouter');
+      const profile = await getUserProfile(userId);
+      const healthId = profile?.health_id;
+      
+      if (!healthId) {
+        return res.status(404).json({ message: 'User profile not found' });
+      }
+      
+      // Delete all samples with this meal_id from healthkit_samples
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      const supabaseClient = getSupabaseClient();
+      
+      // First find the samples to get the date for re-aggregation
+      const { data: samples } = await supabaseClient
+        .from('healthkit_samples')
+        .select('start_date')
+        .eq('health_id', healthId)
+        .eq('source_name', 'Flō Food Log')
+        .contains('metadata', { meal_id: mealId })
+        .limit(1);
+      
+      const sampleDate = samples?.[0]?.start_date;
+      
+      // Delete all samples with this meal_id
+      const { error: deleteError, count } = await supabaseClient
+        .from('healthkit_samples')
+        .delete()
+        .eq('health_id', healthId)
+        .eq('source_name', 'Flō Food Log')
+        .contains('metadata', { meal_id: mealId });
+      
+      if (deleteError) {
+        logger.error('[FoodMeals] Delete error:', { 
+          code: deleteError.code, 
+          message: deleteError.message,
+          mealId 
+        });
+        return res.status(500).json({ message: 'Failed to delete meal' });
+      }
+      
+      logger.info('[FoodMeals] Deleted meal samples', { userId, mealId, deletedCount: count });
+      
+      // Re-aggregate nutrition for that day if we found a date
+      if (sampleDate) {
+        try {
+          const { formatInTimeZone } = await import('date-fns-tz');
+          const userResult = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+          const timezone = userResult[0]?.timezone || 'UTC';
+          const localDate = formatInTimeZone(new Date(sampleDate), timezone, 'yyyy-MM-dd');
+          
+          const { aggregateNutrition } = await import('./services/nutritionMindfulnessAggregator');
+          await aggregateNutrition(userId, localDate, timezone);
+          logger.info('[FoodMeals] Re-aggregated nutrition after delete', { userId, localDate });
+        } catch (aggError: any) {
+          // Log but don't fail - the delete succeeded
+          logger.warn('[FoodMeals] Re-aggregation warning:', aggError?.message);
+        }
+      }
+      
+      res.json({ success: true, deletedCount: count || 0 });
+    } catch (error: any) {
+      logger.error('[FoodMeals] Delete error:', { 
+        message: error?.message, 
+        stack: error?.stack?.split('\n').slice(0, 5).join('\n')
+      });
+      res.status(500).json({ message: 'Failed to delete meal' });
+    }
+  });
+
   // GET /api/food/saved - Get user's saved meals
   app.get('/api/food/saved', isAuthenticated, async (req: any, res) => {
     try {

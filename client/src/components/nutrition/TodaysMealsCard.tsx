@@ -1,4 +1,4 @@
-import { Apple, Star } from 'lucide-react';
+import { Apple, Star, Trash2 } from 'lucide-react';
 
 interface LoggedMeal {
   id: string;
@@ -28,10 +28,12 @@ interface TodaysMealsCardProps {
   };
   onMealClick: (date: Date) => void;
   onSaveMeal?: (meal: LoggedMeal) => void;
+  onDeleteMeal?: (meal: LoggedMeal) => void;
   savedMealIds?: Set<string>;
+  deletingMealId?: string | null;
 }
 
-export function TodaysMealsCard({ isDark, todaysMeals, todaysTotals, onMealClick, onSaveMeal, savedMealIds }: TodaysMealsCardProps) {
+export function TodaysMealsCard({ isDark, todaysMeals, todaysTotals, onMealClick, onSaveMeal, onDeleteMeal, savedMealIds, deletingMealId }: TodaysMealsCardProps) {
   return (
     <div 
       className={`backdrop-blur-xl rounded-3xl border p-6 ${
@@ -89,7 +91,7 @@ export function TodaysMealsCard({ isDark, todaysMeals, todaysTotals, onMealClick
                       {new Date(meal.dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
                       {Math.round(mealTotals.calories)} cal
                     </div>
@@ -112,6 +114,28 @@ export function TodaysMealsCard({ isDark, todaysMeals, todaysTotals, onMealClick
                               : isDark ? 'text-white/40' : 'text-gray-400'
                           }`}
                           fill={isSaved ? 'currentColor' : 'none'}
+                        />
+                      </button>
+                    )}
+                    {onDeleteMeal && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteMeal(meal)}
+                        disabled={deletingMealId === meal.id}
+                        className={`p-1.5 rounded-lg transition-all ${
+                          deletingMealId === meal.id
+                            ? 'opacity-50 cursor-not-allowed'
+                            : isDark ? 'hover:bg-red-500/20' : 'hover:bg-red-500/10'
+                        }`}
+                        title="Delete this meal"
+                        data-testid={`button-delete-meal-${meal.id}`}
+                      >
+                        <Trash2 
+                          className={`w-4 h-4 ${
+                            deletingMealId === meal.id
+                              ? isDark ? 'text-white/20' : 'text-gray-300'
+                              : isDark ? 'text-white/40 hover:text-red-400' : 'text-gray-400 hover:text-red-500'
+                          }`}
                         />
                       </button>
                     )}
