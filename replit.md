@@ -25,7 +25,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **Key Features & Systems:**
 - **AI-Powered Insights:** Includes a Daily Insights Engine (RAG-based, GPT-4o), Conversational Life Event Logging (Gemini 2.5 Flash), Real-Time Trend Detection, and a Unified Brain Memory System. `InsightsSchedulerV2` runs hourly.
-- **Flō Oracle Enhancements:** Centralized context routing, conversation memory, on-demand data retrieval via Gemini function calling, and stale session cleanup.
+- **Flō Oracle Enhancements:** Centralized context routing, conversation memory, on-demand data retrieval via Gemini function calling, and stale session cleanup. Now uses ClickHouse 90-day baselines (same as Health Alerts and Morning Briefing) for consistent health assessments across all AI features. Context builder fetches baselines, includes them in the AI context string, and labels deviation calculations with "90d baseline" vs "7d avg" to prevent conflicting assessments (e.g., "good sleep" in Chat vs "decreased" in Health Alerts).
 - **Anti-Repetition System:** User memory service tracks 'topic_suppression' and 'do_not_mention' memory types.
 - **Medical Data Processing:** Medical Document Ingestion using GPT-4o for summarization and semantic search, and Lab Unit Display Toggle.
 - **Machine Learning Models:** CGM, Biomarker, and HealthKit Pattern Learners train baselines.

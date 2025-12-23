@@ -46,6 +46,8 @@ import {
   type BiomarkerFollowup,
 } from './supabaseHealthStorage';
 import { behaviorAttributionEngine } from './behaviorAttributionEngine';
+import { clickhouseBaselineEngine } from './clickhouseBaselineEngine';
+import { getHealthId as getSupabaseHealthId } from './supabaseHealthStorage';
 
 // In-memory cache for user health context (5 minute TTL)
 interface CachedContext {
@@ -174,6 +176,16 @@ interface UserHealthContext {
     daysTracked: number;
   } | null;
   environmentalContext: EnvironmentalContext | null;
+  // ClickHouse 90-day baselines for consistent comparison across all AI features
+  clickhouseBaselines: {
+    sleepDuration: { baseline: number | null; stdDev: number | null };
+    deepSleep: { baseline: number | null; stdDev: number | null };
+    remSleep: { baseline: number | null; stdDev: number | null };
+    hrv: { baseline: number | null; stdDev: number | null };
+    rhr: { baseline: number | null; stdDev: number | null };
+    steps: { baseline: number | null; stdDev: number | null };
+    activeEnergy: { baseline: number | null; stdDev: number | null };
+  } | null;
 }
 
 // Import age calculation utility that uses mid-year (July 1st) assumption for ±6 month accuracy
@@ -351,6 +363,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       mindfulnessSummary: null,
       nutritionSummary: null,
       environmentalContext: null,
+      clickhouseBaselines: null,
     };
 
     // Fetch user's timezone from users table
@@ -491,6 +504,45 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoStr = formatDateInTimezone(sevenDaysAgo, userTimezone);
 
+    // Fetch ClickHouse 90-day baselines for consistent comparison across all AI features
+    // This ensures Flō Chat uses the same baselines as Health Alerts and Morning Briefing
+    try {
+      const healthId = await getSupabaseHealthId(userId);
+      if (healthId) {
+        const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, 90);
+        if (baselines.length > 0) {
+          const baselineMap = new Map(baselines.map(b => [b.metricType, b]));
+          
+          const getBaseline = (metricType: string) => {
+            const b = baselineMap.get(metricType);
+            return b ? { baseline: b.meanValue, stdDev: b.stdDev } : { baseline: null, stdDev: null };
+          };
+          
+          context.clickhouseBaselines = {
+            sleepDuration: getBaseline('sleep_duration_min'),
+            deepSleep: getBaseline('deep_sleep_min'),
+            remSleep: getBaseline('rem_sleep_min'),
+            hrv: getBaseline('hrv_ms'),
+            rhr: getBaseline('resting_heart_rate_bpm'),
+            steps: getBaseline('steps'),
+            activeEnergy: getBaseline('active_energy'),
+          };
+          
+          logger.info(`[FloOracle] Fetched ClickHouse 90-day baselines: ${baselines.length} metrics`, {
+            sleepDuration: context.clickhouseBaselines.sleepDuration.baseline,
+            deepSleep: context.clickhouseBaselines.deepSleep.baseline,
+            hrv: context.clickhouseBaselines.hrv.baseline,
+          });
+        } else {
+          logger.warn(`[FloOracle] No ClickHouse baselines found for healthId ${healthId} - Chat may diverge from Health Alerts`);
+        }
+      } else {
+        logger.warn(`[FloOracle] No healthId found for userId ${userId} - Chat baselines unavailable`);
+      }
+    } catch (error) {
+      logger.error('[FloOracle] Error fetching ClickHouse baselines:', error);
+    }
+
     // Check if Supabase is enabled for routing wearable data
     const supabaseEnabled = isSupabaseHealthEnabled();
     logger.info(`[FloOracle] Supabase health enabled: ${supabaseEnabled}`);
@@ -568,17 +620,34 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         };
         
         // Build individual night breakdown for the last 5 nights (for Oracle to spot outliers)
-        const avgDeepForDeviation = deepSleep ?? 0;
+        // IMPORTANT: Use ClickHouse 90-day baselines if available (same as Health Alerts)
+        // Fall back to 7-day average only if ClickHouse baselines aren't available
+        const clickhouseDeepBaseline = context.clickhouseBaselines?.deepSleep?.baseline;
+        const clickhouseSleepDurationBaseline = context.clickhouseBaselines?.sleepDuration?.baseline;
+        const avgDeepForDeviation = clickhouseDeepBaseline ?? deepSleep ?? 0;
+        const avgTotalSleepForDeviation = clickhouseSleepDurationBaseline ?? totalSleep ?? 0;
+        const isUsingClickhouseBaseline = clickhouseDeepBaseline != null || clickhouseSleepDurationBaseline != null;
+        
         context.recentSleepNights = sleepNightsData.slice(0, 5).map(night => {
           const nightDeep = night.deepSleepMin ?? null;
+          const nightTotal = night.totalSleepMin ?? null;
           let deviationStr: string | null = null;
           
-          // Calculate deviation from 7-day average if we have both values
-          if (nightDeep !== null && avgDeepForDeviation > 0) {
+          // Calculate deviation from 90-day baseline (ClickHouse) or 7-day average (fallback)
+          // Prefer total sleep duration for deviation as it's more meaningful
+          if (nightTotal !== null && avgTotalSleepForDeviation > 0) {
+            const deviation = ((nightTotal - avgTotalSleepForDeviation) / avgTotalSleepForDeviation) * 100;
+            if (Math.abs(deviation) >= 15) {
+              // Flag significant deviations (±15% or more for 90-day baseline)
+              const baselineLabel = isUsingClickhouseBaseline ? '90d baseline' : '7d avg';
+              deviationStr = deviation > 0 ? `+${Math.round(deviation)}% vs ${baselineLabel}` : `${Math.round(deviation)}% vs ${baselineLabel}`;
+            }
+          } else if (nightDeep !== null && avgDeepForDeviation > 0) {
+            // Fallback to deep sleep deviation if total sleep not available
             const deviation = ((nightDeep - avgDeepForDeviation) / avgDeepForDeviation) * 100;
-            if (Math.abs(deviation) >= 30) {
-              // Flag significant deviations (±30% or more)
-              deviationStr = deviation > 0 ? `+${Math.round(deviation)}% vs avg` : `${Math.round(deviation)}% vs avg`;
+            if (Math.abs(deviation) >= 20) {
+              const baselineLabel = isUsingClickhouseBaseline ? '90d baseline' : '7d avg';
+              deviationStr = deviation > 0 ? `+${Math.round(deviation)}% vs ${baselineLabel}` : `${Math.round(deviation)}% vs ${baselineLabel}`;
             }
           }
           
@@ -1411,6 +1480,49 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     
     // Add context about ideal ranges for AI interpretation
     lines.push(`  [Reference: Ideal deep sleep 13-23%, REM 20-25%, efficiency >85%]`);
+  }
+
+  // Add ClickHouse 90-day baselines section (CRITICAL: This is the same baseline Health Alerts uses)
+  // This ensures Flō Chat evaluates sleep/metrics consistently with other AI features
+  const chBaselines = context.clickhouseBaselines;
+  if (chBaselines) {
+    lines.push('');
+    lines.push('YOUR 90-DAY PERSONAL BASELINES (same as Health Alerts - use these for comparison!):');
+    
+    const formatBaseline = (label: string, data: { baseline: number | null; stdDev: number | null }, unit: string, isTime: boolean = false) => {
+      if (data.baseline == null) return null;
+      if (isTime) {
+        const hrs = Math.floor(data.baseline / 60);
+        const mins = Math.round(data.baseline % 60);
+        const stdHrs = data.stdDev ? Math.round(data.stdDev / 60 * 10) / 10 : null;
+        return `${label}: ${hrs}h ${mins}min avg (±${stdHrs || 0}h typical variation)`;
+      }
+      return `${label}: ${Math.round(data.baseline)} ${unit} avg (±${Math.round(data.stdDev || 0)} ${unit} typical variation)`;
+    };
+    
+    const sleepDurLine = formatBaseline('Sleep duration', chBaselines.sleepDuration, 'min', true);
+    const deepLine = formatBaseline('Deep sleep', chBaselines.deepSleep, 'min', false);
+    const remLine = formatBaseline('REM sleep', chBaselines.remSleep, 'min', false);
+    const hrvLine = formatBaseline('HRV', chBaselines.hrv, 'ms', false);
+    const rhrLine = formatBaseline('RHR', chBaselines.rhr, 'bpm', false);
+    const stepsLine = formatBaseline('Steps', chBaselines.steps, '', false);
+    
+    const activeEnergyLine = formatBaseline('Active energy', chBaselines.activeEnergy, 'kcal', false);
+    
+    if (sleepDurLine) lines.push(`  ${sleepDurLine}`);
+    if (deepLine) lines.push(`  ${deepLine}`);
+    if (remLine) lines.push(`  ${remLine}`);
+    if (hrvLine) lines.push(`  ${hrvLine}`);
+    if (rhrLine) lines.push(`  ${rhrLine}`);
+    if (stepsLine) lines.push(`  ${stepsLine}`);
+    if (activeEnergyLine) lines.push(`  ${activeEnergyLine}`);
+    
+    lines.push('  [IMPORTANT: Compare values to these 90-day baselines, NOT just recent 7-day averages]');
+    lines.push('  [A night can be "good for recent days" but "below your typical baseline" - be precise!]');
+  } else {
+    // Log when baselines are missing so we can debug cases where chat diverges from Health Alerts
+    lines.push('');
+    lines.push('[NOTE: 90-day baselines unavailable - using 7-day averages for trend comparison]');
   }
 
   // Add individual night breakdown so Oracle can spot specific outliers
