@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect, Component, type ErrorInfo, type ReactNode } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,57 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Re
 import { WhyButton } from "@/components/WhyButton";
 import { Loader2, MessageCircle } from "lucide-react";
 import { VoiceChatScreen } from "@/components/VoiceChatScreen";
+
+// Error boundary to catch crashes in check-in form and prevent full app crash
+class CheckInErrorBoundary extends Component<
+  { children: ReactNode; onError?: () => void; isDark?: boolean },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode; onError?: () => void; isDark?: boolean }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[CheckInErrorBoundary] Caught error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      const isDark = this.props.isDark ?? true;
+      return (
+        <Card className={`p-4 mb-4 ${isDark ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}`}>
+          <div className="flex items-center gap-3 mb-3">
+            <AlertTriangle className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+            <span className={`font-medium ${isDark ? 'text-red-400' : 'text-red-700'}`}>
+              Something went wrong with the check-in form
+            </span>
+          </div>
+          <p className={`text-sm mb-3 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+            Please try again. If this keeps happening, try closing and reopening the app.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              this.props.onError?.();
+            }}
+            className={isDark ? 'border-white/20 text-white' : ''}
+          >
+            Try Again
+          </Button>
+        </Card>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 interface ExperimentData {
   experiment: {
@@ -1128,62 +1179,79 @@ export default function AssessmentDetail() {
           </Card>
         )}
 
-        {/* Check-in Form */}
+        {/* Check-in Form - wrapped in error boundary to catch iOS WebView crashes */}
         {showCheckinForm && (
-          <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Today's Check-in</h3>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => setShowCheckinForm(false)}
-                className={isDark ? 'text-white/60 hover:text-white' : 'text-gray-500 hover:text-gray-700'}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {subjectiveMetrics.map((metric) => (
-                <div key={metric.metric_name}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>{metric.metric_name}</span>
-                    <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {checkinRatings[metric.metric_name] || 5}/10
-                    </span>
-                  </div>
-                  <Slider
-                    value={[checkinRatings[metric.metric_name] || 5]}
-                    onValueChange={([value]) => setCheckinRatings({ ...checkinRatings, [metric.metric_name]: value })}
-                    min={1}
-                    max={10}
-                    step={1}
-                    className="w-full"
-                  />
-                </div>
-              ))}
-
-              <div>
-                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Notes (optional)</span>
-                <Textarea
-                  value={checkinNotes}
-                  onChange={(e) => setCheckinNotes(e.target.value)}
-                  placeholder="How are you feeling today?"
-                  className={`mt-1 ${isDark ? 'bg-white/5 border-white/20 text-white placeholder:text-white/30' : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'}`}
-                  data-testid="input-checkin-notes"
-                />
+          <CheckInErrorBoundary 
+            isDark={isDark} 
+            onError={() => {
+              setCheckinRatings({});
+              setShowCheckinForm(false);
+            }}
+          >
+            <Card className={`p-4 mb-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/80 border-gray-200'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Today's Check-in</h3>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setShowCheckinForm(false)}
+                  className={isDark ? 'text-white/60 hover:text-white' : 'text-gray-500 hover:text-gray-700'}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
               </div>
 
-              <Button
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
-                onClick={() => submitCheckinMutation.mutate()}
-                disabled={submitCheckinMutation.isPending}
-                data-testid="button-submit-checkin"
-              >
-                {submitCheckinMutation.isPending ? 'Saving...' : 'Save Check-in'}
-              </Button>
-            </div>
-          </Card>
+              <div className="space-y-4">
+                {subjectiveMetrics.map((metric, index) => {
+                  const metricName = metric.metric_name || `Metric ${index + 1}`;
+                  const currentValue = checkinRatings[metricName] ?? 5;
+                  
+                  return (
+                    <div key={`metric-${index}-${metricName}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>{metricName}</span>
+                        <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {currentValue}/10
+                        </span>
+                      </div>
+                      <Slider
+                        value={[currentValue]}
+                        onValueChange={([value]) => {
+                          // Use functional update to avoid stale closure issues on iOS
+                          setCheckinRatings(prev => ({ ...prev, [metricName]: value }));
+                        }}
+                        min={1}
+                        max={10}
+                        step={1}
+                        className="w-full"
+                        data-testid={`slider-${metricName.toLowerCase().replace(/\s+/g, '-')}`}
+                      />
+                    </div>
+                  );
+                })}
+
+                <div>
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Notes (optional)</span>
+                  <Textarea
+                    value={checkinNotes}
+                    onChange={(e) => setCheckinNotes(e.target.value)}
+                    placeholder="How are you feeling today?"
+                    className={`mt-1 ${isDark ? 'bg-white/5 border-white/20 text-white placeholder:text-white/30' : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'}`}
+                    data-testid="input-checkin-notes"
+                  />
+                </div>
+
+                <Button
+                  className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
+                  onClick={() => submitCheckinMutation.mutate()}
+                  disabled={submitCheckinMutation.isPending}
+                  data-testid="button-submit-checkin"
+                >
+                  {submitCheckinMutation.isPending ? 'Saving...' : 'Save Check-in'}
+                </Button>
+              </div>
+            </Card>
+          </CheckInErrorBoundary>
         )}
 
         {/* Results (if completed) */}
