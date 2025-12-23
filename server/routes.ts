@@ -19863,6 +19863,7 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       const userTimezone = userResult[0]?.timezone || 'UTC';
       
       // Calculate start/end in user's local timezone, then convert to UTC for query
+      // Use TZDate.tz() to correctly create dates in the user's timezone (same as NutritionAggregator)
       const { formatInTimeZone } = await import('date-fns-tz');
       const { TZDate } = await import('@date-fns/tz');
       
@@ -19873,18 +19874,24 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         start = new Date(startDate as string);
         start.setHours(0, 0, 0, 0);
       } else {
-        // Get today's date in user's local timezone, then get midnight in that timezone
+        // Get today's date in user's local timezone
         const nowInUserTz = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
-        start = new TZDate(`${nowInUserTz}T00:00:00`, userTimezone);
+        const [year, month, day] = nowInUserTz.split('-').map(Number);
+        // TZDate.tz correctly interprets the time as local time in the specified timezone
+        const localStart = TZDate.tz(userTimezone, year, month - 1, day, 0, 0, 0, 0); // month is 0-indexed
+        start = new Date(localStart.toISOString());
       }
       
       if (endDate) {
         end = new Date(endDate as string);
         end.setHours(23, 59, 59, 999);
       } else {
-        // Get today's date in user's local timezone, then get end of day in that timezone
+        // Get today's date in user's local timezone
         const nowInUserTz = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
-        end = new TZDate(`${nowInUserTz}T23:59:59.999`, userTimezone);
+        const [year, month, day] = nowInUserTz.split('-').map(Number);
+        // TZDate.tz correctly interprets the time as local time in the specified timezone
+        const localEnd = TZDate.tz(userTimezone, year, month - 1, day, 23, 59, 59, 999);
+        end = new Date(localEnd.toISOString());
       }
       
       // Query nutrition samples from healthkit_samples
