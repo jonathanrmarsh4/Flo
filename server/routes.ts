@@ -19982,7 +19982,8 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
   // GET /api/food/saved - Get user's saved meals
   app.get('/api/food/saved', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id;
+      // Support both JWT (claims.sub) and session (id) auth patterns
+      const userId = req.user?.claims?.sub || req.user?.id;
       if (!userId) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
@@ -19999,7 +20000,8 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
   // POST /api/food/saved - Save a meal
   app.post('/api/food/saved', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id;
+      // Support both JWT (claims.sub) and session (id) auth patterns
+      const userId = req.user?.claims?.sub || req.user?.id;
       if (!userId) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
@@ -20030,7 +20032,8 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
   // DELETE /api/food/saved/:id - Remove a saved meal
   app.delete('/api/food/saved/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id;
+      // Support both JWT (claims.sub) and session (id) auth patterns
+      const userId = req.user?.claims?.sub || req.user?.id;
       if (!userId) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
@@ -20051,7 +20054,8 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
   // POST /api/food/saved/:id/log - Log a saved meal as today's meal
   app.post('/api/food/saved/:id/log', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id;
+      // Support both JWT (claims.sub) and session (id) auth patterns
+      const userId = req.user?.claims?.sub || req.user?.id;
       if (!userId) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
