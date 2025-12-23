@@ -89,16 +89,32 @@ class GrokVoiceService {
           modalities: ['text', 'audio'],
           instructions: config.systemInstruction,
           voice: config.voiceName?.toLowerCase() || 'ara',
+          // Use both formats for compatibility
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
+          // Also use nested audio format as per xAI docs
+          audio: {
+            input: {
+              format: {
+                type: 'audio/pcm',
+                rate: 16000,
+              },
+            },
+            output: {
+              format: {
+                type: 'audio/pcm',
+                rate: 16000,
+              },
+            },
+          },
           input_audio_transcription: {
             model: 'whisper-1',
           },
           turn_detection: {
             type: 'server_vad',
-            threshold: 0.3,  // Lower threshold for more sensitive speech detection
+            threshold: 0.2,  // Even lower threshold for more sensitive speech detection
             prefix_padding_ms: 200,
-            silence_duration_ms: 400,
+            silence_duration_ms: 300,
           },
           tools: [
             { type: 'web_search' },
@@ -107,7 +123,11 @@ class GrokVoiceService {
       };
 
       ws.send(JSON.stringify(sessionConfig));
-      logger.info('[GrokVoice] Session config sent', { sessionId, voice: config.voiceName });
+      logger.info('[GrokVoice] Session config sent', { 
+        sessionId, 
+        voice: config.voiceName,
+        configKeys: Object.keys(sessionConfig.session)
+      });
     });
 
     ws.on('message', (data: Buffer) => {
