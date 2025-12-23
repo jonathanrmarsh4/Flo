@@ -20066,8 +20066,8 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
           const timezone = userResult[0]?.timezone || 'UTC';
           const localDate = formatInTimeZone(new Date(sampleDate), timezone, 'yyyy-MM-dd');
           
-          const { aggregateNutrition } = await import('./services/nutritionMindfulnessAggregator');
-          await aggregateNutrition(userId, localDate, timezone);
+          const { aggregateNutritionForDate } = await import('./services/nutritionMindfulnessAggregator');
+          await aggregateNutritionForDate(userId, localDate, timezone);
           logger.info('[FoodMeals] Re-aggregated nutrition after delete', { userId, localDate });
         } catch (aggError: any) {
           // Log but don't fail - the delete succeeded
