@@ -19825,9 +19825,11 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       logger.info('[FoodLog] Meal logged', { 
         userId, 
         healthId,
+        mealId,
         mealType, 
         itemCount: foods.length,
         calories: totals.calories,
+        startDate: now.toISOString(),
       });
       
       res.json({ 
@@ -19889,6 +19891,14 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
       const { getSupabaseClient } = await import('./services/supabaseClient');
       const supabaseClient = getSupabaseClient();
       
+      logger.info('[FoodMeals] Query params:', {
+        healthId,
+        userId,
+        userTimezone,
+        startISO: start.toISOString(),
+        endISO: end.toISOString(),
+      });
+      
       const { data: samples, error } = await supabaseClient
         .from('healthkit_samples')
         .select('*')
@@ -19897,6 +19907,12 @@ Be accurate based on typical portion sizes and USDA nutrient data. If no food is
         .gte('start_date', start.toISOString())
         .lte('start_date', end.toISOString())
         .order('start_date', { ascending: true });
+      
+      logger.info('[FoodMeals] Query result:', {
+        samplesCount: samples?.length || 0,
+        error: error?.message,
+        sampleTypes: samples?.slice(0, 3).map(s => ({ type: s.data_type, hasMealId: !!s.metadata?.meal_id })),
+      });
       
       if (error) {
         logger.error('[FoodMeals] Query error:', { 
