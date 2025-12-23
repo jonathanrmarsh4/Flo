@@ -187,11 +187,14 @@ export default function AssessmentDetail() {
   
   // FROZEN BASELINE: Once computed, baseline stats are persisted and never recomputed
   // Keyed by BOTH experiment ID and start date to prevent cross-experiment leakage
+  // Also tracks whether objective data was present when frozen to allow recomputation
+  // when objective data arrives after initial subjective-only render
   const frozenBaselineRef = useRef<{
     objectiveBaselines: Record<string, { mean: number; stdDev: number } | null>;
     subjectiveBaselines: Record<string, { mean: number; stdDev: number } | null>;
     frozenForExperimentId: string;
     frozenForStartDate: string;
+    hasObjectiveData: boolean; // Track if objective data was present when frozen
   } | null>(null);
 
   // Clear frozen baseline when navigating to a different experiment
@@ -412,16 +415,28 @@ export default function AssessmentDetail() {
     
     // Use frozen baseline if already computed for THIS experiment's start date
     // Keyed by both experiment ID and start date to prevent cross-experiment leakage
+    // IMPORTANT: Also check if objective data availability matches - if we froze without
+    // objective data but now have it, we need to recompute to include the biometrics line
     const experimentId = experimentData?.experiment?.id;
     let objectiveBaselines: Record<string, { mean: number; stdDev: number } | null>;
     let subjectiveBaselines: Record<string, { mean: number; stdDev: number } | null>;
+    
+    // Check if we currently have any objective metrics data
+    const currentlyHasObjectiveData = objectiveMetrics.length > 0;
     
     const isFrozenForThisExperiment = startDateStr && experimentId &&
       frozenBaselineRef.current?.frozenForExperimentId === experimentId &&
       frozenBaselineRef.current?.frozenForStartDate === startDateStr;
     
-    if (isFrozenForThisExperiment) {
-      // USE FROZEN BASELINE - never recompute for this experiment
+    // Only reuse frozen baseline if:
+    // 1. It's frozen for this experiment, AND
+    // 2. Either: objective data was present when frozen, OR we still don't have objective data
+    // This allows recomputation when objective data arrives after initial subjective-only render
+    const shouldUseFrozenBaseline = isFrozenForThisExperiment && 
+      (frozenBaselineRef.current!.hasObjectiveData || !currentlyHasObjectiveData);
+    
+    if (shouldUseFrozenBaseline) {
+      // USE FROZEN BASELINE - objective data state matches, safe to reuse
       objectiveBaselines = frozenBaselineRef.current!.objectiveBaselines;
       subjectiveBaselines = frozenBaselineRef.current!.subjectiveBaselines;
     } else {
@@ -457,12 +472,18 @@ export default function AssessmentDetail() {
       });
       
       // FREEZE the baseline once supplement has started for this experiment
+      // Track whether objective data was present at freeze time to allow recomputation
+      // when objective data arrives later (fixes first-visit chart showing only subjective line)
       if (startDateStr && experimentId) {
+        // Check if any objective baselines have non-null values
+        const hasAnyObjectiveBaseline = Object.values(objectiveBaselines).some(b => b !== null);
+        
         frozenBaselineRef.current = {
           objectiveBaselines,
           subjectiveBaselines,
           frozenForExperimentId: experimentId,
           frozenForStartDate: startDateStr,
+          hasObjectiveData: hasAnyObjectiveBaseline,
         };
       }
     }
