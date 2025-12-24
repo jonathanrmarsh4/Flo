@@ -30,6 +30,8 @@ export interface ActiveLifeEvent {
   thresholdMultiplier: number;
   userExplanation: string | null;
   source: 'chat' | 'check_in' | 'manual' | 'inferred';
+  confidenceScore: number;
+  confidenceFactors: string[];
 }
 
 export interface CheckInPrompt {
@@ -189,7 +191,7 @@ class ActiveLifeEventsService {
         return [];
       }
 
-      return (data || []).map(this.mapToActiveLifeEvent);
+      return (data || []).map((item) => this.mapToActiveLifeEvent(item));
     } catch (error: any) {
       logger.error('[ActiveLifeEvents] Error getting active events:', error);
       return [];
@@ -559,21 +561,134 @@ class ActiveLifeEventsService {
   }
 
   private mapToActiveLifeEvent(data: any): ActiveLifeEvent {
+    const source = data.source || 'chat';
+    const happenedAt = new Date(data.happened_at);
+    const endsAt = data.ends_at ? new Date(data.ends_at) : null;
+    const details = data.details || {};
+    const affectedMetrics = data.affected_metrics || [];
+    
+    // Calculate confidence score based on multiple factors
+    const { score, factors } = this.calculateConfidenceScore({
+      source,
+      happenedAt,
+      endsAt,
+      hasExplanation: !!data.user_explanation,
+      hasDetails: Object.keys(details).length > 0,
+      metricsCount: affectedMetrics.length,
+      eventType: data.event_type,
+    });
+    
     return {
       id: data.id,
       healthId: data.health_id,
       eventType: data.event_type,
-      details: data.details || {},
+      details,
       notes: data.notes,
-      happenedAt: new Date(data.happened_at),
+      happenedAt,
       isActive: data.is_active,
-      endsAt: data.ends_at ? new Date(data.ends_at) : null,
-      affectedMetrics: data.affected_metrics || [],
+      endsAt,
+      affectedMetrics,
       suppressionAction: data.suppression_action || 'none',
       thresholdMultiplier: data.threshold_multiplier || 1.0,
       userExplanation: data.user_explanation,
-      source: data.source || 'chat',
+      source,
+      confidenceScore: score,
+      confidenceFactors: factors,
     };
+  }
+  
+  /**
+   * Calculate confidence score for a life event context
+   * Higher confidence = less need to show the tile to the user
+   * 
+   * Factors that increase confidence:
+   * - User explicitly confirmed (manual/check_in source)
+   * - Has detailed explanation
+   * - Matches expected patterns for event type
+   * - Has corroborating data signals
+   * - Time-bounded (has clear end date)
+   * 
+   * Factors that decrease confidence:
+   * - Inferred from data (not user-confirmed)
+   * - Vague or missing details
+   * - Long duration without check-in
+   */
+  private calculateConfidenceScore(params: {
+    source: string;
+    happenedAt: Date;
+    endsAt: Date | null;
+    hasExplanation: boolean;
+    hasDetails: boolean;
+    metricsCount: number;
+    eventType: string;
+  }): { score: number; factors: string[] } {
+    let score = 50; // Base score
+    const factors: string[] = [];
+    
+    // Source confidence (user-confirmed vs inferred)
+    if (params.source === 'manual') {
+      score += 25;
+      factors.push('User-confirmed');
+    } else if (params.source === 'check_in') {
+      score += 20;
+      factors.push('Verified via check-in');
+    } else if (params.source === 'chat') {
+      score += 15;
+      factors.push('Logged via conversation');
+    } else if (params.source === 'inferred') {
+      score -= 10;
+      factors.push('ML-inferred (unconfirmed)');
+    }
+    
+    // Explanation quality
+    if (params.hasExplanation) {
+      score += 10;
+      factors.push('Has explanation');
+    }
+    
+    // Detail quality
+    if (params.hasDetails) {
+      score += 5;
+      factors.push('Has details');
+    }
+    
+    // Time-bounded events have higher confidence
+    if (params.endsAt) {
+      const now = new Date();
+      const totalDuration = params.endsAt.getTime() - params.happenedAt.getTime();
+      const elapsed = now.getTime() - params.happenedAt.getTime();
+      const progress = elapsed / totalDuration;
+      
+      if (progress > 0.5 && progress < 0.9) {
+        // Mid-point of event - highest confidence period
+        score += 10;
+        factors.push('Mid-event (stable period)');
+      } else if (progress >= 0.9) {
+        // Near end - slightly lower confidence
+        score += 5;
+        factors.push('Nearing resolution');
+      }
+    } else {
+      // Open-ended events have lower confidence
+      score -= 5;
+      factors.push('No defined end');
+    }
+    
+    // Event type patterns (some types have more predictable patterns)
+    const highConfidenceTypes = ['travel', 'jet_lag', 'menstrual_cycle', 'altitude'];
+    const mediumConfidenceTypes = ['illness', 'injury', 'medication_change'];
+    
+    if (highConfidenceTypes.includes(params.eventType)) {
+      score += 10;
+      factors.push('Predictable pattern');
+    } else if (mediumConfidenceTypes.includes(params.eventType)) {
+      score += 5;
+    }
+    
+    // Cap score between 0 and 100
+    score = Math.max(0, Math.min(100, score));
+    
+    return { score, factors };
   }
 
   private mapToCheckInPrompt(data: any): CheckInPrompt {
