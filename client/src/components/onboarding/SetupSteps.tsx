@@ -9,7 +9,7 @@ import { locationService } from '@/lib/locationService';
 import type { HealthDataType } from '@/types/healthkit';
 import { apiRequest, queryClient, getAuthHeaders, getApiBaseUrl } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { useUpdateDemographics } from '@/hooks/useProfile';
+import { useUpdateDemographics, useUpdateName } from '@/hooks/useProfile';
 import { startRegistration } from '@simplewebauthn/browser';
 import { HealthSyncPlugin } from '@/plugins/healthSync';
 
@@ -53,8 +53,9 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
   // Detect unit system based on device locale
   const isMetric = useMetricSystem();
   
-  // Profile mutation hook
+  // Profile mutation hooks
   const updateDemographics = useUpdateDemographics();
+  const updateName = useUpdateName();
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   
   // Permission states
@@ -400,6 +401,10 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
       if (profileData.weight) {
         weightValue = parseFloat(profileData.weight);
       }
+      
+      // Save name to users table (separate endpoint)
+      // The name field is used as firstName for simplicity
+      await updateName.mutateAsync({ firstName: profileData.name });
       
       // Save demographics to backend with user's preferred units
       // Privacy: Only birth year is collected (not full DOB)
