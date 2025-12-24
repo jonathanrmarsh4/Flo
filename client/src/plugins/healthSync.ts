@@ -33,6 +33,9 @@ export interface HealthSyncPluginType {
     message: string;
     days: number;
   }>;
+  clearAuthToken(): Promise<{
+    success: boolean;
+  }>;
 }
 
 export const HealthSyncPlugin = registerPlugin<HealthSyncPluginType>('HealthSyncPlugin');

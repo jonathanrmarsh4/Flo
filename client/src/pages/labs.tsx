@@ -107,7 +107,16 @@ export default function Dashboard() {
         await SecureStoragePlugin.remove({ key: 'auth_token' });
         logger.info('Logout: JWT token cleared from secure storage');
       } catch (error) {
-        logger.error('Logout: Failed to clear token', error);
+        logger.error('Logout: Failed to clear token');
+      }
+      
+      // Clear HealthKit sync plugin auth token to prevent stale token issues
+      try {
+        const { HealthSyncPlugin } = await import('@/plugins/healthSync');
+        await HealthSyncPlugin.clearAuthToken();
+        logger.debug('HealthKit sync plugin auth token cleared on logout');
+      } catch (error) {
+        logger.warn('Failed to clear HealthKit sync token on logout');
       }
       
       // Clear all cached queries

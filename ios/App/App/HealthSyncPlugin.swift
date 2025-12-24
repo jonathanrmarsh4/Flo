@@ -9,7 +9,8 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "syncReadinessData", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "syncWorkouts", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearAuthToken", returnType: CAPPluginReturnPromise)
     ]
     
     private var activeSyncCount = 0
@@ -17,6 +18,42 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
     
     private static let backfillCompleteKey = "healthkit_backfill_complete"
     private static let lastSyncDateKey = "healthkit_last_sync_date"
+    private static let jwtTokenKey = "jwt_token"
+    
+    // MARK: - Token Management
+    
+    /// Store auth token securely
+    /// Token persists until explicitly cleared or replaced by a new token
+    private func storeAuthToken(_ token: String) {
+        UserDefaults.standard.set(token, forKey: HealthSyncPlugin.jwtTokenKey)
+        UserDefaults.standard.synchronize()
+        print("🔑 [HealthSyncPlugin] Auth token stored securely")
+    }
+    
+    /// Retrieve auth token
+    /// Returns nil if no token is stored
+    private func getAuthToken() -> String? {
+        return UserDefaults.standard.string(forKey: HealthSyncPlugin.jwtTokenKey)
+    }
+    
+    /// Check if we have a valid auth token
+    private func hasValidAuthToken() -> Bool {
+        guard let token = getAuthToken() else {
+            return false
+        }
+        // Basic validation - token should not be empty
+        return !token.isEmpty
+    }
+    
+    /// Explicitly clear auth token (called from JS when user logs out)
+    @objc func clearAuthToken(_ call: CAPPluginCall) {
+        print("🧹 [HealthSyncPlugin] Explicitly clearing auth token (user logout)")
+        UserDefaults.standard.removeObject(forKey: HealthSyncPlugin.jwtTokenKey)
+        UserDefaults.standard.synchronize()
+        call.resolve(["success": true])
+    }
+    
+    // MARK: - HealthKit Types
     
     private func buildAllHealthKitTypes() -> Set<HKObjectType> {
         var types: Set<HKObjectType> = []
@@ -40,6 +77,8 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         print("✅ [HealthSyncPlugin] Requesting authorization for \(types.count) HealthKit data types")
         return types
     }
+    
+    // MARK: - Authorization
     
     @objc func requestAuthorization(_ call: CAPPluginCall) {
         print("🔐 [HealthSyncPlugin] requestAuthorization called")
@@ -93,12 +132,14 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
     
+    // MARK: - Sync Readiness Data
+    
     @objc func syncReadinessData(_ call: CAPPluginCall) {
         let defaultDays = call.getInt("days") ?? 7
         let token = call.getString("token")
         let waitForAuth = call.getBool("waitForAuth") ?? false
         
-        print("🔄 [HealthSyncPlugin] syncReadinessData called (defaultDays: \(defaultDays), waitForAuth: \(waitForAuth))")
+        print("🔄 [HealthSyncPlugin] syncReadinessData called (defaultDays: \(defaultDays), waitForAuth: \(waitForAuth), hasToken: \(token != nil))")
         
         let healthStore = HKHealthStore()
         let readTypes = buildAllHealthKitTypes()
@@ -111,9 +152,16 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             }
         }
         
-        if let token = token {
-            UserDefaults.standard.set(token, forKey: "jwt_token")
-            print("🔑 [HealthSyncPlugin] Auth token received and stored")
+        // Store new token if provided (replaces any existing token)
+        if let token = token, !token.isEmpty {
+            storeAuthToken(token)
+        }
+        
+        // Verify we have a valid token before proceeding
+        guard hasValidAuthToken() else {
+            print("❌ [HealthSyncPlugin] No valid auth token available for sync")
+            call.reject("No authentication token available")
+            return
         }
         
         syncCountLock.lock()
@@ -146,6 +194,8 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
     
+    // MARK: - Sync Status Check
+    
     private func checkSyncStatusAndPerformSync(defaultDays: Int, syncId: Int) {
         print("🔍 [HealthSyncPlugin] Checking server sync status...")
         
@@ -171,7 +221,7 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
     }
     
     private func checkServerSyncStatus(completion: @escaping (Bool, Date?) -> Void) {
-        guard let token = UserDefaults.standard.string(forKey: "jwt_token"),
+        guard let token = getAuthToken(),
               let url = URL(string: "https://get-flo.com/api/healthkit/sync-status") else {
             print("⚠️ [HealthSyncPlugin] No token or invalid URL, assuming incremental sync")
             completion(false, nil)
@@ -182,12 +232,22 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         request.httpMethod = "GET"
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
         
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
                 print("❌ [HealthSyncPlugin] Sync status request failed: \(error.localizedDescription)")
                 completion(false, nil)
                 return
+            }
+            
+            // Check for auth errors
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 401 {
+                    print("❌ [HealthSyncPlugin] Sync status returned 401 Unauthorized - token may be invalid")
+                    completion(false, nil)
+                    return
+                }
             }
             
             guard let data = data else {
@@ -225,6 +285,8 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         }.resume()
     }
     
+    // MARK: - Historical Backfill
+    
     private func performHistoricalBackfill(startDate: Date, syncId: Int, completion: @escaping (Int) -> Void) {
         let endDate = Date()
         let daysSinceStart = Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 1095
@@ -253,10 +315,9 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                 
                 print("📊 [HealthSyncPlugin] Backfill sync #\(syncId) completed, \(remaining) active syncs remaining")
                 
-                if remaining == 0 {
-                    print("🧹 [HealthSyncPlugin] All syncs complete, clearing auth token")
-                    UserDefaults.standard.removeObject(forKey: "jwt_token")
-                }
+                // NOTE: We no longer clear the token here!
+                // Token persists until explicitly cleared by logout or replaced by a new sync
+                // This prevents race conditions where HTTP requests are still in flight
                 
                 completion(sampleCount)
             }
@@ -266,7 +327,7 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
     private func markBackfillComplete(sampleCount: Int, startDate: Date) {
         print("📝 [HealthSyncPlugin] Marking backfill complete on server...")
         
-        guard let token = UserDefaults.standard.string(forKey: "jwt_token"),
+        guard let token = getAuthToken(),
               let url = URL(string: "https://get-flo.com/api/healthkit/mark-backfill-complete") else {
             print("⚠️ [HealthSyncPlugin] No token or invalid URL, cannot mark backfill complete")
             return
@@ -276,6 +337,7 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         request.httpMethod = "POST"
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
         
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
@@ -299,15 +361,22 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
             
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                print("✅ [HealthSyncPlugin] Server acknowledged backfill complete!")
-                UserDefaults.standard.set(true, forKey: HealthSyncPlugin.backfillCompleteKey)
-                UserDefaults.standard.set(Date(), forKey: HealthSyncPlugin.lastSyncDateKey)
-            } else {
-                print("⚠️ [HealthSyncPlugin] Unexpected response from mark backfill complete")
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    print("✅ [HealthSyncPlugin] Server acknowledged backfill complete!")
+                    UserDefaults.standard.set(true, forKey: HealthSyncPlugin.backfillCompleteKey)
+                    UserDefaults.standard.set(Date(), forKey: HealthSyncPlugin.lastSyncDateKey)
+                    UserDefaults.standard.synchronize()
+                } else if httpResponse.statusCode == 401 {
+                    print("❌ [HealthSyncPlugin] Mark backfill complete returned 401 - token invalid")
+                } else {
+                    print("⚠️ [HealthSyncPlugin] Unexpected response from mark backfill complete: \(httpResponse.statusCode)")
+                }
             }
         }.resume()
     }
+    
+    // MARK: - Sync Workouts
     
     @objc func syncWorkouts(_ call: CAPPluginCall) {
         let days = call.getInt("days") ?? 7
@@ -328,9 +397,16 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             }
         }
         
-        if let token = token {
-            UserDefaults.standard.set(token, forKey: "jwt_token")
-            print("🔑 [HealthSyncPlugin] Auth token received and stored for workout sync")
+        // Store new token if provided
+        if let token = token, !token.isEmpty {
+            storeAuthToken(token)
+        }
+        
+        // Verify we have a valid token
+        guard hasValidAuthToken() else {
+            print("❌ [HealthSyncPlugin] No valid auth token available for workout sync")
+            call.reject("No authentication token available")
+            return
         }
         
         call.resolve([
@@ -350,13 +426,27 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                     print("⚠️ [HealthSyncPlugin] Workout sync completed but returned false")
                 }
                 
-                UserDefaults.standard.removeObject(forKey: "jwt_token")
-                print("🧹 [HealthSyncPlugin] Workout sync complete, auth token cleared")
+                // NOTE: We no longer clear the token here!
+                // Token persists until explicitly cleared by logout or replaced by a new sync
+                print("📊 [HealthSyncPlugin] Workout sync complete (token preserved)")
             }
         }
     }
     
+    // MARK: - Incremental Sync
+    
     private func performSync(days: Int, syncId: Int) {
+        // Verify token is still available before starting sync
+        guard hasValidAuthToken() else {
+            print("❌ [HealthSyncPlugin] No valid auth token for sync #\(syncId)")
+            
+            syncCountLock.lock()
+            activeSyncCount -= 1
+            syncCountLock.unlock()
+            
+            return
+        }
+        
         let normalizationService = HealthKitNormalisationService()
         
         // Check Oura API status before syncing to enable conditional HealthKit filtering
@@ -369,34 +459,60 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                 } else if success {
                     print("✅ [HealthSyncPlugin] Successfully synced \(days) days in background!")
                     
+                    // Verify token is still valid before starting workout sync
+                    guard self.hasValidAuthToken() else {
+                        print("⚠️ [HealthSyncPlugin] Token no longer valid, skipping workout sync")
+                        self.completeSyncOperation(syncId: syncId)
+                        return
+                    }
+                    
+                    // Sync workouts after main sync completes
+                    // This is properly chained - we wait for it to complete
                     normalizationService.syncWorkouts(days: days) { workoutSuccess, workoutError in
                         if let workoutError = workoutError {
                             print("⚠️ [HealthSyncPlugin] Workout sync error: \(workoutError.localizedDescription)")
                         } else if workoutSuccess {
                             print("💪 [HealthSyncPlugin] Also synced workouts successfully!")
                         }
+                        
+                        // Mark sync complete AFTER all operations finish
+                        self.completeSyncOperation(syncId: syncId)
                     }
+                    return // Don't call completeSyncOperation twice
                 } else {
                     print("⚠️ [HealthSyncPlugin] Background sync completed but returned false")
                 }
                 
-                self.syncCountLock.lock()
-                self.activeSyncCount -= 1
-                let remaining = self.activeSyncCount
-                self.syncCountLock.unlock()
-                
-                print("📊 [HealthSyncPlugin] Sync #\(syncId) completed, \(remaining) active syncs remaining")
-                
-                if remaining == 0 {
-                    print("🧹 [HealthSyncPlugin] All syncs complete, clearing auth token")
-                    UserDefaults.standard.removeObject(forKey: "jwt_token")
-                }
+                self.completeSyncOperation(syncId: syncId)
             }
         }
     }
     
+    /// Mark a sync operation as complete
+    /// This is called after ALL async operations (including nested ones) are done
+    private func completeSyncOperation(syncId: Int) {
+        syncCountLock.lock()
+        activeSyncCount -= 1
+        let remaining = activeSyncCount
+        syncCountLock.unlock()
+        
+        print("📊 [HealthSyncPlugin] Sync #\(syncId) completed, \(remaining) active syncs remaining")
+        
+        // NOTE: We intentionally do NOT clear the token here!
+        // The token persists until:
+        // 1. User explicitly logs out (calls clearAuthToken)
+        // 2. A new sync starts with a fresh token (replaces old one)
+        // This prevents race conditions where HTTP requests are still in flight
+        
+        if remaining == 0 {
+            print("✅ [HealthSyncPlugin] All sync operations complete (token preserved for next sync)")
+        }
+    }
+    
+    // MARK: - Oura API Status
+    
     private func checkOuraApiStatus(completion: @escaping (Bool) -> Void) {
-        guard let token = UserDefaults.standard.string(forKey: "jwt_token"),
+        guard let token = getAuthToken(),
               let url = URL(string: "https://get-flo.com/api/integrations/oura/status") else {
             print("⚠️ [HealthSyncPlugin] No token or invalid URL, assuming Oura not connected")
             completion(false)
@@ -412,6 +528,13 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
                 print("⚠️ [HealthSyncPlugin] Oura status check failed: \(error.localizedDescription)")
+                completion(false)
+                return
+            }
+            
+            // Check for auth errors
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
+                print("⚠️ [HealthSyncPlugin] Oura status check returned 401 - token may be invalid")
                 completion(false)
                 return
             }
@@ -437,6 +560,8 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             }
         }.resume()
     }
+    
+    // MARK: - HealthKit Auth Waiting
     
     private func waitForHealthKitAuth(maxAttempts: Int, completion: @escaping (Bool) -> Void) {
         let healthStore = HKHealthStore()

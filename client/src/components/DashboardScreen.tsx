@@ -354,6 +354,15 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
         logger.error('Failed to clear auth token on logout', error);
       }
       
+      // Clear HealthKit sync plugin auth token to prevent stale token issues
+      try {
+        const { HealthSyncPlugin } = await import('@/plugins/healthSync');
+        await HealthSyncPlugin.clearAuthToken();
+        logger.debug('HealthKit sync plugin auth token cleared on logout');
+      } catch (error) {
+        logger.warn('Failed to clear HealthKit sync token on logout');
+      }
+      
       queryClient.clear();
       setLocation('/mobile-auth');
     } else {
