@@ -10209,6 +10209,39 @@ Important: This is for educational purposes. Include a brief note that users sho
       // Only ready when we have actual data in BOTH systems
       const isReady = healthkitRecords > 0 && clickhouseTotal > 0;
       
+      // INSTANT TILE POPULATION: Check if we have recent daily metrics even if full sync isn't done
+      // This enables "competitors have data almost instantly" UX
+      let recentMetricsReady = false;
+      try {
+        const userId = req.user.claims.sub;
+        const todayStr = new Date().toISOString().split('T')[0];
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+        
+        const todayMetrics = await healthRouter.getUserDailyMetricsByDate(userId, todayStr);
+        const yesterdayMetrics = await healthRouter.getUserDailyMetricsByDate(userId, yesterdayStr);
+        
+        // healthRouter returns camelCase properties - check for ANY meaningful tile data
+        // stepsRawSum, sleepHours, activeEnergyKcal are the core tile metrics
+        const hasTodayData = todayMetrics && (
+          todayMetrics.stepsRawSum != null || 
+          todayMetrics.sleepHours != null || 
+          todayMetrics.activeEnergyKcal != null ||
+          todayMetrics.hrvMs != null
+        );
+        const hasYesterdayData = yesterdayMetrics && (
+          yesterdayMetrics.stepsRawSum != null || 
+          yesterdayMetrics.sleepHours != null || 
+          yesterdayMetrics.activeEnergyKcal != null ||
+          yesterdayMetrics.hrvMs != null
+        );
+        recentMetricsReady = !!(hasTodayData || hasYesterdayData);
+        logger.debug(`[Dashboard] recentMetricsReady check: today=${hasTodayData}, yesterday=${hasYesterdayData}, ready=${recentMetricsReady}`);
+      } catch (e) {
+        logger.debug('[Dashboard] Error checking recent metrics:', e);
+      }
+      
       // PROACTIVE TRIGGER: If we have HealthKit data but no ClickHouse data, trigger backfill
       // This catches cases where mark-backfill-complete was never called or sync failed
       if (healthkitRecords > 0 && clickhouseTotal === 0) {
@@ -10221,13 +10254,13 @@ Important: This is for educational purposes. Include a brief note that users sho
       // Generate user-friendly message
       let message = '';
       if (healthkitSyncing) {
-        message = 'Syncing your health data...';
+        message = recentMetricsReady ? 'Your data is ready! Syncing more history...' : 'Syncing your health data...';
       } else if (clickhouseSyncing) {
-        message = 'Processing your data for insights...';
+        message = recentMetricsReady ? 'Your data is ready! Processing insights...' : 'Processing your data for insights...';
       } else if (healthkitRecords === 0) {
         message = 'No health data yet. Open the app on your iPhone to sync.';
       } else if (!isReady) {
-        message = 'Preparing your dashboard...';
+        message = recentMetricsReady ? 'Your data is ready!' : 'Preparing your dashboard...';
       } else {
         message = 'Your dashboard is ready!';
       }
@@ -10236,17 +10269,19 @@ Important: This is for educational purposes. Include a brief note that users sho
         healthkitSyncing,
         clickhouseSyncing,
         isReady,
+        recentMetricsReady, // NEW: Tiles can display when this is true
         healthkitRecords,
         clickhouseRecords: clickhouseTotal,
         message,
       });
     } catch (error: any) {
       logger.error(`[Dashboard] Error getting sync status:`, error);
-      // Return a safe default on error
+      // Return a safe default on error - recentMetricsReady=false so sync banner shows
       res.json({
         healthkitSyncing: false,
         clickhouseSyncing: false,
         isReady: false,
+        recentMetricsReady: false,
         healthkitRecords: 0,
         clickhouseRecords: 0,
         message: 'Unable to check sync status',
@@ -10414,8 +10449,9 @@ Important: This is for educational purposes. Include a brief note that users sho
         return res.status(500).json({ error: "Failed to store health data" });
       }
 
-      // Trigger aggregation for critical metrics (oxygen, respiratory, temp) from samples
-      // This fills gaps for metrics iOS doesn't aggregate automatically
+      // INSTANT TILE POPULATION: Trigger aggregation for both PRIMARY and SECONDARY metrics
+      // PRIMARY: steps, sleep, HRV, active energy (core tile metrics) - enables instant data display
+      // SECONDARY: oxygen, respiratory, temp (metrics iOS doesn't aggregate)
       if (inserted > 0) {
         try {
           // Get unique dates from samples to aggregate
@@ -10430,13 +10466,22 @@ Important: This is for educational purposes. Include a brief note that users sho
           if (user) {
             const timezone = user.timezone || 'Australia/Perth';
             const datesArray = Array.from(uniqueDates);
+            
+            // Import the PRIMARY aggregation function for instant tile population
+            const { fillPrimaryMetricsFromSamples } = await import('./services/healthkitSampleAggregator');
+            
             for (let i = 0; i < datesArray.length; i++) {
               const date = datesArray[i];
+              // PRIMARY aggregation first (steps, sleep, HRV - what tiles display)
+              fillPrimaryMetricsFromSamples(userId, date, timezone).catch(err => {
+                logger.error(`[HealthKit] Primary aggregation error for ${date}:`, err);
+              });
+              // SECONDARY aggregation (oxygen, respiratory, temp)
               fillMissingMetricsFromSamples(userId, date, timezone).catch(err => {
-                logger.error(`[HealthKit] Aggregation error for ${date}:`, err);
+                logger.error(`[HealthKit] Secondary aggregation error for ${date}:`, err);
               });
             }
-            logger.info(`[HealthKit] Triggered aggregation for ${datesArray.length} dates`);
+            logger.info(`[HealthKit] Triggered PRIMARY+SECONDARY aggregation for ${datesArray.length} dates (instant tile population)`);
           }
         } catch (aggError) {
           logger.error('[HealthKit] Failed to trigger aggregation:', aggError);

@@ -8,6 +8,7 @@ interface SyncStatusResponse {
   healthkitSyncing: boolean;
   clickhouseSyncing: boolean;
   isReady: boolean;
+  recentMetricsReady: boolean; // NEW: Tiles can display when this is true
   healthkitRecords: number;
   clickhouseRecords: number;
   message: string;
@@ -44,8 +45,30 @@ export function SyncProgressIndicator({ isDark, hasDashboardData }: SyncProgress
     return null;
   }
 
-  // Only hide when BOTH systems have data (isReady is derived from this on backend)
-  // This prevents hiding while ClickHouse is still empty due to race condition
+  // INSTANT TILE POPULATION: Hide when recent metrics are ready (tiles can display)
+  // This enables "competitors have data almost instantly" UX
+  if (syncStatus.recentMetricsReady) {
+    // If still syncing history, show minimal banner
+    if (syncStatus.healthkitSyncing || syncStatus.clickhouseSyncing) {
+      return (
+        <div 
+          className={`mx-4 mb-2 px-3 py-2 rounded-lg ${
+            isDark ? 'bg-blue-500/10 text-blue-300' : 'bg-blue-50 text-blue-700'
+          }`}
+          data-testid="sync-progress-minimal"
+        >
+          <div className="flex items-center gap-2 text-xs">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span>{syncStatus.message}</span>
+          </div>
+        </div>
+      );
+    }
+    // Fully ready - hide banner
+    return null;
+  }
+  
+  // Legacy: Only hide when BOTH systems have data (isReady is derived from this on backend)
   if (syncStatus.isReady && syncStatus.healthkitRecords > 0 && syncStatus.clickhouseRecords > 0) {
     return null;
   }

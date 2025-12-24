@@ -365,3 +365,269 @@ export async function backfillMissingMetrics(userId: string, days: number = 30):
     logger.error('[SampleAggregator] Error in backfill:', error);
   }
 }
+
+/**
+ * PRIMARY METRIC AGGREGATION
+ * Aggregates core HealthKit samples into daily metrics for instant tile population.
+ * This enables tiles to show data immediately without waiting for iOS /api/healthkit/metrics call.
+ * 
+ * Handles: steps, activeEnergy, restingHR, HRV, sleep (core tile metrics)
+ */
+
+// Mapping for PRIMARY metrics (the ones tiles display)
+const PRIMARY_SAMPLE_TYPE_MAPPING: Record<string, string> = {
+  // Steps
+  'stepCount': 'steps',
+  'HKQuantityTypeIdentifierStepCount': 'steps',
+  
+  // Active Energy
+  'activeEnergyBurned': 'active_energy_kcal',
+  'HKQuantityTypeIdentifierActiveEnergyBurned': 'active_energy_kcal',
+  
+  // Resting Heart Rate
+  'restingHeartRate': 'resting_heart_rate_bpm',
+  'HKQuantityTypeIdentifierRestingHeartRate': 'resting_heart_rate_bpm',
+  
+  // HRV
+  'heartRateVariabilitySDNN': 'hrv_ms',
+  'HKQuantityTypeIdentifierHeartRateVariabilitySDNN': 'hrv_ms',
+  
+  // Sleep (category type)
+  'sleepAnalysis': 'sleep',
+  'HKCategoryTypeIdentifierSleepAnalysis': 'sleep',
+  
+  // Exercise Time
+  'appleExerciseTime': 'exercise_minutes',
+  'HKQuantityTypeIdentifierAppleExerciseTime': 'exercise_minutes',
+  
+  // Stand Hours
+  'appleStandHour': 'stand_hours',
+  'HKCategoryTypeIdentifierAppleStandHour': 'stand_hours',
+  
+  // Walking/Running Distance (HealthKit sends meters, we store meters)
+  'distanceWalkingRunning': 'distance_meters',
+  'HKQuantityTypeIdentifierDistanceWalkingRunning': 'distance_meters',
+  
+  // Flights Climbed
+  'flightsClimbed': 'flights_climbed',
+  'HKQuantityTypeIdentifierFlightsClimbed': 'flights_climbed',
+};
+
+// Which primary metrics to sum vs average
+const PRIMARY_SUM_METRICS = ['steps', 'active_energy_kcal', 'exercise_minutes', 'distance_meters', 'flights_climbed'];
+
+// Sleep analysis values that count as actual sleep (NOT "in bed" or "awake")
+// HKCategoryValueSleepAnalysis: 0=inBed, 1=asleepUnspecified, 2=awake, 3=asleepCore, 4=asleepDeep, 5=asleepREM
+// Only count actual sleeping states, exclude inBed(0) and awake(2)
+const SLEEP_VALUES = [1, 3, 4, 5]; // asleepUnspecified, asleepCore, asleepDeep, asleepREM - EXCLUDES awake
+
+interface PrimaryAggregatedMetrics {
+  steps: number | null;
+  active_energy_kcal: number | null;
+  resting_heart_rate_bpm: number | null;
+  hrv_ms: number | null;
+  sleep_hours: number | null;
+  exercise_minutes: number | null;
+  stand_hours: number | null;
+  distance_meters: number | null;
+  flights_climbed: number | null;
+}
+
+/**
+ * Aggregate PRIMARY HealthKit samples for a user on a specific date
+ * Returns aggregated values for core tile metrics (steps, sleep, HRV, etc)
+ */
+export async function aggregatePrimaryMetricsFromSamples(
+  userId: string,
+  localDate: string,
+  timezone: string
+): Promise<PrimaryAggregatedMetrics> {
+  const result: PrimaryAggregatedMetrics = {
+    steps: null,
+    active_energy_kcal: null,
+    resting_heart_rate_bpm: null,
+    hrv_ms: null,
+    sleep_hours: null,
+    exercise_minutes: null,
+    stand_hours: null,
+    distance_meters: null,
+    flights_climbed: null,
+  };
+
+  try {
+    // Calculate day boundaries in UTC based on local date and timezone
+    const localDayStart = new TZDate(`${localDate}T00:00:00`, timezone);
+    const localDayEnd = new TZDate(`${localDate}T23:59:59.999`, timezone);
+    
+    const dayStartUTC = new Date(localDayStart.toISOString());
+    const dayEndUTC = new Date(localDayEnd.toISOString());
+    
+    logger.debug(`[PrimaryAggregator] Querying ${localDate} (${timezone}): UTC ${dayStartUTC.toISOString()} to ${dayEndUTC.toISOString()}`);
+    
+    // Get all samples for this user on this date via healthStorageRouter (Supabase)
+    const samples = await healthRouter.getHealthkitSamples(userId, {
+      startDate: dayStartUTC,
+      endDate: dayEndUTC,
+    });
+
+    if (samples.length === 0) {
+      logger.debug(`[PrimaryAggregator] No samples found for ${userId} on ${localDate}`);
+      return result;
+    }
+
+    // Group samples by target metric
+    const groupedValues: Record<string, number[]> = {};
+    let totalSleepMs = 0;
+    let standHourCount = 0;
+    
+    for (const sample of samples) {
+      const targetField = PRIMARY_SAMPLE_TYPE_MAPPING[sample.dataType];
+      if (!targetField) continue;
+      
+      // Special handling for sleep - calculate duration from start/end times
+      if (targetField === 'sleep') {
+        // Check if this is actual sleep (not just "in bed")
+        const metadata = sample.metadata as Record<string, any> | null;
+        const sleepValue = sample.value ?? metadata?.value;
+        if (sleepValue !== undefined && SLEEP_VALUES.includes(Number(sleepValue))) {
+          const startTime = new Date(sample.startDate).getTime();
+          const endTime = new Date(sample.endDate).getTime();
+          const durationMs = endTime - startTime;
+          if (durationMs > 0) {
+            totalSleepMs += durationMs;
+          }
+        }
+        continue;
+      }
+      
+      // Special handling for stand hours - count instances
+      if (targetField === 'stand_hours') {
+        // Apple stand hour is a category type where value=0 means stood
+        const metadata = sample.metadata as Record<string, any> | null;
+        const standValue = sample.value ?? metadata?.value;
+        if (standValue === 0) {
+          standHourCount++;
+        }
+        continue;
+      }
+      
+      if (sample.value != null) {
+        if (!groupedValues[targetField]) {
+          groupedValues[targetField] = [];
+        }
+        
+        // Value is used as-is, HealthKit sends meters for distance
+        groupedValues[targetField].push(sample.value);
+      }
+    }
+
+    // Calculate aggregates
+    for (const [field, values] of Object.entries(groupedValues)) {
+      if (values.length > 0) {
+        if (PRIMARY_SUM_METRICS.includes(field)) {
+          (result as any)[field] = Math.round(values.reduce((a, b) => a + b, 0) * 10) / 10;
+        } else {
+          // Average for vital signs (HRV, resting HR)
+          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+          (result as any)[field] = Math.round(avg * 10) / 10;
+        }
+      }
+    }
+    
+    // Set sleep hours from total ms
+    if (totalSleepMs > 0) {
+      result.sleep_hours = Math.round((totalSleepMs / (1000 * 60 * 60)) * 10) / 10;
+    }
+    
+    // Set stand hours
+    if (standHourCount > 0) {
+      result.stand_hours = standHourCount;
+    }
+
+    const nonNullFields = Object.entries(result).filter(([_, v]) => v !== null).map(([k]) => k);
+    if (nonNullFields.length > 0) {
+      logger.info(`[PrimaryAggregator] Aggregated ${nonNullFields.length} PRIMARY metrics for ${userId} on ${localDate}: ${nonNullFields.join(', ')}`);
+    }
+
+    return result;
+  } catch (error) {
+    logger.error('[PrimaryAggregator] Error aggregating primary samples:', error);
+    return result;
+  }
+}
+
+/**
+ * Create/update user_daily_metrics with PRIMARY aggregated sample data
+ * This is the key function that enables instant tile population
+ */
+export async function fillPrimaryMetricsFromSamples(
+  userId: string,
+  localDate: string,
+  timezone: string
+): Promise<boolean> {
+  try {
+    const healthRouterModule = await import("./healthStorageRouter");
+    const existing = await healthRouterModule.getUserDailyMetricsByDate(userId, localDate);
+
+    const aggregated = await aggregatePrimaryMetricsFromSamples(userId, localDate, timezone);
+    
+    const hasAggregatedData = Object.values(aggregated).some(v => v !== null);
+    
+    if (!hasAggregatedData) {
+      logger.debug(`[PrimaryAggregator] No primary metrics to aggregate for ${userId} on ${localDate}`);
+      return false;
+    }
+    
+    // Build the upsert record
+    const record: Record<string, any> = {
+      local_date: localDate,
+      timezone,
+    };
+    
+    // Map aggregated values to Supabase column names (snake_case for writes)
+    // existing uses camelCase from normalizeUserDailyMetric: stepsRawSum, activeEnergyKcal, restingHrBpm, hrvMs, etc.
+    if (aggregated.steps != null && (!existing || existing.stepsRawSum == null)) {
+      record.steps_raw_sum = aggregated.steps;
+      record.steps_normalized = aggregated.steps;
+    }
+    if (aggregated.active_energy_kcal != null && (!existing || existing.activeEnergyKcal == null)) {
+      record.active_energy_kcal = aggregated.active_energy_kcal;
+    }
+    // Note: restingHrBpm is the camelCase version (not restingHeartRateBpm)
+    if (aggregated.resting_heart_rate_bpm != null && (!existing || existing.restingHrBpm == null)) {
+      record.resting_hr_bpm = aggregated.resting_heart_rate_bpm;
+    }
+    if (aggregated.hrv_ms != null && (!existing || existing.hrvMs == null)) {
+      record.hrv_ms = aggregated.hrv_ms;
+    }
+    if (aggregated.sleep_hours != null && (!existing || existing.sleepHours == null)) {
+      record.sleep_hours = aggregated.sleep_hours;
+    }
+    if (aggregated.exercise_minutes != null && (!existing || existing.exerciseMinutes == null)) {
+      record.exercise_minutes = aggregated.exercise_minutes;
+    }
+    if (aggregated.stand_hours != null && (!existing || existing.standHours == null)) {
+      record.stand_hours = aggregated.stand_hours;
+    }
+    // Distance is already in meters from HealthKit
+    if (aggregated.distance_meters != null && (!existing || existing.distanceMeters == null)) {
+      record.distance_meters = aggregated.distance_meters;
+    }
+    if (aggregated.flights_climbed != null && (!existing || existing.flightsClimbed == null)) {
+      record.flights_climbed = aggregated.flights_climbed;
+    }
+    
+    // Only upsert if we have new fields to add
+    const newFieldCount = Object.keys(record).length - 2; // subtract local_date and timezone
+    if (newFieldCount > 0) {
+      await healthRouterModule.upsertDailyMetrics(userId, record as any);
+      logger.info(`[PrimaryAggregator] Upserted ${newFieldCount} PRIMARY metrics for ${userId} on ${localDate}`);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    logger.error('[PrimaryAggregator] Error filling primary metrics:', error);
+    return false;
+  }
+}
