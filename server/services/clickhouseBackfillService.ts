@@ -41,6 +41,10 @@ interface BackfillResult {
 interface BackfillStatus {
   clickhouseBackfillComplete: boolean;
   clickhouseBackfillDate: Date | null;
+  /** Phase 1 (recent 30 days) complete - tiles can show data */
+  initialBackfillComplete?: boolean;
+  /** Full historical backfill in progress */
+  fullBackfillInProgress?: boolean;
 }
 
 /**
@@ -52,7 +56,7 @@ export async function getClickHouseBackfillStatus(userId: string): Promise<Backf
   
   const { data, error } = await supabase
     .from('profiles')
-    .select('clickhouse_backfill_complete, clickhouse_backfill_date')
+    .select('clickhouse_backfill_complete, clickhouse_backfill_date, clickhouse_backfill_metadata')
     .eq('health_id', healthId)
     .single();
 
@@ -60,18 +64,80 @@ export async function getClickHouseBackfillStatus(userId: string): Promise<Backf
     logger.error('[ClickHouseBackfill] Error fetching backfill status:', error);
   }
 
+  const metadata = data?.clickhouse_backfill_metadata as Record<string, any> | null;
+
   return {
     clickhouseBackfillComplete: data?.clickhouse_backfill_complete === true,
     clickhouseBackfillDate: data?.clickhouse_backfill_date ? new Date(data.clickhouse_backfill_date) : null,
+    initialBackfillComplete: metadata?.initialBackfillComplete === true,
+    fullBackfillInProgress: metadata?.fullBackfillInProgress === true,
   };
+}
+
+/**
+ * Mark initial (Phase 1) backfill as complete - tiles can now show data
+ */
+async function markInitialBackfillComplete(userId: string, metrics: BackfillResult['metrics']): Promise<void> {
+  const healthId = await getHealthId(userId);
+  const supabase = getSupabaseClient();
+  
+  // Get existing metadata to preserve it
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('clickhouse_backfill_metadata')
+    .eq('health_id', healthId)
+    .single();
+  
+  const existingMeta = (existing?.clickhouse_backfill_metadata as Record<string, any>) || {};
+  
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({
+      health_id: healthId,
+      clickhouse_backfill_complete: true, // Mark as complete so tiles populate
+      clickhouse_backfill_date: new Date().toISOString(),
+      clickhouse_backfill_metadata: {
+        ...existingMeta,
+        initialBackfillComplete: true,
+        fullBackfillInProgress: true,
+        phase1Metrics: {
+          weight: metrics.weight,
+          bodyComp: metrics.bodyComp,
+          sleep: metrics.sleep,
+          activity: metrics.activity,
+          heartMetrics: metrics.heartMetrics,
+          nutrition: metrics.nutrition,
+          total: metrics.total,
+        },
+        phase1CompletedAt: new Date().toISOString(),
+      },
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'health_id',
+    });
+
+  if (error) {
+    logger.error('[ClickHouseBackfill] Error marking initial backfill complete:', error);
+  } else {
+    logger.info(`[ClickHouseBackfill] Phase 1 complete for ${userId}: ${metrics.total} records (tiles can now show data)`);
+  }
 }
 
 /**
  * Mark ClickHouse backfill as complete for a user
  */
-async function markBackfillComplete(userId: string, metrics: BackfillResult['metrics']): Promise<void> {
+async function markBackfillComplete(userId: string, metrics: BackfillResult['metrics'], isPhase2 = false): Promise<void> {
   const healthId = await getHealthId(userId);
   const supabase = getSupabaseClient();
+  
+  // Get existing metadata to preserve phase 1 info
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('clickhouse_backfill_metadata')
+    .eq('health_id', healthId)
+    .single();
+  
+  const existingMeta = (existing?.clickhouse_backfill_metadata as Record<string, any>) || {};
   
   const { error } = await supabase
     .from('profiles')
@@ -80,6 +146,9 @@ async function markBackfillComplete(userId: string, metrics: BackfillResult['met
       clickhouse_backfill_complete: true,
       clickhouse_backfill_date: new Date().toISOString(),
       clickhouse_backfill_metadata: {
+        ...existingMeta,
+        initialBackfillComplete: true,
+        fullBackfillInProgress: false,
         weight: metrics.weight,
         bodyComp: metrics.bodyComp,
         sleep: metrics.sleep,
@@ -88,6 +157,7 @@ async function markBackfillComplete(userId: string, metrics: BackfillResult['met
         nutrition: metrics.nutrition,
         total: metrics.total,
         completedAt: new Date().toISOString(),
+        ...(isPhase2 ? { phase2CompletedAt: new Date().toISOString() } : {}),
       },
       updated_at: new Date().toISOString(),
     }, {
@@ -111,9 +181,13 @@ export async function runFullBackfill(
     daysBack?: number;
     forceRefresh?: boolean;
     timezone?: string;
+    /** Skip marking as complete - used by prioritized backfill Phase 1 */
+    skipMarkComplete?: boolean;
+    /** Skip post-backfill jobs - used by prioritized backfill Phase 1 */
+    skipPostJobs?: boolean;
   } = {}
 ): Promise<BackfillResult> {
-  const { daysBack = 730, forceRefresh = false, timezone = 'Australia/Perth' } = options;
+  const { daysBack = 730, forceRefresh = false, timezone = 'Australia/Perth', skipMarkComplete = false, skipPostJobs = false } = options;
 
   if (!isClickHouseEnabled()) {
     return {
@@ -181,14 +255,17 @@ export async function runFullBackfill(
 
     metrics.total = metrics.weight + metrics.bodyComp + metrics.sleep + metrics.activity + metrics.heartMetrics + metrics.nutrition;
 
-    // Mark backfill complete
-    await markBackfillComplete(userId, metrics);
+    // Mark backfill complete (unless skipped for prioritized backfill Phase 1)
+    if (!skipMarkComplete) {
+      await markBackfillComplete(userId, metrics);
+    }
 
     logger.info(`[ClickHouseBackfill] Completed backfill for ${userId}: ${JSON.stringify(metrics)}`);
 
     // Trigger hourly jobs immediately to materialize data into daily_features
     // Then queue forecast recompute to generate drivers and simulator results
-    if (metrics.total > 0) {
+    // (unless skipped for prioritized backfill Phase 1)
+    if (metrics.total > 0 && !skipPostJobs) {
       setImmediate(async () => {
         try {
           // Step 1: Run hourly jobs to materialize daily_features
@@ -671,7 +748,122 @@ async function backfillNutritionMetrics(
 }
 
 /**
+ * Run prioritized two-phase backfill for new users
+ * Phase 1: Last 30 days (immediate) - so tiles populate quickly
+ * Phase 2: Remaining history (background) - for complete baselines
+ */
+export async function runPrioritizedBackfill(
+  userId: string,
+  options: {
+    phase1Days?: number;
+    totalDays?: number;
+    timezone?: string;
+  } = {}
+): Promise<BackfillResult> {
+  const { phase1Days = 30, totalDays = 730, timezone = 'Australia/Perth' } = options;
+  
+  if (!isClickHouseEnabled()) {
+    return {
+      success: false,
+      metrics: { weight: 0, bodyComp: 0, sleep: 0, activity: 0, heartMetrics: 0, nutrition: 0, total: 0 },
+      error: 'ClickHouse not enabled',
+    };
+  }
+  
+  const status = await getClickHouseBackfillStatus(userId);
+  
+  // If already fully complete, skip
+  if (status.clickhouseBackfillComplete && !status.fullBackfillInProgress) {
+    logger.debug(`[ClickHouseBackfill] User ${userId} already fully backfilled`);
+    return {
+      success: true,
+      metrics: { weight: 0, bodyComp: 0, sleep: 0, activity: 0, heartMetrics: 0, nutrition: 0, total: 0 },
+    };
+  }
+  
+  // If Phase 1 already done but Phase 2 in progress, continue with Phase 2 only
+  if (status.initialBackfillComplete && status.fullBackfillInProgress) {
+    logger.info(`[ClickHouseBackfill] Phase 1 done for ${userId}, continuing Phase 2 in background`);
+    // Run Phase 2 in background
+    setImmediate(async () => {
+      try {
+        await runFullBackfill(userId, { daysBack: totalDays, forceRefresh: true, timezone });
+      } catch (e) {
+        logger.error(`[ClickHouseBackfill] Phase 2 failed for ${userId}:`, e);
+      }
+    });
+    return {
+      success: true,
+      metrics: { weight: 0, bodyComp: 0, sleep: 0, activity: 0, heartMetrics: 0, nutrition: 0, total: 0 },
+    };
+  }
+  
+  logger.info(`[ClickHouseBackfill] Starting prioritized backfill for ${userId}: Phase 1 (${phase1Days} days)`);
+  
+  // PHASE 1: Recent data only (fast, for immediate tile population)
+  // Skip marking complete and post-jobs - we handle those manually after
+  const phase1Result = await runFullBackfill(userId, { 
+    daysBack: phase1Days, 
+    forceRefresh: true, 
+    timezone,
+    skipMarkComplete: true,  // We'll mark initial complete ourselves
+    skipPostJobs: true,      // We'll run jobs after marking initial complete
+  });
+  
+  if (!phase1Result.success) {
+    logger.error(`[ClickHouseBackfill] Phase 1 failed for ${userId}:`, phase1Result.error);
+    return phase1Result;
+  }
+  
+  // Only proceed if we actually got data
+  if (phase1Result.metrics.total === 0) {
+    logger.warn(`[ClickHouseBackfill] Phase 1 got 0 records for ${userId}, skipping`);
+    return phase1Result;
+  }
+  
+  // Mark Phase 1 complete so tiles can populate IMMEDIATELY
+  await markInitialBackfillComplete(userId, phase1Result.metrics);
+  
+  // Trigger post-Phase 1 jobs (forecast, etc) so user sees data immediately
+  try {
+    const { runHourlyJobs } = await import('./weightForecast/orchestrationJobs');
+    await runHourlyJobs();
+    logger.info(`[ClickHouseBackfill] Phase 1 post-jobs completed for ${userId}`);
+  } catch (e: any) {
+    logger.warn(`[ClickHouseBackfill] Phase 1 post-jobs failed for ${userId}:`, { error: e?.message || String(e) });
+  }
+  
+  // PHASE 2: Full historical data (background, non-blocking)
+  // This adds older data without affecting the user's immediate experience
+  logger.info(`[ClickHouseBackfill] Starting Phase 2 for ${userId}: full ${totalDays} days in background`);
+  setImmediate(async () => {
+    try {
+      // Run full backfill to get all historical data
+      // This will insert records with unique event_ids based on date, so no duplicates
+      const phase2Result = await runFullBackfill(userId, { 
+        daysBack: totalDays, 
+        forceRefresh: true, 
+        timezone,
+        skipMarkComplete: true,  // We'll mark Phase 2 complete ourselves
+        skipPostJobs: true,      // Don't run heavy jobs again
+      });
+      
+      if (phase2Result.success && phase2Result.metrics.total > 0) {
+        // Update metadata to mark Phase 2 complete
+        await markBackfillComplete(userId, phase2Result.metrics, true);
+        logger.info(`[ClickHouseBackfill] Phase 2 complete for ${userId}: ${phase2Result.metrics.total} total records`);
+      }
+    } catch (error) {
+      logger.error(`[ClickHouseBackfill] Phase 2 failed for ${userId}:`, error);
+    }
+  });
+  
+  return phase1Result;
+}
+
+/**
  * Trigger backfill for a user if needed (call from weight API or ML features)
+ * Uses prioritized two-phase approach for new users
  * This is non-blocking - runs in background
  */
 export function triggerBackfillIfNeeded(userId: string): void {
@@ -679,9 +871,27 @@ export function triggerBackfillIfNeeded(userId: string): void {
   setImmediate(async () => {
     try {
       const status = await getClickHouseBackfillStatus(userId);
-      if (!status.clickhouseBackfillComplete) {
-        logger.info(`[ClickHouseBackfill] Auto-triggering backfill for user ${userId}`);
-        await runFullBackfill(userId);
+      
+      // If completely done (Phase 2 finished), skip
+      if (status.clickhouseBackfillComplete && !status.fullBackfillInProgress) {
+        return;
+      }
+      
+      // Use prioritized backfill for new users (faster tile population)
+      if (!status.initialBackfillComplete) {
+        logger.info(`[ClickHouseBackfill] Auto-triggering prioritized backfill for new user ${userId}`);
+        await runPrioritizedBackfill(userId);
+      } else if (status.fullBackfillInProgress) {
+        // Phase 1 done, continue Phase 2 in background
+        logger.info(`[ClickHouseBackfill] Continuing Phase 2 backfill for ${userId}`);
+        const phase2Result = await runFullBackfill(userId, { 
+          forceRefresh: true,
+          skipMarkComplete: true,
+          skipPostJobs: true,
+        });
+        if (phase2Result.success && phase2Result.metrics.total > 0) {
+          await markBackfillComplete(userId, phase2Result.metrics, true);
+        }
       }
     } catch (error) {
       logger.error(`[ClickHouseBackfill] Auto-trigger failed for ${userId}:`, error);
