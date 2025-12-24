@@ -1,7 +1,7 @@
 # Flō - AI-Powered Health Insights Platform
 
 ## Overview
-Flō is an AI-powered, mobile-first health analytics platform designed to process blood work, calculate biological age, and deliver personalized health recommendations. It features an intelligent dashboard, integrates with leading AI models, Apple HealthKit, and includes a voice-activated AI coach, Flō Oracle. Operating on a Stripe-powered freemium subscription model, Flō aims to provide trustworthy, clear, and actionable health information, offering profound health insights and capitalizing on the significant market potential in personalized wellness.
+Flō is an AI-powered, mobile-first health analytics platform that processes blood work, calculates biological age, and delivers personalized health recommendations. It features an intelligent dashboard, integrates with leading AI models and Apple HealthKit, and includes a voice-activated AI coach, Flō Oracle. Operating on a Stripe-powered freemium subscription model, Flō aims to provide trustworthy, clear, and actionable health information, offering profound health insights and capitalizing on the significant market potential in personalized wellness.
 
 ## User Preferences
 - Preferred communication style: Simple, everyday language.
@@ -12,10 +12,10 @@ Flō is an AI-powered, mobile-first health analytics platform designed to proces
 ## System Architecture
 
 ### UI/UX Decisions
-The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines. It leverages Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS, supporting locked tiles, paywall modals, an admin panel, dark theme, reorderable dashboard tiles, and iOS Safe Area.
+The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, leveraging Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS. It supports locked tiles, paywall modals, an admin panel, dark theme, reorderable dashboard tiles, and iOS Safe Area.
 
 ### Technical Implementations
-**Frontend:** Built with React, TypeScript, and Vite, using TanStack Query and Wouter. Key features include biomarker insights, AI health reports, PDF upload, admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing, Flō Oracle voice chat, and Flōmentum scores.
+**Frontend:** Built with React, TypeScript, and Vite, using TanStack Query and Wouter, featuring biomarker insights, AI health reports, PDF upload, admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing, Flō Oracle voice chat, and Flōmentum scores.
 
 **Backend:** Developed with Express.js and TypeScript, exposing a RESTful API. It uses a unified authentication system (Replit Auth OIDC, JWT, WebAuthn Passkeys), GCS for file storage, PhenoAge calculation, GPT-4o for blood work extraction, Flō Oracle integration, ElevenLabs for voice, a HealthKit Readiness System, comprehensive sleep and workout tracking, Flōmentum scoring, Apple Push Notifications (APNs), and Stripe Billing.
 
@@ -24,48 +24,21 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Supabase (Health):** Stores sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events) with Row-Level Security (RLS) and pseudonymous linking via `health_id`.
 
 **Key Features & Systems:**
-- **AI-Powered Insights:** Includes a Daily Insights Engine (RAG-based, GPT-4o), Conversational Life Event Logging (Gemini 2.5 Flash), Real-Time Trend Detection, and a Unified Brain Memory System. `InsightsSchedulerV2` runs hourly.
-- **Flō Oracle Enhancements:** Centralized context routing, conversation memory, on-demand data retrieval via Gemini function calling, and stale session cleanup. Now uses ClickHouse 90-day baselines (same as Health Alerts and Morning Briefing) for consistent health assessments across all AI features. Context builder fetches baselines, includes them in the AI context string, and labels deviation calculations with "90d baseline" vs "7d avg" to prevent conflicting assessments (e.g., "good sleep" in Chat vs "decreased" in Health Alerts).
-- **Anti-Repetition System:** User memory service tracks 'topic_suppression' and 'do_not_mention' memory types.
-- **Medical Data Processing:** Medical Document Ingestion using GPT-4o for summarization and semantic search, and Lab Unit Display Toggle.
-- **Machine Learning Models:** CGM, Biomarker, and HealthKit Pattern Learners train baselines.
-- **ClickHouse ML Correlation Engine:** High-performance analytics for anomaly detection, predictive insights, and long-term pattern recognition, with full history sync and 90-day baseline + Z-score anomaly detection. It includes specific filtering for sleep baselines and absolute thresholds for temperature deviation alerts, requiring corroborating vital signs for validation. The ML architecture now uses ClickHouse as the single source of truth for all baseline calculations and anomaly detection.
-- **Long-Horizon Correlation Engine:** Discovers statistically significant behavior-outcome correlations over months using Mann-Whitney U test, including subjective survey data.
-- **ML Causality Engine (Hybrid ML+AI Architecture):** Identifies causes for health metric changes by analyzing behavior patterns using ClickHouse for baselines, `BehaviorAttributionEngine` to sync factors, ML to rank causes, and Gemini to format narratives.
-- **Health Context Enrichment:** ML anomaly alerts now include structured health context explaining why anomalies matter, using `healthContextKnowledge.ts` to map metrics to classifications, implications, conditions, and actionable advice.
-- **ML Feedback Loop (Adaptive Learning):** A complete feedback loop where user feedback trains the ML system, including personalized thresholds, free text analysis for themes and sentiment, data quality suppression for reported sensor issues, and survey-outcome training to correlate behaviors with subjective scores.
+- **AI-Powered Insights:** Includes a Daily Insights Engine (RAG-based, GPT-4o), Conversational Life Event Logging (Gemini 2.5 Flash), Real-Time Trend Detection, and a Unified Brain Memory System.
+- **Flō Oracle:** Enhanced with centralized context routing, conversation memory, on-demand data retrieval via Gemini function calling, and consistent health assessments using ClickHouse 90-day baselines. Includes an anti-repetition system.
+- **Medical Data Processing:** GPT-4o for medical document ingestion (summarization, semantic search) and lab unit display toggle.
+- **Machine Learning:** CGM, Biomarker, and HealthKit Pattern Learners train baselines.
+- **ClickHouse ML Correlation Engine:** Provides high-performance analytics for anomaly detection, predictive insights, and long-term pattern recognition using 90-day baselines and Z-score anomaly detection, acting as the single source of truth for all baseline calculations. Includes long-horizon correlation and a hybrid ML+AI causality engine.
+- **ML Feedback Loop:** Adaptive learning based on user feedback, personalized thresholds, free text analysis, data quality suppression, and survey-outcome training.
 - **Environmental Data Integration:** Correlates OpenWeather data with health metrics.
-- **HealthKit Sample Deduplication:** Server-side fingerprint-based deduplication.
-- **Sleep Data Merge Strategy:** `upsertSleepNight` uses a merge-on-conflict strategy to prevent data loss during partial HealthKit syncs.
-- **Morning Briefing System:** Personalized AI-generated daily briefings using 90-day baseline Z-score deviations from ClickHouse ML engine, fetching activity metrics from yesterday and sleep metrics from last night.
-- **Dexcom CGM Integration:** Direct OAuth2 integration for continuous glucose monitoring with automatic 5-minute data sync and real-time glucose dashboard tile. Includes HealthKit glucose fallback.
-- **Apple Push Notifications (APNs):** Configurable via Admin Dashboard.
-- **Movement Quality / Gait Metrics:** iOS now syncs 8 walking/mobility metrics from HealthKit, stored in `user_daily_metrics`.
-- **Weight Management Fixes:** Includes local slope validation for weight trends, enhanced AI prompt for complete sentences, and extended field name matching for nutrition data.
-- **Cumulative Activity Metrics Fix:** `detectAnomalies()` skips cumulative daily metrics during daytime hours to prevent false "low activity" alerts.
-- **Apple App Store AI Compliance:** A full compliance system for sharing health data with third-party AI services, including an `AIConsentScreen`, `requireAIConsent` middleware, consent checks in the Morning Briefing Scheduler, a settings toggle for AI Features, AI provider attribution, Privacy Policy updates, and version tracking for re-prompting.
-- **Stand Hours HealthKit Fix:** Corrected iOS stand hours calculation in `HealthKitNormalisationService.swift` to use `HKCategoryTypeIdentifierAppleStandHour`.
-- **Saved Meals Feature:** Users can save frequently eaten meals from Today's Meals card (star button) and quickly log them again via SavedMealsCard. Stored in `saved_meals` table with items and nutrition totals.
-- **ML Notification Safeguards (Enhanced):** Multi-layer protection against notification flooding for new users:
-  1. **Backfill Gate:** Requires `clickhouse_backfill_complete=true` in profiles table AND 24 hours elapsed since `clickhouse_backfill_date` before ANY ML notifications can be sent
-  2. **Baseline Requirements:** 14+ days of established baseline data with 42+ minimum data points (MIN_BASELINE_DAYS=14, MIN_DATA_POINTS=42)
-  3. **Recency Check:** Source data must be within 24 hours (blocks historical backfill notifications)
-  4. **Active Device Check:** User must have active device tokens (logged-in status)
-  5. **Fail-Closed Architecture:** Any error in eligibility checks blocks notifications rather than allowing them
-  - All checks are cached for 30 minutes to reduce database load via `backfillCache` and `baselineCache` maps
-- **Dashboard Sync Status System:** Race condition fix for new users seeing empty dashboards. The `/api/dashboard/sync-status` endpoint requires BOTH healthkitRecords > 0 AND clickhouseRecords > 0 for `isReady`. ClickHouse backfill metadata is only updated when `result.total > 0` to prevent false completion. `SyncProgressIndicator` component shows progress during initial sync with accurate progress calculation based on record ratios and manual refresh button.
-- **Centralized Notification Eligibility Service:** `notificationEligibilityService.ts` is the single choke-point for ALL push notifications via `apnsService.sendToUser()`. It enforces: (a) 14+ days of baseline data with 42+ data points (MIN_BASELINE_DAYS=14, MIN_DATA_POINTS=42), (b) 24-hour recency check for source data to block historical HealthKit backfill, (c) fail-CLOSED on errors to prevent notification flooding during outages. Includes 30-minute baseline eligibility caching to reduce database load.
-- **Mobile Logout Device Token Deactivation:** POST `/api/mobile/auth/logout` endpoint deactivates all device tokens for the user AND flushes ALL pending notification queues (daily_reminders, pending_correlation_feedback, notification_queue, notification_logs) to comprehensively stop push notifications after logout. The iOS client calls this endpoint before clearing local authentication state.
-- **Account Deletion Feature:** Users can delete their account as a final step after deleting their data. The DELETE `/api/user/account` endpoint performs self-deletion, and the DeleteDataConfirmation modal offers account deletion as an optional follow-up step.
-- **Cumulative Metrics Aggregation Fix (Complete):** ClickHouse queries now use `max(value)` for cumulative daily metrics (steps, active_energy, exercise_minutes, etc.) instead of `avg(value)`. Fixed in THREE locations: (1) `detectAnomalies()` for real-time anomaly detection, (2) `getMetricsForAnalysis()` for trend calculations, and (3) `calculateBaselines()` for 90-day baseline computation. The baseline fix uses a CTE-based approach: first gets MAX per day (daily totals), then averages those daily values. This prevents partial HealthKit syncs (e.g., 8, 283, 7074 steps) from polluting baselines and causing insights to show incorrect low step counts like "362 steps" when actual was 6000+.
-- **Goal-Oriented Proactive Notifications:** New `GoalContextService` fetches user weight goals, active N1 experiments, and today's nutrition intake. Calculates nutrition gaps (protein, calories, fiber) with actionable messages like "You're 25g short on protein. Consider adding Greek yogurt at dinner to support your lean weight gain goal." This context is injected into the AI insight generator for proactive, goal-oriented recommendations.
-- **Causal Analysis for Check-In Questions:** New `CausalAnalysisService` aggregates potential causes for health anomalies: active N-of-1 experiments (with day count), notable yesterday behaviors (with deviation from baseline), and historical positive patterns that preceded similar improvements. The `dynamicFeedbackGenerator.generateQuestionsWithCausalContext()` method now fetches per-anomaly causal context to generate questions like "Your deep sleep improved by 25%. This could be from your magnesium experiment or earlier bedtime. Keep it up! How are you feeling (1-10)?" Architecture ensures each question references causes relevant to its specific focus metric.
-- **3PM Survey Notification Fix (Complete Rewrite):** After ~20 failed fix attempts, the 3PM survey notification system was completely rewritten with a simple, bulletproof approach:
-  - Uses `formatInTimeZone(nowUTC, userTimezone, 'HH')` from date-fns-tz to get user's local hour
-  - Simple check: Is it between 3PM (15:00) and 6PM (18:00) in user's timezone?
-  - Tracks sends by user's local date via `notification_sends` table to prevent duplicates
-  - No complex eligibility windows or catch-up logic - just a clean 3-6PM window
-  - Australia/Perth (UTC+8) should now correctly receive notifications at 3PM local (7AM UTC)
+- **HealthKit Integration:** Features server-side sample deduplication, a robust sleep data merge strategy, and accurate stand hours calculation.
+- **Mobile Features:** Morning Briefing System, Dexcom CGM integration with real-time glucose dashboard, Apple Push Notifications (APNs), movement quality/gait metrics syncing, saved meals feature, and comprehensive account management (logout, deletion).
+- **Notification Safeguards:** Multi-layer protection against notification flooding for new users, ensuring complete ClickHouse backfill, established baseline data, data recency, active device tokens, and a fail-closed architecture. Centralized notification eligibility service enforces these rules.
+- **Timezone Management:** Critical fixes for anomaly detection and survey notifications to accurately reflect user local timezones.
+- **Cumulative Metrics Aggregation:** Corrected ClickHouse queries to use `max(value)` for daily cumulative metrics to prevent inaccurate baselines and insights.
+- **Goal-Oriented Notifications:** Proactive, goal-oriented notifications and insights generated using `GoalContextService` and injected into the AI.
+- **Causal Analysis:** `CausalAnalysisService` identifies potential causes for health anomalies, integrating active experiments and notable behaviors to generate contextualized check-in questions.
+- **Apple App Store AI Compliance:** Full system for managing user consent for sharing health data with third-party AI services, including consent screens, middleware, settings toggles, attribution, and privacy policy updates.
 
 ## External Dependencies
 

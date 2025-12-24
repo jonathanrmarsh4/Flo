@@ -5850,12 +5850,16 @@ Important: This is for educational purposes. Include a brief note that users sho
       
       const healthId = await getHealthId(userId);
       
+      // Get user's timezone for timezone-aware anomaly detection
+      const [userRecord] = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+      const userTimezone = userRecord?.timezone || 'America/Los_Angeles';
+      
       // First sync ALL latest data (comprehensive)
       await clickhouseBaselineEngine.syncAllHealthData(healthId, 30);
       
       // Calculate baselines and detect anomalies
       const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);
-      const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays, bypassRateLimit: true });
+      const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays, bypassRateLimit: true, timezone: userTimezone });
       
       // Generate smart insights with ML causal analysis for top anomalies
       const feedbackQuestions: any[] = [];
@@ -10871,13 +10875,18 @@ Important: This is for educational purposes. Include a brief note that users sho
             const { getHealthId } = await import('./services/supabaseHealthStorage');
             const healthId = await getHealthId(userId);
             
+            // Get user's timezone for timezone-aware anomaly detection
+            const [userRecord] = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+            const userTimezone = userRecord?.timezone || 'America/Los_Angeles';
+            
             // Sync recent health data to ClickHouse for ML analysis (last 7 days for real-time patterns)
             const syncedCount = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 7);
             logger.info(`[ClickHouseML] Auto-synced ${syncedCount} metrics for ${userId} after HealthKit ingestion`);
             
             // Only run anomaly detection once per 6 hours per user to prevent spam
+            // CRITICAL: Pass user timezone for correct local-time-based anomaly detection
             if (shouldRunAnomalyDetection(userId)) {
-              clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays: 7 }).then(anomalies => {
+              clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays: 7, timezone: userTimezone }).then(anomalies => {
                 if (anomalies.length > 0) {
                   logger.info(`[ClickHouseML] Detected ${anomalies.length} anomalies for ${userId}:`, 
                     anomalies.map(a => `${a.metricType}: ${a.severity}`).join(', '));

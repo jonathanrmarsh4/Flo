@@ -77,12 +77,17 @@ class CorrelationInsightService {
 
     logger.info(`[CorrelationInsight] Starting full analysis for user ${userId} (${baselineInfo.daysOfData} days of baseline data)`);
 
+    // Get user's timezone for timezone-aware anomaly detection
+    const [userRecord] = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+    const userTimezone = userRecord?.timezone || 'America/Los_Angeles';
+
     // Get admin-configured cooldown setting
     const mlSettings = await getMLSettings();
     const alertCooldownHours = mlSettings.alertCooldownHours;
 
     // Bypass rate limit for scheduled analysis jobs
-    const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { bypassRateLimit: true });
+    // CRITICAL: Pass user timezone for correct local-time-based anomaly detection
+    const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { bypassRateLimit: true, timezone: userTimezone });
     logger.info(`[CorrelationInsight] Detected ${anomalies.length} anomalies`);
 
     const recentlyAnswered = await this.getRecentlyAnsweredPatterns(userId, alertCooldownHours);

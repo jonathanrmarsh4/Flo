@@ -1117,9 +1117,9 @@ export class ClickHouseBaselineEngine {
 
   async detectAnomalies(
     healthId: string,
-    options: { windowDays?: number; lookbackHours?: number; bypassRateLimit?: boolean } = {}
+    options: { windowDays?: number; lookbackHours?: number; bypassRateLimit?: boolean; timezone?: string } = {}
   ): Promise<AnomalyResult[]> {
-    const { windowDays = 7, lookbackHours = 48, bypassRateLimit = false } = options;
+    const { windowDays = 7, lookbackHours = 48, bypassRateLimit = false, timezone = 'America/Los_Angeles' } = options;
 
     // Rate limit anomaly detection to prevent log spam
     // Only bypass for admin-initiated calls or scheduled jobs
@@ -1265,8 +1265,14 @@ export class ClickHouseBaselineEngine {
       ]);
       
       // Only allow cumulative metric anomalies after 9 PM (21:00) when the day is mostly complete
-      const currentHour = new Date().getHours();
-      const isEndOfDay = currentHour >= 21;
+      // CRITICAL: Use user's timezone, not UTC, to determine if it's end of day
+      const { formatInTimeZone } = await import('date-fns-tz');
+      const userLocalHour = parseInt(formatInTimeZone(new Date(), timezone, 'HH'), 10);
+      const isEndOfDay = userLocalHour >= 21;
+      
+      if (timezone !== 'America/Los_Angeles') {
+        logger.debug(`[ClickHouseML] Timezone-aware anomaly detection for ${healthId}: timezone=${timezone}, localHour=${userLocalHour}, isEndOfDay=${isEndOfDay}`);
+      }
 
       for (const metric of recentMetrics) {
         // Skip metrics that user has suppressed due to data quality issues
@@ -1284,7 +1290,7 @@ export class ClickHouseBaselineEngine {
         
         // Skip cumulative daily metrics during the day - they only make sense at end of day
         if (CUMULATIVE_DAILY_METRICS.has(metric.metric_type) && !isEndOfDay) {
-          logger.debug(`[ClickHouseML] Skipping cumulative metric ${metric.metric_type} during daytime (hour: ${currentHour})`);
+          logger.debug(`[ClickHouseML] Skipping cumulative metric ${metric.metric_type} during daytime (localHour: ${userLocalHour}, tz: ${timezone})`);
           continue;
         }
         
