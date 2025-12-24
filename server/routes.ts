@@ -10209,6 +10209,15 @@ Important: This is for educational purposes. Include a brief note that users sho
       // Only ready when we have actual data in BOTH systems
       const isReady = healthkitRecords > 0 && clickhouseTotal > 0;
       
+      // PROACTIVE TRIGGER: If we have HealthKit data but no ClickHouse data, trigger backfill
+      // This catches cases where mark-backfill-complete was never called or sync failed
+      if (healthkitRecords > 0 && clickhouseTotal === 0) {
+        const { triggerBackfillIfNeeded } = await import('./services/clickhouseBackfillService');
+        const userId = req.user.claims.sub;
+        logger.info(`[Dashboard] Proactively triggering ClickHouse backfill for ${userId} (has ${healthkitRecords} HealthKit records, 0 ClickHouse)`);
+        triggerBackfillIfNeeded(userId);
+      }
+      
       // Generate user-friendly message
       let message = '';
       if (healthkitSyncing) {
