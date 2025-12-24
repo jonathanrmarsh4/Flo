@@ -344,6 +344,22 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
       return dailyQuestions[currentStep];
     } else {
       const step = supplementQuestionSteps[supplementStep];
+      // Guard against undefined step (race condition with query refetch)
+      if (!step) {
+        return {
+          id: 'fallback',
+          icon: Activity,
+          iconColor: 'text-gray-400',
+          iconBg: 'bg-gray-500/20',
+          gradient: 'from-gray-500/20 to-slate-500/20',
+          title: 'Loading...',
+          prompt: 'Please wait...',
+          lowAnchor: '',
+          highAnchor: '',
+          supplementName: '',
+          experimentId: '',
+        };
+      }
       return {
         ...step.question,
         supplementName: step.experiment.product_name,
@@ -359,6 +375,8 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
       return surveyData[dailyQuestions[currentStep].id as keyof SurveyData];
     } else {
       const step = supplementQuestionSteps[supplementStep];
+      // Guard against undefined step
+      if (!step) return null;
       return supplementRatings[step.experiment.id]?.[step.question.id] || null;
     }
   };
@@ -402,6 +420,12 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
       }, 300);
     } else {
       const step = supplementQuestionSteps[supplementStep];
+      // Guard against undefined step (race condition with query refetch)
+      if (!step) {
+        setIsSubmitting(false);
+        handleComplete();
+        return;
+      }
       const experimentId = step.experiment.id;
       const questionId = step.question.id;
       
