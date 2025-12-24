@@ -950,13 +950,14 @@ export class ClickHouseBaselineEngine {
         'core_sleep_min': 60,         // Minimum 1 hour core sleep
       };
 
-      // CRITICAL FIX: Cumulative metrics (steps, active_energy, etc.) must use MAX per day
-      // before averaging across days. Otherwise we average partial syncs (8, 283, 7074)
-      // instead of daily totals, causing massive underreporting in insights.
+      // CRITICAL FIX: Cumulative metrics must use MAX per day before averaging across days.
+      // Otherwise we average partial syncs (8, 283, 7074) instead of daily totals,
+      // causing baselines to be ~30-40% lower than actual values.
       const CUMULATIVE_METRICS = [
         'steps', 'active_energy', 'exercise_minutes', 'workout_minutes',
         'distance_walking_running', 'distance_km', 'stand_hours', 'stand_time',
-        'move_minutes', 'active_calories', 'flights_climbed'
+        'move_minutes', 'active_calories', 'flights_climbed',
+        'water_intake_ml', 'basal_energy', 'total_calories_burned'
       ];
 
       // Build conditional WHERE clause for minimum thresholds
@@ -1177,13 +1178,11 @@ export class ClickHouseBaselineEngine {
       const baselines = await this.calculateBaselines(healthId, windowDays);
       const baselineMap = new Map(baselines.map(b => [b.metricType, b]));
 
-      // CRITICAL FIX: Use max() for cumulative daily metrics (steps, active_energy, etc.)
-      // These metrics accumulate throughout the day, so partial syncs (8, 283, 1500, 7074)
-      // need max() to get the final value, not avg() which would average all partial syncs
-      // IMPORTANT: Cumulative metrics must be scoped to the most recent local_date to avoid
-      // mixing values from different days (e.g., yesterday's 7074 with today's partial 283)
+      // CRITICAL: Cumulative metrics use max() to get final daily value, scoped to most recent local_date
+      // to avoid mixing values from different days (e.g., yesterday's 7074 with today's partial 283)
       const CUMULATIVE_METRIC_TYPES = ['steps', 'active_energy', 'exercise_minutes', 'workout_minutes', 
-        'distance_walking_running', 'distance_km', 'stand_hours', 'stand_time', 'move_minutes', 'active_calories'];
+        'distance_walking_running', 'distance_km', 'stand_hours', 'stand_time', 'move_minutes', 'active_calories',
+        'flights_climbed', 'water_intake_ml', 'basal_energy', 'total_calories_burned'];
       
       // For cumulative metrics: Get max value from the most recent day only
       // For instantaneous metrics: Average over the lookback window
@@ -1249,9 +1248,8 @@ export class ClickHouseBaselineEngine {
         severity: { moderate: 25, high: 40 },
       };
 
-      // Cumulative daily metrics that accumulate throughout the day
-      // These should NOT trigger anomalies mid-day because partial-day values
-      // will always be lower than full-day baselines
+      // Cumulative daily metrics should NOT trigger anomalies mid-day
+      // (partial values will always be lower than full-day baselines)
       const CUMULATIVE_DAILY_METRICS = new Set([
         'steps',
         'active_energy',
@@ -1262,6 +1260,10 @@ export class ClickHouseBaselineEngine {
         'stand_time',
         'move_minutes',
         'active_calories',
+        'flights_climbed',
+        'water_intake_ml',
+        'basal_energy',
+        'total_calories_burned',
       ]);
       
       // Only allow cumulative metric anomalies after 9 PM (21:00) when the day is mostly complete
@@ -1665,9 +1667,10 @@ export class ClickHouseBaselineEngine {
       }
 
       // Step 2: Get current values (recent lookback period)
-      // CRITICAL FIX: Use max() for cumulative daily metrics, scoped to most recent day
+      // CRITICAL: Cumulative metrics use max() to get final daily value, not avg() of partial syncs
       const CUMULATIVE_METRIC_TYPES_ANALYSIS = ['steps', 'active_energy', 'exercise_minutes', 'workout_minutes', 
-        'distance_walking_running', 'distance_km', 'stand_hours', 'stand_time', 'move_minutes', 'active_calories'];
+        'distance_walking_running', 'distance_km', 'stand_hours', 'stand_time', 'move_minutes', 'active_calories',
+        'flights_climbed', 'water_intake_ml', 'basal_energy', 'total_calories_burned'];
       
       const recentSql = `
         WITH 
