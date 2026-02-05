@@ -12,7 +12,6 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useEffect, useState, useRef } from 'react';
 import { initializeNotifications } from "@/lib/notifications";
-import { initializeStripeNative } from "@/lib/stripe-native";
 import { triggerOpen3PMSurvey } from "@/lib/surveyEvents";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 import { TokenMismatchHandler } from "@/components/TokenMismatchHandler";
@@ -193,21 +192,6 @@ function Router() {
     }
   }, [isNative, isAuthenticated]);
 
-  // Initialize Stripe native plugin for Apple Pay (native only)
-  // Deferred to avoid blocking first interaction
-  useEffect(() => {
-    if (isNative) {
-      // Defer Stripe init to after first paint
-      const timer = setTimeout(() => {
-        initializeStripeNative().then(success => {
-          if (success) {
-            console.log('[App] Stripe native plugin initialized');
-          }
-        });
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [isNative]);
 
   // Auto-clear cache on version update (native only)
   // Deferred to avoid blocking first interaction

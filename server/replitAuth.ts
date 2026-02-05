@@ -13,9 +13,13 @@ import { logger } from "./logger";
 
 export const getOidcConfig = memoize(
   async () => {
+    const replId = process.env.REPL_ID;
+    if (!replId) {
+      throw new Error('REPL_ID is required for Replit OIDC authentication. Set it in .env if using Replit auth, or ensure auth routes are not being called.');
+    }
     return await client.discovery(
       new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
+      replId
     );
   },
   { maxAge: 3600 * 1000 }
@@ -31,7 +35,7 @@ export function getSession() {
     tableName: "sessions",
   });
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
@@ -73,7 +77,19 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  const config = await getOidcConfig();
+  // Skip Replit OIDC setup if not running on Replit
+  if (!process.env.REPL_ID) {
+    logger.warn('[Auth] REPL_ID not set - skipping Replit OIDC authentication setup');
+    return;
+  }
+
+  let config;
+  try {
+    config = await getOidcConfig();
+  } catch (error) {
+    logger.error('[Auth] Failed to initialize Replit OIDC config:', error);
+    throw error;
+  }
 
   const verify: VerifyFunction = async (
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,

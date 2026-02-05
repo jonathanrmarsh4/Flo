@@ -427,6 +427,9 @@ export async function extractLifeEvent(
 
 /**
  * Format acknowledgment for chat response
+ * 
+ * @deprecated This function is currently unused. Kept for potential future use
+ * when chat responses need formatted acknowledgments for life events.
  */
 export function formatAcknowledgment(
   eventType: string,

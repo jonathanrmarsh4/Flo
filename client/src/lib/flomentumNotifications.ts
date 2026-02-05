@@ -429,10 +429,8 @@ export async function initializeFlomentumNotifications(config: FlomentumNotifica
       await scheduleDailyActionReminders(config);
     }
 
-    // Schedule 3PM survey - this is the most reliable way to deliver time-sensitive notifications
-    if (config.threePMSurveyEnabled) {
-      await scheduleThreePMSurvey(config);
-    }
+    // Note: 3PM survey notifications are handled server-side via APNs
+    // (scheduleThreePMSurvey is disabled - see function implementation)
 
     console.log('[Flōmentum Notifications] Initialization complete');
   } catch (error) {

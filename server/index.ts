@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -151,11 +152,16 @@ app.use((req, res, next) => {
   const isAutoscaleDeployment = process.env.REPL_DEPLOYMENT_TYPE === 'autoscale';
   const isProduction = process.env.NODE_ENV === 'production';
   
-  server.listen({
+  // reusePort is not supported on macOS, only on Linux
+  const listenOptions: any = {
     port,
     host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  };
+  if (process.platform !== 'darwin') {
+    listenOptions.reusePort = true;
+  }
+  
+  server.listen(listenOptions, () => {
     log(`serving on port ${port}`);
     
     // Only start background schedulers if NOT in Autoscale deployment
