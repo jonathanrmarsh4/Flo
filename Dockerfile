@@ -16,9 +16,9 @@ FROM node:20-slim AS runner
 
 WORKDIR /app
 
-# Production deps only
+# Install deps (including dev) so runtime can resolve optional dev modules like Vite
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copy build output and required runtime files
 COPY --from=builder /app/dist ./dist
