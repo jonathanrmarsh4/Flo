@@ -6,8 +6,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copy source and build
+# Copy source and build (increase memory for Vite/esbuild in Docker)
 COPY . .
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
 # Production image
