@@ -5,7 +5,6 @@ dist
 .git
 .gitignore
 *.md
-attached_assets
 ios
 ios-healthkit-importer
 .vscode
