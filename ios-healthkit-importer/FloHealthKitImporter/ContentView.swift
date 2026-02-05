@@ -223,7 +223,7 @@ struct SettingsView: View {
                         .autocapitalization(.none)
                         .keyboardType(.URL)
                     
-                    Text("Default: https://get-flo.replit.app")
+                    Text("Default: https://app.get-flo.com")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -233,7 +233,7 @@ struct SettingsView: View {
                         serverURL = "https://get-flo.replit.app"
                     }
                     Button("Production") {
-                        serverURL = "https://get-flo.com"
+                        serverURL = "https://app.get-flo.com"
                     }
                 }
             }

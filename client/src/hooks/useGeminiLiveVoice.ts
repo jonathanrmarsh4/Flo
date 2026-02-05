@@ -439,7 +439,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       let wsUrl: string;
       if (Capacitor.isNativePlatform()) {
         // iOS/Android: Connect to production server
-        wsUrl = `wss://get-flo.com/api/voice/${voiceEndpoint}?token=${encodeURIComponent(authToken)}`;
+        wsUrl = `wss://app.get-flo.com/api/voice/${voiceEndpoint}?token=${encodeURIComponent(authToken)}`;
       } else {
         // Web: Use current host
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

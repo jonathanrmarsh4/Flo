@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist/public',
   server: {
     androidScheme: 'https',
-    url: 'https://get-flo.com',
+    url: 'https://app.get-flo.com',
     cleartext: false
   },
   ios: {
