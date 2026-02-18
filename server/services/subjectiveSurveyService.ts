@@ -389,7 +389,7 @@ export async function trainOnSurveyOutcomes(healthId: string): Promise<{
 }> {
   const ch = getClickHouseClient();
   if (!ch) {
-    logger.warn('[Survey-ML] ClickHouse unavailable - skipping survey-outcome training');
+    logger.debug('[Survey-ML] ML training skipped (ClickHouse removed - surveys still functional)');
     return { correlationsFound: 0, sampleSize: 0 };
   }
 
@@ -512,7 +512,7 @@ export async function getSurveyInsights(healthId: string): Promise<{
 }> {
   const ch = getClickHouseClient();
   if (!ch) {
-    logger.warn('[Survey-ML] ClickHouse unavailable - returning empty survey insights');
+    logger.debug('[Survey-ML] ML insights skipped (ClickHouse removed - surveys still functional)');
     return { insights: [] };
   }
 
