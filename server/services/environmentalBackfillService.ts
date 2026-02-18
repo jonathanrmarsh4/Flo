@@ -509,14 +509,7 @@ export async function runBackfillForUser(
 
     logger.info(`[Backfill] Completed backfill for ${healthId}: ${daysProcessed} days processed`);
 
-    try {
-      const { clickhouseBaselineEngine } = await import('./clickhouseBaselineEngine');
-      await clickhouseBaselineEngine.syncEnvironmentalData(healthId, undefined);
-      logger.info(`[Backfill] Synced environmental data to ClickHouse for ${healthId}`);
-    } catch (syncError) {
-      const syncErrorMsg = syncError instanceof Error ? syncError.message : String(syncError);
-      logger.warn(`[Backfill] ClickHouse sync failed for ${healthId}: ${syncErrorMsg}`);
-    }
+    // ClickHouse removed - environmental data stored in Supabase only
 
     return { success: true, daysProcessed };
 

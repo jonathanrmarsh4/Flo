@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { AnomalyResult } from './clickhouseBaselineEngine';
+import { AnomalyResult } from './causalAnalysisService';
 import { logger } from '../utils/logger';
 import { db } from '../db';
 import { lifeEvents, userDailyMetrics, sleepNights } from '@shared/schema';

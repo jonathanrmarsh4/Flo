@@ -46,6 +46,7 @@ import {
   type BiomarkerFollowup,
 } from './supabaseHealthStorage';
 import { behaviorAttributionEngine } from './behaviorAttributionEngine';
+import { supabaseBaselineEngine } from './supabaseBaselineEngine';
 import { getHealthId as getSupabaseHealthId } from './supabaseHealthStorage';
 
 // In-memory cache for user health context (5 minute TTL)
@@ -175,8 +176,8 @@ interface UserHealthContext {
     daysTracked: number;
   } | null;
   environmentalContext: EnvironmentalContext | null;
-  // ClickHouse 90-day baselines for consistent comparison across all AI features
-  clickhouseBaselines: {
+  // Supabase 90-day baselines for consistent comparison across all AI features
+  supabaseBaselines: {
     sleepDuration: { baseline: number | null; stdDev: number | null };
     deepSleep: { baseline: number | null; stdDev: number | null };
     remSleep: { baseline: number | null; stdDev: number | null };
@@ -362,7 +363,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       mindfulnessSummary: null,
       nutritionSummary: null,
       environmentalContext: null,
-      clickhouseBaselines: null,
+      supabaseBaselines: null,
     };
 
     // Fetch user's timezone from users table
@@ -539,7 +540,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         const stepsVals = (actRows ?? []).map(r =>
           r.steps_raw_sum != null && r.steps_raw_sum > 0 ? r.steps_raw_sum : r.steps_normalized
         );
-        context.clickhouseBaselines = {
+        context.supabaseBaselines = {
           sleepDuration: mk((sleepRows ?? []).map(r => r.total_sleep_min)),
           deepSleep: mk((sleepRows ?? []).map(r => r.deep_sleep_min)),
           remSleep: mk((sleepRows ?? []).map(r => r.rem_sleep_min)),
@@ -548,7 +549,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
           steps: mk(stepsVals),
           activeEnergy: mk((actRows ?? []).map(r => r.active_energy_kcal)),
         };
-        logger.info(`[FloOracle] Fetched Supabase 90-day baselines for ${healthId}`);
+        logger.info(`[FloOracle] Fetched 90-day Supabase baselines for ${healthId}`);
       }
     } catch (error) {
       logger.error('[FloOracle] Error fetching Supabase baselines:', error);
@@ -633,8 +634,8 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         // Build individual night breakdown for the last 5 nights (for Oracle to spot outliers)
         // IMPORTANT: Use ClickHouse 90-day baselines if available (same as Health Alerts)
         // Fall back to 7-day average only if ClickHouse baselines aren't available
-        const clickhouseDeepBaseline = context.clickhouseBaselines?.deepSleep?.baseline;
-        const clickhouseSleepDurationBaseline = context.clickhouseBaselines?.sleepDuration?.baseline;
+        const clickhouseDeepBaseline = context.supabaseBaselines?.deepSleep?.baseline;
+        const clickhouseSleepDurationBaseline = context.supabaseBaselines?.sleepDuration?.baseline;
         const avgDeepForDeviation = clickhouseDeepBaseline ?? deepSleep ?? 0;
         const avgTotalSleepForDeviation = clickhouseSleepDurationBaseline ?? totalSleep ?? 0;
         const isUsingClickhouseBaseline = clickhouseDeepBaseline != null || clickhouseSleepDurationBaseline != null;
@@ -1493,9 +1494,9 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     lines.push(`  [Reference: Ideal deep sleep 13-23%, REM 20-25%, efficiency >85%]`);
   }
 
-  // Add ClickHouse 90-day baselines section (CRITICAL: This is the same baseline Health Alerts uses)
+  // Add Supabase 90-day baselines section (same data Health Alerts uses)
   // This ensures Flō Chat evaluates sleep/metrics consistently with other AI features
-  const chBaselines = context.clickhouseBaselines;
+  const chBaselines = context.supabaseBaselines;
   if (chBaselines) {
     lines.push('');
     lines.push('YOUR 90-DAY PERSONAL BASELINES (same as Health Alerts - use these for comparison!):');
@@ -2051,127 +2052,48 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
     return '';
   }
   
-  // Get last conversation timestamp to determine NEW vs PREVIOUSLY DISCUSSED
-  const lastConversation = await getLastConversationTimestamp(userId);
-  
-  // Try ClickHouse first (primary ML engine)
   try {
-    const { clickhouseBaselineEngine } = await import('./clickhouseBaselineEngine');
-    const mlInsights = await clickhouseBaselineEngine.getMLInsights(healthId);
+    // Use Supabase baseline engine to detect anomalies (replaces ClickHouse ML engine)
+    const anomalies = await supabaseBaselineEngine.detectAnomalies(userId, 90);
     
-    if (mlInsights.recentAnomalies.length > 0) {
-      const lines = ['', 'ML CORRELATION ENGINE INSIGHTS (detected patterns - reference when relevant):'];
-      
-      const recentAnomalies = mlInsights.recentAnomalies.slice(0, 5);
-      
-      // Separate NEW vs PREVIOUSLY DISCUSSED anomalies
-      const newAnomalies: typeof recentAnomalies = [];
-      const previouslyDiscussed: typeof recentAnomalies = [];
-      
-      recentAnomalies.forEach(a => {
-        // Check if anomaly was detected after last conversation
-        // If detectedAt is missing, treat as PREVIOUSLY DISCUSSED (safer default)
-        if (!a.detectedAt) {
-          previouslyDiscussed.push(a);
-          return;
-        }
-        
-        const anomalyTime = new Date(a.detectedAt);
-        const isNew = !lastConversation || anomalyTime > lastConversation;
-        
-        if (isNew) {
-          newAnomalies.push(a);
-        } else {
-          previouslyDiscussed.push(a);
-        }
-      });
-      
-      // Helper to format deviation values (temperature metrics use °C, others use %)
-      const TEMPERATURE_DEVIATION_METRICS = ['wrist_temperature_deviation', 'wrist_temp_deviation_c', 'skin_temp_deviation_c', 'skin_temp_trend_deviation_c', 'body_temperature_deviation'];
-      const formatDeviation = (metricType: string, deviationPct: number) => {
-        if (TEMPERATURE_DEVIATION_METRICS.includes(metricType)) {
-          return `${Math.abs(deviationPct).toFixed(1)}°C`;
-        }
-        return `${Math.abs(Math.round(deviationPct))}%`;
-      };
-      
-      // Format NEW anomalies first (these should be proactively discussed)
-      if (newAnomalies.length > 0) {
-        lines.push('');
-        lines.push('[NEW] ANOMALIES TO PROACTIVELY DISCUSS (mention these at the START of the conversation):');
-        newAnomalies.forEach(a => {
-          const direction = a.direction === 'above' ? 'elevated' : 'low';
-          const metricName = a.metricType.replace(/_/g, ' ');
-          const deviationStr = formatDeviation(a.metricType, a.deviationPct);
-          const confidenceStr = Math.round(a.modelConfidence * 100);
-          
-          let patternNote = '';
-          if (a.patternFingerprint === 'illness_precursor') {
-            patternNote = ' [possible illness pattern]';
-          } else if (a.patternFingerprint === 'recovery_deficit') {
-            patternNote = ' [recovery concern]';
-          }
-          
-          lines.push(`  • [NEW] ${metricName}: ${direction} (${deviationStr} from baseline) - ${a.severity} severity, ${confidenceStr}% confidence${patternNote}`);
-        });
+    if (anomalies.length === 0) return '';
+    
+    const lines = ['', 'HEALTH PATTERN INSIGHTS (detected from your 90-day baselines - reference when relevant):'];
+    
+    const lastConversation = await getLastConversationTimestamp(userId);
+    const newAnomalies = anomalies.filter(a => {
+      if (!a.detectedAt || !lastConversation) return true;
+      return new Date(a.detectedAt) > lastConversation;
+    });
+    const oldAnomalies = anomalies.filter(a => !newAnomalies.includes(a));
+    
+    if (newAnomalies.length > 0) {
+      lines.push('');
+      lines.push('[NEW] PATTERNS TO PROACTIVELY DISCUSS (mention these at the START of the conversation):');
+      for (const a of newAnomalies.slice(0, 5)) {
+        const dir = a.direction === 'above' ? 'elevated' : 'low';
+        const pct = Math.abs(Math.round(a.deviationPercent));
+        lines.push(`  • [NEW] ${a.label ?? a.metricType}: ${dir} (${pct}% from your 90-day baseline) - ${a.severity} severity`);
       }
-      
-      // Format PREVIOUSLY DISCUSSED anomalies (only reference if relevant)
-      if (previouslyDiscussed.length > 0) {
-        lines.push('');
-        lines.push('[PREVIOUSLY DISCUSSED] Known patterns (only reference if user asks or directly relevant):');
-        previouslyDiscussed.forEach(a => {
-          const direction = a.direction === 'above' ? 'elevated' : 'low';
-          const metricName = a.metricType.replace(/_/g, ' ');
-          const deviationStr = formatDeviation(a.metricType, a.deviationPct);
-          
-          lines.push(`  • ${metricName}: ${direction} (${deviationStr} from baseline) - ${a.severity} severity`);
-        });
-      }
-      
-      if (mlInsights.accuracyRate > 0 && mlInsights.totalPredictions > 3) {
-        const accuracyPct = Math.round(mlInsights.accuracyRate * 100);
-        lines.push(`\nML model accuracy for this user: ${accuracyPct}% (${mlInsights.confirmedCount}/${mlInsights.totalPredictions} confirmed)`);
-      }
-      
-      // Add long-term correlation insights from the new correlation engine
-      try {
-        const { correlationEngine } = await import('./clickhouseCorrelationEngine');
-        const longTermInsights = await correlationEngine.getLongTermInsights(healthId, 5);
-        
-        if (longTermInsights.length > 0) {
-          lines.push('');
-          lines.push('LONG-TERM BEHAVIOR CORRELATIONS (patterns discovered over months of data):');
-          for (const insight of longTermInsights) {
-            lines.push(`  • ${insight.naturalLanguageInsight}`);
-            lines.push(`    (${Math.round(insight.confidenceLevel * 100)}% confidence, p=${insight.pValue.toFixed(3)})`);
-          }
-          logger.info(`[FloOracle] Added ${longTermInsights.length} long-term correlation insights to context`);
-        }
-        
-        // Also add pending feedback questions for the AI to ask
-        const pendingQuestions = await correlationEngine.getPendingFeedbackQuestions(healthId);
-        if (pendingQuestions.length > 0) {
-          lines.push('');
-          lines.push('PENDING USER CHECK-IN (ask these questions naturally during conversation):');
-          for (const q of pendingQuestions.slice(0, 2)) {
-            lines.push(`  • Priority ${q.priority}: "${q.questionText}"`);
-          }
-        }
-      } catch (correlationError) {
-        logger.debug('[FloOracle] Long-term correlation insights not available');
-      }
-      
-      logger.info(`[FloOracle] Added ${newAnomalies.length} NEW and ${previouslyDiscussed.length} PREVIOUSLY DISCUSSED anomalies to context`);
-      return lines.join('\n');
     }
-  } catch (clickhouseError) {
-    logger.debug('[FloOracle] ClickHouse correlation insights unavailable');
+    
+    if (oldAnomalies.length > 0) {
+      lines.push('');
+      lines.push('[PREVIOUSLY DISCUSSED] Known patterns (only reference if user asks or directly relevant):');
+      for (const a of oldAnomalies.slice(0, 3)) {
+        const dir = a.direction === 'above' ? 'elevated' : 'low';
+        const pct = Math.abs(Math.round(a.deviationPercent));
+        lines.push(`  • ${a.label ?? a.metricType}: ${dir} (${pct}% from baseline) - ${a.severity} severity`);
+      }
+    }
+    
+    logger.info(`[FloOracle] Added ${newAnomalies.length} NEW and ${oldAnomalies.length} known anomalies to context`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.debug('[FloOracle] Anomaly detection unavailable for context:', error);
+    return '';
   }
-  
-  return '';
 }
-
 /**
  * Get user's current life context (travel, stress, disruptions, etc.)
  * Returns active situational factors that may affect their health data interpretation

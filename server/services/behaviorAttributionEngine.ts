@@ -1,4 +1,10 @@
-import { clickhouse, isClickHouseEnabled } from './clickhouseService';
+// ClickHouse removed - behavior attribution engine methods gracefully no-op
+const isClickHouseEnabled = () => false;
+const clickhouse = {
+  query: async <T>(_q: string, _p?: any): Promise<T[]> => [],
+  insert: async (_t: string, _rows: any[]): Promise<void> => {},
+  command: async (_q: string, _p?: any): Promise<void> => {},
+};
 import { getSupabaseClient } from './supabaseClient';
 import { getUserIdFromHealthId } from './supabaseHealthStorage';
 import { logger } from '../utils/logger';
@@ -304,7 +310,7 @@ export class BehaviorAttributionEngine {
   async ensureInitialized(): Promise<boolean> {
     if (this.initialized) return true;
     if (!isClickHouseEnabled()) {
-      logger.warn('[BehaviorAttribution] ClickHouse not enabled');
+      logger.debug('[BehaviorAttribution] Behavior attribution no-op (ClickHouse removed)');
       return false;
     }
     this.initialized = true;

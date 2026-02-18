@@ -12,9 +12,18 @@ import { behaviorAttributionEngine, getMLSettings } from './behaviorAttributionE
 import { n1ExperimentService } from './n1ExperimentService';
 import { getHealthId } from './supabaseHealthStorage';
 import { getSupabaseClient } from './supabaseClient';
-import { clickhouse, isClickHouseEnabled } from './clickhouseService';
 import { logger } from '../utils/logger';
-import { AnomalyResult } from './clickhouseBaselineEngine';
+
+// AnomalyResult - formerly from ClickHouse baseline engine, now a local type
+export interface AnomalyResult {
+  metricType: string;
+  currentValue: number;
+  baselineValue: number;
+  deviationPercent: number;
+  severity: 'mild' | 'moderate' | 'severe';
+  direction: 'above' | 'below';
+  label?: string;
+}
 
 export interface CausalContext {
   // Active experiments that might explain the change
@@ -198,7 +207,8 @@ class CausalAnalysisService {
     healthId: string,
     outcomeMetric: string
   ): Promise<CausalContext['notableBehaviors']> {
-    if (!isClickHouseEnabled()) return [];
+    // ClickHouse removed - behavior factor tracking now relies on RAG insights layer
+    return [];
     
     try {
       // Get notable behaviors from yesterday and the day before
