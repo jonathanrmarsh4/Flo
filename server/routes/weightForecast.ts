@@ -345,20 +345,30 @@ router.get('/tile', isAuthenticated, async (req: any, res) => {
     }
     
     res.json({
-      summary: {
-        status_chip: currentWeightKg ? 'DATA_AVAILABLE' : 'NEEDS_DATA',
-        confidence_level: 'LOW',
-        current_weight_kg: currentWeightKg,
-        delta_vs_7d_avg_kg: delta7d,
-        body_fat_pct: correctedBodyFat,
-        lean_mass_kg: leanMassKg,
-        goal: {
-          configured: goal.configured,
-          goal_type: goal.goal_type,
-          target_weight_kg: goal.target_weight_kg,
-          target_date_local: goal.target_date_local,
-        },
-        source: { label: sourceLabel },
+      status_chip: currentWeightKg ? 'DATA_AVAILABLE' : 'NEEDS_DATA',
+      confidence_level: 'LOW',
+      current_weight_kg: currentWeightKg,
+      delta_vs_7d_avg_kg: delta7d,
+      body_fat_pct: correctedBodyFat,
+      lean_mass_kg: leanMassKg,
+      progress_percent: null,
+      goal: {
+        configured: goal.configured,
+        goal_type: goal.goal_type,
+        target_weight_kg: goal.target_weight_kg,
+        target_date_local: goal.target_date_local,
+      },
+      forecast: {
+        horizon_days: 42,
+        weight_low_kg_at_horizon: null,
+        weight_high_kg_at_horizon: null,
+        eta_weeks: null,
+        eta_uncertainty_weeks: null,
+      },
+      source: {
+        label: sourceLabel,
+        last_sync_relative: null,
+        staleness_days: null,
       },
     });
   } catch (error) {
