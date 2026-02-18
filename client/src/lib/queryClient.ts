@@ -334,6 +334,13 @@ export const getQueryFn: <T>(options: {
       return null;
     }
 
+    // 404 means "no data available" for health endpoints - return null instead of throwing
+    // This prevents the dashboard from blanking when endpoints like /api/sleep/today or
+    // /api/readiness/today return 404 (valid state when user has no data for today)
+    if (res.status === 404) {
+      return null;
+    }
+
     await throwIfResNotOk(res);
     return await res.json();
   };

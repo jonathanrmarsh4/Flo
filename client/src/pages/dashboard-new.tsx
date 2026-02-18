@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
 import { AnimatePresence } from 'framer-motion';
 import { DashboardScreen } from '@/components/DashboardScreen';
+import { DashboardErrorBoundary } from '@/components/DashboardErrorBoundary';
 import { BottomNav } from '@/components/BottomNav';
 import { VoiceChatScreen } from '@/components/VoiceChatScreen';
 import { useAuth } from '@/hooks/useAuth';
@@ -59,13 +60,15 @@ export default function Dashboard() {
 
   return (
     <div className="h-screen overflow-hidden flex flex-col">
-      <DashboardScreen 
-        isDark={isDark}
-        onSettingsClick={handleSettingsClick}
-        onThemeToggle={toggleTheme}
-        onLogout={handleLogout}
-        onTalkToFlo={handleTalkToFlo}
-      />
+      <DashboardErrorBoundary isDark={isDark}>
+        <DashboardScreen 
+          isDark={isDark}
+          onSettingsClick={handleSettingsClick}
+          onThemeToggle={toggleTheme}
+          onLogout={handleLogout}
+          onTalkToFlo={handleTalkToFlo}
+        />
+      </DashboardErrorBoundary>
       
       <BottomNav 
         isDark={isDark}
