@@ -1,38 +1,13 @@
 /**
  * Weight & Body Composition Forecasting Engine
  * 
- * Provides ML-driven weight forecasting with:
- * - Multi-source data ingestion (HealthKit, manual, DEXA, CGM)
- * - Daily feature aggregation and trend analysis
- * - Personalized forecast bands with confidence intervals
- * - Driver attribution and scenario simulation
+ * ClickHouse-based ML forecasting has been removed.
+ * Weight data is now read directly from Supabase in the weightForecast routes.
+ * AI-powered forecast will be added in a future update.
  */
 
-export { initializeWeightForecastSchema, queueForecastRecompute } from './clickhouseSchema';
-export { 
-  startWeightForecastOrchestrator, 
-  stopWeightForecastOrchestrator,
-  runHourlyJobs,
-  runRecomputeQueueJob,
-  triggerHourlyJobs,
-  triggerRecomputeQueueJob,
-  getOrchestrationStats,
-  type JobResult,
-  type OrchestrationStats 
-} from './orchestrationJobs';
-export {
-  startForecastWorker,
-  stopForecastWorker,
-  processUserForecastManual,
-  getWorkerStats,
-  type WorkerStats
-} from './forecastWorker';
-export {
-  syncHealthKitWeightSamples,
-  insertManualWeighIn,
-  insertManualBodyComp,
-  syncHistoricalWeightFromSupabase,
-  type HealthKitSample,
-  type WeightEvent,
-  type BodyCompEvent
-} from './dataIngestion';
+// Placeholder exports to avoid import errors during transition
+export function startWeightForecastOrchestrator() {}
+export function stopWeightForecastOrchestrator() {}
+export function startForecastWorker() {}
+export function stopForecastWorker() {}

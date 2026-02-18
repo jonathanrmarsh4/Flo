@@ -9,9 +9,7 @@ import { startInsightsSchedulerV2 } from "./services/insightsSchedulerV2";
 import { initializeDailyReminderScheduler } from "./services/dailyReminderScheduler";
 import { initializeReminderDeliveryService } from "./services/reminderDeliveryService";
 import { startFollowUpScheduler } from "./services/followUpScheduler";
-import { clickhouseOrchestrator } from "./services/clickhouseOrchestrator";
 import { startMorningBriefingScheduler } from "./services/morningBriefingScheduler";
-import { startWeightForecastOrchestrator, startForecastWorker } from "./services/weightForecast";
 import { startCGMSyncScheduler } from "./services/cgmSyncScheduler";
 import { startOuraSyncScheduler } from "./services/ouraSyncScheduler";
 import { centralizedNotificationService } from "./services/centralizedNotificationService";
@@ -175,9 +173,6 @@ app.use((req, res, next) => {
     // Start background schedulers immediately (no setTimeout delay)
     // This is safe for Reserved VM deployments and development
     try {
-      // Start the ClickHouse orchestrator (4 windows: 00:00, 06:00, 12:00, 18:00 UTC)
-      clickhouseOrchestrator.start();
-      
       // Start the weekly Flōmentum aggregation scheduler
       startFlomentumWeeklyScheduler();
       
@@ -201,12 +196,6 @@ app.use((req, res, next) => {
       
       // Start the Oura sync scheduler (hourly for connected Oura users)
       startOuraSyncScheduler();
-      
-      // Start the weight forecast orchestrator (hourly feature jobs + 10-min recompute queue)
-      startWeightForecastOrchestrator();
-      
-      // Start the weight forecast worker (polls queue and generates forecasts every 10s)
-      startForecastWorker();
       
       // Start the centralized notification service (queue-based, timezone-aware notifications)
       centralizedNotificationService.start().then(result => {

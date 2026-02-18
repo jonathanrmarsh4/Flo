@@ -46,7 +46,6 @@ import {
   type BiomarkerFollowup,
 } from './supabaseHealthStorage';
 import { behaviorAttributionEngine } from './behaviorAttributionEngine';
-import { clickhouseBaselineEngine } from './clickhouseBaselineEngine';
 import { getHealthId as getSupabaseHealthId } from './supabaseHealthStorage';
 
 // In-memory cache for user health context (5 minute TTL)
@@ -504,43 +503,55 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoStr = formatDateInTimezone(sevenDaysAgo, userTimezone);
 
-    // Fetch ClickHouse 90-day baselines for consistent comparison across all AI features
-    // This ensures Flō Chat uses the same baselines as Health Alerts and Morning Briefing
+    // Fetch 90-day baselines from Supabase for consistent comparison across all AI features
     try {
       const healthId = await getSupabaseHealthId(userId);
       if (healthId) {
-        const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, 90);
-        if (baselines.length > 0) {
-          const baselineMap = new Map(baselines.map(b => [b.metricType, b]));
-          
-          const getBaseline = (metricType: string) => {
-            const b = baselineMap.get(metricType);
-            return b ? { baseline: b.meanValue, stdDev: b.stdDev } : { baseline: null, stdDev: null };
-          };
-          
-          context.clickhouseBaselines = {
-            sleepDuration: getBaseline('sleep_duration_min'),
-            deepSleep: getBaseline('deep_sleep_min'),
-            remSleep: getBaseline('rem_sleep_min'),
-            hrv: getBaseline('hrv_ms'),
-            rhr: getBaseline('resting_heart_rate_bpm'),
-            steps: getBaseline('steps'),
-            activeEnergy: getBaseline('active_energy'),
-          };
-          
-          logger.info(`[FloOracle] Fetched ClickHouse 90-day baselines: ${baselines.length} metrics`, {
-            sleepDuration: context.clickhouseBaselines.sleepDuration.baseline,
-            deepSleep: context.clickhouseBaselines.deepSleep.baseline,
-            hrv: context.clickhouseBaselines.hrv.baseline,
-          });
-        } else {
-          logger.warn(`[FloOracle] No ClickHouse baselines found for healthId ${healthId} - Chat may diverge from Health Alerts`);
-        }
-      } else {
-        logger.warn(`[FloOracle] No healthId found for userId ${userId} - Chat baselines unavailable`);
+        const { getSupabaseClient } = await import('./supabaseClient');
+        const sb = getSupabaseClient();
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 90);
+        const cutoffStr = cutoff.toISOString().split('T')[0];
+
+        const avg = (vals: (number | null | undefined)[]) => {
+          const valid = vals.filter((v): v is number => v != null && !isNaN(v));
+          return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
+        };
+        const std = (vals: (number | null | undefined)[], mean: number | null) => {
+          if (mean == null) return null;
+          const valid = vals.filter((v): v is number => v != null && !isNaN(v));
+          if (valid.length < 2) return null;
+          const variance = valid.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / valid.length;
+          return Math.sqrt(variance);
+        };
+
+        const { data: sleepRows } = await sb.from('sleep_nights')
+          .select('hrv_ms, resting_hr_bpm, total_sleep_min, deep_sleep_min, rem_sleep_min')
+          .eq('health_id', healthId).gte('sleep_date', cutoffStr).gt('total_sleep_min', 180);
+        const { data: actRows } = await sb.from('user_daily_metrics')
+          .select('steps_raw_sum, steps_normalized, active_energy_kcal')
+          .eq('health_id', healthId).gte('local_date', cutoffStr);
+
+        const mk = (vals: (number | null | undefined)[]) => {
+          const m = avg(vals);
+          return { baseline: m, stdDev: std(vals, m) };
+        };
+        const stepsVals = (actRows ?? []).map(r =>
+          r.steps_raw_sum != null && r.steps_raw_sum > 0 ? r.steps_raw_sum : r.steps_normalized
+        );
+        context.clickhouseBaselines = {
+          sleepDuration: mk((sleepRows ?? []).map(r => r.total_sleep_min)),
+          deepSleep: mk((sleepRows ?? []).map(r => r.deep_sleep_min)),
+          remSleep: mk((sleepRows ?? []).map(r => r.rem_sleep_min)),
+          hrv: mk((sleepRows ?? []).map(r => r.hrv_ms)),
+          rhr: mk((sleepRows ?? []).map(r => r.resting_hr_bpm)),
+          steps: mk(stepsVals),
+          activeEnergy: mk((actRows ?? []).map(r => r.active_energy_kcal)),
+        };
+        logger.info(`[FloOracle] Fetched Supabase 90-day baselines for ${healthId}`);
       }
     } catch (error) {
-      logger.error('[FloOracle] Error fetching ClickHouse baselines:', error);
+      logger.error('[FloOracle] Error fetching Supabase baselines:', error);
     }
 
     // Check if Supabase is enabled for routing wearable data

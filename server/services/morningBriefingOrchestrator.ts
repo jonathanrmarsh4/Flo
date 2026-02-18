@@ -1,5 +1,5 @@
 import { createLogger } from '../utils/logger';
-import { clickhouse } from './clickhouseService';
+import { clickhouse } from './clickhouseService'; // stub - all calls are no-ops
 import { getSupabaseClient } from './supabaseClient';
 import { getHealthId } from './supabaseHealthStorage';
 import { apnsService } from './apnsService';
@@ -221,186 +221,86 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
   };
 
   try {
-    // DEBUG: First check how many total rows exist for this health_id in ClickHouse
-    const countQuery = `
-      SELECT count() as total_rows, min(recorded_at) as earliest, max(recorded_at) as latest
-      FROM flo_health.health_metrics
-      WHERE health_id = {healthId:String}
-    `;
-    const countResult = await clickhouse.query<{
-      total_rows: number;
-      earliest: string;
-      latest: string;
-    }>(countQuery, { healthId });
-    
-    if (countResult.length > 0) {
-      const { total_rows, earliest, latest } = countResult[0];
-      logger.info(`[MorningBriefing] DEBUG ClickHouse data for ${healthId}: total_rows=${total_rows}, earliest=${earliest}, latest=${latest}`);
-      
-      // AUTO-HEAL: If ClickHouse has 0 rows, trigger full history sync from Supabase (once)
-      if (total_rows === 0) {
-        const { clickhouseBaselineEngine } = await import('./clickhouseBaselineEngine');
-        
-        // Check if we already attempted a sync for this user recently (prevent repeated syncs)
-        if (!clickhouseBaselineEngine.hasRecentSyncAttempt(healthId)) {
-          logger.warn(`[MorningBriefing] ClickHouse has 0 rows for ${healthId}, triggering full history sync...`);
-          try {
-            const syncResult = await clickhouseBaselineEngine.syncAllHealthData(healthId, null);
-            logger.info(`[MorningBriefing] Full history sync complete for ${healthId}: ${syncResult.total} records synced`);
-            // Mark sync as attempted regardless of result count
-            clickhouseBaselineEngine.recordSyncAttempt(healthId, syncResult.total);
-          } catch (syncErr) {
-            logger.error(`[MorningBriefing] Full history sync failed for ${healthId}:`, syncErr);
-            // Mark as attempted to avoid thrashing on repeated errors
-            clickhouseBaselineEngine.recordSyncAttempt(healthId, 0);
-          }
-        } else {
-          logger.debug(`[MorningBriefing] Skipping sync for ${healthId} - recent attempt already made`);
-        }
+    // Compute rolling baselines directly from Supabase (90d → 30d → 7d fallback)
+    const windowOptions = [90, 30, 7];
+
+    for (const windowDays of windowOptions) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - windowDays);
+      const cutoffStr = cutoff.toISOString().split('T')[0];
+
+      const { data: sleepRows } = await supabase
+        .from('sleep_nights')
+        .select('hrv_ms, resting_hr_bpm, total_sleep_min, deep_sleep_min')
+        .eq('health_id', healthId)
+        .gte('sleep_date', cutoffStr)
+        .gt('total_sleep_min', 180);
+
+      const { data: activityRows } = await supabase
+        .from('user_daily_metrics')
+        .select('steps_raw_sum, steps_normalized, active_energy_kcal')
+        .eq('health_id', healthId)
+        .gte('local_date', cutoffStr);
+
+      if (!sleepRows?.length && !activityRows?.length) {
+        logger.debug(`[MorningBriefing] No Supabase data for ${healthId} in ${windowDays}-day window`);
+        continue;
       }
-    } else {
-      logger.warn(`[MorningBriefing] DEBUG ClickHouse has NO data for healthId=${healthId}`);
+
+      const avg = (vals: (number | null | undefined)[]) => {
+        const valid = vals.filter((v): v is number => v != null && !isNaN(v));
+        return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
+      };
+      const stdDev = (vals: (number | null | undefined)[], mean: number | null) => {
+        if (mean == null) return null;
+        const valid = vals.filter((v): v is number => v != null && !isNaN(v));
+        if (valid.length < 2) return null;
+        const variance = valid.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / valid.length;
+        return Math.sqrt(variance);
+      };
+
+      const hrvVals = sleepRows?.map(r => r.hrv_ms) ?? [];
+      const rhrVals = sleepRows?.map(r => r.resting_hr_bpm) ?? [];
+      const sleepDurVals = sleepRows?.map(r => r.total_sleep_min) ?? [];
+      const deepSleepVals = sleepRows?.map(r => r.deep_sleep_min) ?? [];
+      const stepsVals = (activityRows ?? []).map(r =>
+        r.steps_raw_sum != null && r.steps_raw_sum > 0 ? r.steps_raw_sum : r.steps_normalized
+      );
+      const energyVals = (activityRows ?? []).map(r => r.active_energy_kcal);
+
+      const hrvMean = avg(hrvVals);
+      const rhrMean = avg(rhrVals);
+      const sleepDurMeanMin = avg(sleepDurVals);
+      const sleepDurStdMin = stdDev(sleepDurVals, sleepDurMeanMin);
+
+      logger.info(
+        `[MorningBriefing] Supabase baselines (${windowDays}d) for ${healthId}: ` +
+        `hrv=${hrvMean?.toFixed(1)}, rhr=${rhrMean?.toFixed(1)}, ` +
+        `sleep=${sleepDurMeanMin?.toFixed(0)}min, deep=${avg(deepSleepVals)?.toFixed(0)}min, ` +
+        `steps=${avg(stepsVals)?.toFixed(0)}, energy=${avg(energyVals)?.toFixed(0)}`
+      );
+
+      return {
+        hrv_mean: hrvMean ?? defaults.hrv_mean,
+        hrv_std: stdDev(hrvVals, hrvMean) ?? defaults.hrv_std,
+        rhr_mean: rhrMean ?? defaults.rhr_mean,
+        rhr_std: stdDev(rhrVals, rhrMean) ?? defaults.rhr_std,
+        sleep_duration_mean: sleepDurMeanMin ? sleepDurMeanMin / 60 : defaults.sleep_duration_mean,
+        sleep_duration_std: sleepDurStdMin ? sleepDurStdMin / 60 : defaults.sleep_duration_std,
+        deep_sleep_mean: avg(deepSleepVals) ?? defaults.deep_sleep_mean,
+        steps_mean: avg(stepsVals) ?? defaults.steps_mean,
+        active_energy_mean: avg(energyVals) ?? defaults.active_energy_mean,
+      };
     }
 
-    // First, try to compute fresh baselines directly from health_metrics (source of truth)
-    // This bypasses the metric_baselines table which may have stale or mismatched window data
-    // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
-    // Duplicates are handled by the aggregation (GROUP BY) itself
-    // IMPORTANT: Filter out naps/partial syncs for sleep metrics using minimum thresholds
-    const liveBaselinesQuery = `
-      SELECT
-        metric_type,
-        avg(value) as mean_value,
-        stddevPop(value) as std_dev,
-        count() as sample_count
-      FROM flo_health.health_metrics
-      WHERE health_id = {healthId:String}
-        AND recorded_at >= now() - INTERVAL 90 DAY
-        AND (
-          (metric_type = 'time_in_bed_min' AND value >= 240) OR
-          (metric_type = 'sleep_duration_min' AND value >= 180) OR
-          (metric_type = 'total_sleep_min' AND value >= 180) OR
-          (metric_type = 'deep_sleep_min' AND value >= 15) OR
-          (metric_type = 'rem_sleep_min' AND value >= 15) OR
-          (metric_type = 'core_sleep_min' AND value >= 60) OR
-          (metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
-        )
-      GROUP BY metric_type
-      HAVING count() >= 3
-    `;
-
-    let rows = await clickhouse.query<{
-      metric_type: string;
-      mean_value: number;
-      std_dev: number;
-      sample_count: number;
-    }>(liveBaselinesQuery, { healthId });
-
-    // If no 90-day data, try 30-day window
-    if (rows.length === 0) {
-      logger.debug(`[MorningBriefing] No 90-day baselines for ${healthId}, trying 30-day window`);
-      const thirtyDayQuery = `
-        SELECT
-          metric_type,
-          avg(value) as mean_value,
-          stddevPop(value) as std_dev,
-          count() as sample_count
-        FROM flo_health.health_metrics
-        WHERE health_id = {healthId:String}
-          AND recorded_at >= now() - INTERVAL 30 DAY
-          AND (
-            (metric_type = 'time_in_bed_min' AND value >= 240) OR
-            (metric_type = 'sleep_duration_min' AND value >= 180) OR
-            (metric_type = 'total_sleep_min' AND value >= 180) OR
-            (metric_type = 'deep_sleep_min' AND value >= 15) OR
-            (metric_type = 'rem_sleep_min' AND value >= 15) OR
-            (metric_type = 'core_sleep_min' AND value >= 60) OR
-            (metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
-          )
-        GROUP BY metric_type
-        HAVING count() >= 3
-      `;
-      rows = await clickhouse.query<{
-        metric_type: string;
-        mean_value: number;
-        std_dev: number;
-        sample_count: number;
-      }>(thirtyDayQuery, { healthId });
-    }
-
-    // If still no data, try 7-day window as last resort
-    if (rows.length === 0) {
-      logger.debug(`[MorningBriefing] No 30-day baselines for ${healthId}, trying 7-day window`);
-      const sevenDayQuery = `
-        SELECT
-          metric_type,
-          avg(value) as mean_value,
-          stddevPop(value) as std_dev,
-          count() as sample_count
-        FROM flo_health.health_metrics
-        WHERE health_id = {healthId:String}
-          AND recorded_at >= now() - INTERVAL 7 DAY
-          AND (
-            (metric_type = 'time_in_bed_min' AND value >= 240) OR
-            (metric_type = 'sleep_duration_min' AND value >= 180) OR
-            (metric_type = 'total_sleep_min' AND value >= 180) OR
-            (metric_type = 'deep_sleep_min' AND value >= 15) OR
-            (metric_type = 'rem_sleep_min' AND value >= 15) OR
-            (metric_type = 'core_sleep_min' AND value >= 60) OR
-            (metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
-          )
-        GROUP BY metric_type
-        HAVING count() >= 2
-      `;
-      rows = await clickhouse.query<{
-        metric_type: string;
-        mean_value: number;
-        std_dev: number;
-        sample_count: number;
-      }>(sevenDayQuery, { healthId });
-    }
-
-    if (rows.length === 0) {
-      logger.debug(`[MorningBriefing] No ClickHouse baselines for ${healthId}, using population defaults`);
-      return defaults;
-    }
-
-    const metricsMap = new Map(rows.map(r => [r.metric_type, r]));
-    
-    // Log found baselines for debugging
-    const foundMetrics = Array.from(metricsMap.keys()).join(', ');
-    const hrvBaseline = metricsMap.get('hrv_ms');
-    const deepSleepBaseline = metricsMap.get('deep_sleep_min');
-    const stepsBaseline = metricsMap.get('steps');
-    const activeEnergyBaseline = metricsMap.get('active_energy');
-    logger.info(`[MorningBriefing] Found baselines for ${healthId}: ${foundMetrics}. HRV: mean=${hrvBaseline?.mean_value?.toFixed(1)}, std=${hrvBaseline?.std_dev?.toFixed(1)}, n=${hrvBaseline?.sample_count}. DeepSleep: mean=${deepSleepBaseline?.mean_value?.toFixed(1)}. Steps: mean=${stepsBaseline?.mean_value?.toFixed(0)}, n=${stepsBaseline?.sample_count}. ActiveEnergy: mean=${activeEnergyBaseline?.mean_value?.toFixed(0)}, n=${activeEnergyBaseline?.sample_count}`);
-
-    // IMPORTANT: Metric type names must match what's stored in ClickHouse:
-    // - hrv_ms (not hrv)
-    // - resting_heart_rate_bpm (not resting_heart_rate)  
-    // - sleep_duration_min (not sleep_duration) - stored in minutes, convert to hours
-    // - deep_sleep_min (not deep_sleep)
-    // - steps (correct)
-    // - active_energy (correct)
-    const sleepDurationMin = metricsMap.get('sleep_duration_min')?.mean_value;
-    const sleepDurationStdMin = metricsMap.get('sleep_duration_min')?.std_dev;
-    
-    return {
-      hrv_mean: metricsMap.get('hrv_ms')?.mean_value ?? defaults.hrv_mean,
-      hrv_std: metricsMap.get('hrv_ms')?.std_dev ?? defaults.hrv_std,
-      rhr_mean: metricsMap.get('resting_heart_rate_bpm')?.mean_value ?? defaults.rhr_mean,
-      rhr_std: metricsMap.get('resting_heart_rate_bpm')?.std_dev ?? defaults.rhr_std,
-      sleep_duration_mean: sleepDurationMin ? sleepDurationMin / 60 : defaults.sleep_duration_mean, // Convert min to hours
-      sleep_duration_std: sleepDurationStdMin ? sleepDurationStdMin / 60 : defaults.sleep_duration_std, // Convert min to hours
-      deep_sleep_mean: metricsMap.get('deep_sleep_min')?.mean_value ?? defaults.deep_sleep_mean,
-      steps_mean: metricsMap.get('steps')?.mean_value ?? defaults.steps_mean,
-      active_energy_mean: metricsMap.get('active_energy')?.mean_value ?? defaults.active_energy_mean,
-    };
+    logger.debug(`[MorningBriefing] No Supabase baselines for ${healthId}, using population defaults`);
+    return defaults;
   } catch (error) {
     logger.error('[MorningBriefing] Error fetching baselines:', error);
     return defaults;
   }
 }
+
 
 async function fetchTodayMetrics(healthId: string, eventDate: string, timezone?: string): Promise<TodayMetrics> {
   // Default values when data is missing
@@ -445,69 +345,22 @@ async function fetchTodayMetrics(healthId: string, eventDate: string, timezone?:
       .eq('sleep_date', eventDate)
       .maybeSingle();
 
-    // Fetch activity metrics from ClickHouse (source of truth) for YESTERDAY
-    // ClickHouse has more reliable activity data than Supabase user_daily_metrics
-    // Use aggregation (max) to handle potential duplicate records per day
-    let clickhouseActivity: { steps: number | null; active_energy: number | null; exercise_minutes: number | null } = {
-      steps: null,
-      active_energy: null,
-      exercise_minutes: null,
-    };
+    // Fetch activity metrics directly from Supabase for YESTERDAY
+    const { data: dailyMetrics } = await supabase
+      .from('user_daily_metrics')
+      .select('steps_normalized, steps_raw_sum, active_energy_kcal, exercise_minutes')
+      .eq('health_id', healthId)
+      .eq('local_date', yesterdayDate)
+      .maybeSingle();
 
-    try {
-      // Use max(value) for cumulative metrics like steps and active_energy
-      // These metrics accumulate throughout the day, so we want the highest value seen
-      // Using argMax(value, recorded_at) would get the LATEST sync which might be a partial/incomplete value
-      // (e.g., 8 steps from a fresh app open instead of 8,338 steps from an earlier complete sync)
-      const activityQuery = `
-        SELECT 
-          metric_type,
-          max(value) as value
-        FROM flo_health.health_metrics
-        WHERE health_id = {healthId:String}
-          AND toDate(local_date) = toDate({yesterdayDate:String})
-          AND metric_type IN ('steps', 'active_energy', 'exercise_minutes')
-        GROUP BY metric_type
-      `;
-      
-      const activityRows = await clickhouse.query<{ metric_type: string; value: number }>(
-        activityQuery,
-        { healthId, yesterdayDate }
-      );
+    logger.info(`[MorningBriefing] Supabase activity for ${healthId} on ${yesterdayDate}: steps_raw_sum=${dailyMetrics?.steps_raw_sum}, steps_normalized=${dailyMetrics?.steps_normalized}, active_energy_kcal=${dailyMetrics?.active_energy_kcal}`);
 
-      for (const row of activityRows) {
-        if (row.metric_type === 'steps') clickhouseActivity.steps = row.value;
-        if (row.metric_type === 'active_energy') clickhouseActivity.active_energy = row.value;
-        if (row.metric_type === 'exercise_minutes') clickhouseActivity.exercise_minutes = row.value;
-      }
-
-      logger.info(`[MorningBriefing] ClickHouse activity for ${healthId} on ${yesterdayDate}: steps=${clickhouseActivity.steps}, active_energy=${clickhouseActivity.active_energy}, exercise_minutes=${clickhouseActivity.exercise_minutes}`);
-    } catch (chErr) {
-      logger.warn(`[MorningBriefing] ClickHouse activity query failed, falling back to Supabase: ${chErr instanceof Error ? chErr.message : String(chErr)}`);
-    }
-
-    // Fallback to Supabase if ClickHouse didn't return activity data
-    if (clickhouseActivity.steps === null && clickhouseActivity.active_energy === null) {
-      const { data: dailyMetrics } = await supabase
-        .from('user_daily_metrics')
-        .select('steps_normalized, steps_raw_sum, active_energy_kcal, exercise_minutes, hrv_ms, resting_hr_bpm')
-        .eq('health_id', healthId)
-        .eq('local_date', yesterdayDate)
-        .maybeSingle();
-
-      logger.info(`[MorningBriefing] Supabase fallback for ${healthId}: steps_raw_sum=${dailyMetrics?.steps_raw_sum}, steps_normalized=${dailyMetrics?.steps_normalized}, active_energy_kcal=${dailyMetrics?.active_energy_kcal}`);
-
-      // Use Supabase data as fallback - prefer steps_raw_sum (raw count) over steps_normalized (0-1 score)
-      // steps_normalized is a unitless score and should only be used if raw sum is unavailable
-      if (dailyMetrics?.steps_raw_sum != null && dailyMetrics.steps_raw_sum > 0) {
-        clickhouseActivity.steps = dailyMetrics.steps_raw_sum;
-      } else if (dailyMetrics?.steps_normalized != null) {
-        // steps_normalized is likely the actual step count despite the name (iOS sends it this way)
-        clickhouseActivity.steps = dailyMetrics.steps_normalized;
-        logger.warn(`[MorningBriefing] Using steps_normalized for ${healthId} - steps_raw_sum was null/zero`);
-      }
-      clickhouseActivity.active_energy = dailyMetrics?.active_energy_kcal ?? null;
-      clickhouseActivity.exercise_minutes = dailyMetrics?.exercise_minutes ?? null;
+    // Prefer steps_raw_sum (actual count) over steps_normalized (may be a score)
+    let stepsValue: number | null = null;
+    if (dailyMetrics?.steps_raw_sum != null && dailyMetrics.steps_raw_sum > 0) {
+      stepsValue = dailyMetrics.steps_raw_sum;
+    } else if (dailyMetrics?.steps_normalized != null) {
+      stepsValue = dailyMetrics.steps_normalized;
     }
 
     // Note: readiness_score is now handled exclusively by aggregateDailyInsights via readinessEngine
@@ -522,10 +375,10 @@ async function fetchTodayMetrics(healthId: string, eventDate: string, timezone?:
       deep_sleep_minutes: sleepData?.deep_sleep_min ?? null,
       rem_sleep_minutes: sleepData?.rem_sleep_min ?? null,
       sleep_efficiency: sleepData?.sleep_efficiency_pct ?? null,
-      // Activity metrics from ClickHouse (source of truth) with Supabase fallback
-      steps: clickhouseActivity.steps,
-      active_energy: clickhouseActivity.active_energy,
-      workout_minutes: clickhouseActivity.exercise_minutes,
+      // Activity metrics from Supabase
+      steps: stepsValue,
+      active_energy: dailyMetrics?.active_energy_kcal ?? null,
+      workout_minutes: dailyMetrics?.exercise_minutes ?? null,
       readiness_score: null, // Calculated by aggregateDailyInsights using readinessEngine
     };
   } catch (error) {

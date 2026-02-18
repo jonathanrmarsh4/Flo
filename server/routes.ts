@@ -131,21 +131,7 @@ import {
   type MedicalDocumentType
 } from "./services/medicalDocumentService";
 
-// Rate limiter for ClickHouse anomaly detection to prevent spam
-// Only run anomaly detection once per user per 6 hours
-const anomalyDetectionCooldowns = new Map<string, number>();
-const ANOMALY_DETECTION_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-function shouldRunAnomalyDetection(userId: string): boolean {
-  const lastRun = anomalyDetectionCooldowns.get(userId);
-  const now = Date.now();
-  
-  if (!lastRun || (now - lastRun) > ANOMALY_DETECTION_COOLDOWN_MS) {
-    anomalyDetectionCooldowns.set(userId, now);
-    return true;
-  }
-  return false;
-}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -581,23 +567,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.info(`[LifeEvents] Quick-logged ${eventType} for user ${userId} via API key`);
       
-      // Trigger ClickHouse life events sync (non-blocking background task)
-      (async () => {
-        try {
-          const { isClickHouseEnabled } = await import('./services/clickhouseService');
-          if (isClickHouseEnabled()) {
-            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-            const { getHealthId } = await import('./services/supabaseHealthStorage');
-            const healthId = await getHealthId(userId);
-            
-            const syncedCount = await clickhouseBaselineEngine.syncLifeEvents(healthId, 7);
-            logger.info(`[ClickHouseML] Auto-synced ${syncedCount} life events for ${userId}`);
-          }
-        } catch (clickhouseError: any) {
-          logger.warn(`[ClickHouseML] Life events sync failed for ${userId}:`, clickhouseError.message);
-        }
-      })();
-      
       res.status(201).json({
         success: true,
         event: {
@@ -753,23 +722,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Update record status
         await storage.updateBloodWorkRecordStatus(record.id, "completed");
-
-        // Trigger ClickHouse biomarker sync (non-blocking background task)
-        (async () => {
-          try {
-            const { isClickHouseEnabled } = await import('./services/clickhouseService');
-            if (isClickHouseEnabled()) {
-              const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-              const { getHealthId } = await import('./services/supabaseHealthStorage');
-              const healthId = await getHealthId(userId);
-              
-              const syncedCount = await clickhouseBaselineEngine.syncBiomarkerData(healthId, 365);
-              logger.info(`[ClickHouseML] Auto-synced ${syncedCount} biomarkers for ${userId} after blood work upload`);
-            }
-          } catch (clickhouseError: any) {
-            logger.warn(`[ClickHouseML] Biomarker sync failed for ${userId}:`, clickhouseError.message);
-          }
-        })();
 
         res.json({ 
           success: true, 
@@ -3017,59 +2969,24 @@ Important: This is for educational purposes. Include a brief note that users sho
         logger.debug('No action plan items found for health summary report', { error: error?.message });
       }
       
-      // Fetch correlation insights from ClickHouse ML engine and brain system
+      // Fetch correlation insights from brain system
       let correlationInsights: any[] = [];
       try {
-        const { getHealthId } = await import('./services/supabaseHealthStorage');
-        const healthId = await getHealthId(userId);
+        // Get recent pattern-based insights from brain
+        const { correlationInsightService } = await import('./services/correlationInsightService');
+        const recentInsights = await correlationInsightService.getRecentInsights(userId, 6);
         
-        if (healthId) {
-          // Get long-term behavioral correlations from ClickHouse
-          const { ClickHouseCorrelationEngine } = await import('./services/clickhouseCorrelationEngine');
-          const correlationEngine = new ClickHouseCorrelationEngine();
-          const longTermCorrelations = await correlationEngine.getLongTermInsights(healthId, 5);
-          
-          // Get recent pattern-based insights from brain
-          const { correlationInsightService } = await import('./services/correlationInsightService');
-          const recentInsights = await correlationInsightService.getRecentInsights(userId, 3);
-          
-          // Format long-term correlations for report with safe defaults
-          const longTermFormatted = longTermCorrelations
-            .filter(c => c && (c.naturalLanguageInsight || c.behaviorType))
-            .map(c => {
-              // Safe string extraction with fallbacks
-              const insight = c.naturalLanguageInsight || '';
-              const behaviorType = c.behaviorType || 'Behavior';
-              const outcomeType = c.outcomeType || 'Outcome';
-              const behaviorDesc = c.behaviorDescription || behaviorType;
-              const outcomeDesc = c.outcomeDescription || outcomeType;
-              const direction = c.effectDirection || 'positive';
-              const effectPct = typeof c.effectSizePct === 'number' ? c.effectSizePct : 0;
-              const pValue = typeof c.pValue === 'number' ? c.pValue : 0.05;
-              const confidence = typeof c.confidenceLevel === 'number' ? c.confidenceLevel : 0.5;
-              const months = c.timeRangeMonths || 3;
-              
-              return {
-                title: insight.split('.')[0] || `${behaviorType} → ${outcomeType}`,
-                description: insight || `${behaviorDesc} shows a ${direction} correlation with ${outcomeDesc}`,
-                biomarkersInvolved: [behaviorType, outcomeType].filter(Boolean),
-                clinicalRelevance: `${Math.abs(effectPct).toFixed(1)}% ${direction === 'positive' ? 'improvement' : 'impact'} observed over ${months} months (p=${pValue.toFixed(3)}, confidence: ${(confidence * 100).toFixed(0)}%)`,
-              };
-            });
-          
-          // Format recent insights for report with safe defaults
-          const recentFormatted = recentInsights
-            .filter(i => i && (i.title || i.description))
-            .map(i => ({
-              title: i.title || 'Pattern Detected',
-              description: i.description || 'An interesting health pattern was identified in your data.',
-              biomarkersInvolved: i.metricsInvolved || [],
-              clinicalRelevance: `Pattern confidence: ${((i.confidence || 0.5) * 100).toFixed(0)}%. ${i.attribution || 'Based on multi-metric analysis.'}`,
-            }));
-          
-          correlationInsights = [...longTermFormatted, ...recentFormatted].slice(0, 6);
-          logger.info(`[HealthSummaryReport] Found ${correlationInsights.length} correlation insights for user ${userId}`);
-        }
+        // Format recent insights for report with safe defaults
+        correlationInsights = recentInsights
+          .filter(i => i && (i.title || i.description))
+          .map(i => ({
+            title: i.title || 'Pattern Detected',
+            description: i.description || 'An interesting health pattern was identified in your data.',
+            biomarkersInvolved: i.metricsInvolved || [],
+            clinicalRelevance: `Pattern confidence: ${((i.confidence || 0.5) * 100).toFixed(0)}%. ${i.attribution || 'Based on multi-metric analysis.'}`,
+          }));
+        
+        logger.info(`[HealthSummaryReport] Found ${correlationInsights.length} correlation insights for user ${userId}`);
       } catch (error: any) {
         logger.debug('Error fetching correlation insights for health summary report', { error: error?.message });
       }
@@ -5607,29 +5524,6 @@ Important: This is for educational purposes. Include a brief note that users sho
 
       await Promise.all(dbOperations);
 
-      // Fire-and-forget ClickHouse storage (non-blocking for faster response)
-      (async () => {
-        try {
-          const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-          const { getHealthId } = await import('./services/supabaseHealthStorage');
-          const healthId = await getHealthId(userId);
-          
-          await clickhouseBaselineEngine.storeFeedbackResponse(healthId, feedbackId, {
-            questionType: pending.question.questionType,
-            questionText: pending.question.questionText,
-            responseValue,
-            responseBoolean,
-            responseOption: selectedOption,
-            responseText,
-            triggerPattern: pending.question.triggerPattern,
-            triggerMetrics: pending.question.triggerMetrics,
-            collectionChannel: channel || 'in_app',
-          });
-        } catch (err) {
-          logger.error('[CorrelationFeedback] Background ClickHouse storage failed:', err);
-        }
-      })();
-
       logger.info('[CorrelationFeedback] Feedback submitted successfully', { 
         userId, 
         feedbackId,
@@ -5721,784 +5615,13 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
-  // ============================================================================
-  // Admin: ClickHouse Correlation Engine
-  // ============================================================================
-
-  // Admin: Initialize ClickHouse tables
-  app.post("/api/admin/clickhouse/init", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { clickhouse } = await import('./services/clickhouseService');
-      
-      if (!clickhouse.isEnabled()) {
-        return res.status(400).json({ 
-          error: "ClickHouse not configured",
-          hint: "Set CLICKHOUSE_HOST, CLICKHOUSE_USER, and CLICKHOUSE_PASSWORD secrets"
-        });
-      }
-
-      const success = await clickhouse.initialize();
-      
-      if (success) {
-        logger.info('[Admin] ClickHouse initialized successfully');
-        res.json({ success: true, message: "ClickHouse tables initialized" });
-      } else {
-        res.status(500).json({ error: "Failed to initialize ClickHouse" });
-      }
-    } catch (error) {
-      logger.error('[Admin] ClickHouse init error:', error);
-      res.status(500).json({ error: "Failed to initialize ClickHouse" });
-    }
-  });
-
-  // Admin: ClickHouse health check
-  app.get("/api/admin/clickhouse/health", isAuthenticated, requireAdmin, async (req, res) => {
-    try {
-      const { clickhouse } = await import('./services/clickhouseService');
-      const health = await clickhouse.healthCheck();
-      res.json(health);
-    } catch (error) {
-      logger.error('[Admin] ClickHouse health check error:', error);
-      res.status(500).json({ connected: false, error: String(error) });
-    }
-  });
-
-  // Admin: Sync user data to ClickHouse (COMPREHENSIVE - all data types)
-  app.post("/api/admin/clickhouse/sync", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId, daysBack = 90, comprehensive = true } = req.body;
-      
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      
-      let result;
-      if (comprehensive) {
-        result = await clickhouseBaselineEngine.syncAllHealthData(healthId, daysBack);
-        logger.info('[Admin] ClickHouse comprehensive sync complete', { userId, healthId, ...result });
-        res.json({ 
-          success: true, 
-          healthId,
-          syncType: 'comprehensive',
-          dataSources: {
-            healthMetrics: result.healthMetrics,
-            nutrition: result.nutrition,
-            biomarkers: result.biomarkers,
-            lifeEvents: result.lifeEvents,
-            environmental: result.environmental,
-            bodyComposition: result.bodyComposition,
-          },
-          totalRecords: result.total,
-        });
-      } else {
-        const rowsSynced = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, daysBack);
-        logger.info('[Admin] ClickHouse basic sync complete', { userId, healthId, rowsSynced });
-        res.json({ success: true, rowsSynced, healthId, syncType: 'basic' });
-      }
-    } catch (error) {
-      logger.error('[Admin] ClickHouse sync error:', error);
-      res.status(500).json({ error: "Failed to sync data to ClickHouse" });
-    }
-  });
-
-  // Admin: Get data coverage summary from ClickHouse
-  app.get("/api/admin/clickhouse/coverage/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      const coverage = await clickhouseBaselineEngine.getDataCoverageSummary(healthId);
-      
-      res.json({ 
-        healthId, 
-        coverage,
-        summary: {
-          totalRecords: Object.values(coverage).reduce((acc: number, c: any) => acc + c.count, 0),
-          dataSources: Object.fromEntries(
-            Object.entries(coverage).map(([key, val]: [string, any]) => [key, val.count > 0])
-          ),
-        }
-      });
-    } catch (error) {
-      logger.error('[Admin] ClickHouse coverage error:', error);
-      res.status(500).json({ error: "Failed to get data coverage" });
-    }
-  });
-
-  // Admin: Run ClickHouse ML analysis
-  app.post("/api/admin/clickhouse/analyze", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId, windowDays = 7 } = req.body;
-      
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      const { dynamicFeedbackGenerator } = await import('./services/dynamicFeedbackGenerator');
-      const { correlationInsightService } = await import('./services/correlationInsightService');
-      const { randomUUID } = await import('crypto');
-      
-      const healthId = await getHealthId(userId);
-      
-      // Get user's timezone for timezone-aware anomaly detection
-      const [userRecord] = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
-      const userTimezone = userRecord?.timezone || 'America/Los_Angeles';
-      
-      // First sync ALL latest data (comprehensive)
-      await clickhouseBaselineEngine.syncAllHealthData(healthId, 30);
-      
-      // Calculate baselines and detect anomalies
-      const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);
-      const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays, bypassRateLimit: true, timezone: userTimezone });
-      
-      // Generate smart insights with ML causal analysis for top anomalies
-      const feedbackQuestions: any[] = [];
-      const feedbackIds: string[] = [];
-      if (anomalies.length > 0) {
-        const questions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
-        
-        // Filter out any questions with invalid questionText as a safety check
-        const validQuestions = questions.filter(q => 
-          q.questionText && typeof q.questionText === 'string' && q.questionText.trim().length > 0
-        );
-        
-        if (validQuestions.length < questions.length) {
-          logger.warn(`[Admin] Filtered out ${questions.length - validQuestions.length} questions with invalid questionText`);
-        }
-        
-        // All questions visible immediately - no staggered delivery
-        const visibleAt = new Date();
-        const anomalyDate = new Date().toISOString().split('T')[0];
-
-        for (let i = 0; i < validQuestions.length; i++) {
-          const question = validQuestions[i];
-          const feedbackId = randomUUID();
-          
-          // Find the anomaly that matches this question's focusMetric
-          const matchingAnomaly = anomalies.find(a => a.metricType === question.focusMetric) || anomalies[i];
-          
-          // Generate smart insight with ML causal analysis (full history search)
-          let causalAnalysis = undefined;
-          if (matchingAnomaly) {
-            const smartInsight = await dynamicFeedbackGenerator.generateSmartInsight(
-              healthId,
-              matchingAnomaly,
-              anomalyDate,
-              { preferredName: undefined }
-            );
-            
-            if (smartInsight) {
-              causalAnalysis = {
-                insightText: smartInsight.insightText,
-                likelyCauses: smartInsight.likelyCauses,
-                whatsWorking: smartInsight.whatsWorking,
-                patternConfidence: smartInsight.confidence,
-                isRecurringPattern: smartInsight.isRecurringPattern,
-              };
-              // Use the smart insight's question if available
-              if (smartInsight.questionText) {
-                question.questionText = smartInsight.questionText;
-              }
-              logger.info(`[Admin] Generated smart insight with ${smartInsight.likelyCauses.length} causes, ${smartInsight.whatsWorking.length} positive patterns`);
-            }
-          }
-          
-          await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt, causalAnalysis);
-          feedbackQuestions.push({ 
-            ...question, 
-            feedbackId, 
-            visibleAt: visibleAt.toISOString(),
-            ...causalAnalysis,
-          });
-          feedbackIds.push(feedbackId);
-          logger.info(`[Admin] Stored feedback question ${feedbackId} for user ${userId}`);
-        }
-      }
-      
-      // Get ML insights
-      const mlInsights = await clickhouseBaselineEngine.getMLInsights(healthId);
-      const learningContext = await clickhouseBaselineEngine.getLearningContext(healthId);
-      
-      logger.info('[Admin] ClickHouse analysis complete', { 
-        userId, 
-        baselines: baselines.length, 
-        anomalies: anomalies.length,
-        questionsGenerated: feedbackQuestions.length,
-      });
-      
-      res.json({
-        success: true,
-        healthId,
-        baselines,
-        anomalies,
-        feedbackQuestion: feedbackQuestions[0] || null,
-        feedbackQuestions,
-        feedbackIds,
-        feedbackStored: feedbackIds.length > 0,
-        questionsGenerated: feedbackQuestions.length,
-        mlInsights,
-        learningContext,
-      });
-    } catch (error) {
-      logger.error('[Admin] ClickHouse analysis error:', error);
-      res.status(500).json({ error: "Failed to run ClickHouse analysis" });
-    }
-  });
-
-  // Admin: Simulate anomaly in ClickHouse
-  app.post("/api/admin/clickhouse/simulate", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId, scenario } = req.body;
-      
-      if (!userId || !scenario) {
-        return res.status(400).json({ error: "userId and scenario are required" });
-      }
-
-      const validScenarios = ['illness', 'recovery', 'single_metric'];
-      if (!validScenarios.includes(scenario)) {
-        return res.status(400).json({ error: `Invalid scenario. Valid options: ${validScenarios.join(', ')}` });
-      }
-
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      const { dynamicFeedbackGenerator } = await import('./services/dynamicFeedbackGenerator');
-      const { correlationInsightService } = await import('./services/correlationInsightService');
-      const { randomUUID } = await import('crypto');
-      
-      const healthId = await getHealthId(userId);
-      const anomalies = await clickhouseBaselineEngine.simulateAnomaly(healthId, scenario as 'illness' | 'recovery' | 'single_metric');
-      
-      const feedbackQuestions: any[] = [];
-      const feedbackIds: string[] = [];
-      if (anomalies.length > 0) {
-        const questions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
-        
-        // All questions visible immediately - no staggered delivery
-        const visibleAt = new Date();
-        const anomalyDate = new Date().toISOString().split('T')[0];
-
-        for (let i = 0; i < questions.length; i++) {
-          const question = questions[i];
-          const feedbackId = randomUUID();
-          
-          // Find matching anomaly and generate smart insight with causal analysis
-          const matchingAnomaly = anomalies.find(a => a.metricType === question.focusMetric) || anomalies[i];
-          
-          let causalAnalysis = undefined;
-          if (matchingAnomaly) {
-            const smartInsight = await dynamicFeedbackGenerator.generateSmartInsight(
-              healthId,
-              matchingAnomaly,
-              anomalyDate,
-              { preferredName: undefined }
-            );
-            
-            if (smartInsight) {
-              causalAnalysis = {
-                insightText: smartInsight.insightText,
-                likelyCauses: smartInsight.likelyCauses,
-                whatsWorking: smartInsight.whatsWorking,
-                patternConfidence: smartInsight.confidence,
-                isRecurringPattern: smartInsight.isRecurringPattern,
-              };
-              if (smartInsight.questionText) {
-                question.questionText = smartInsight.questionText;
-              }
-            }
-          }
-          
-          await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt, causalAnalysis);
-          feedbackQuestions.push({ 
-            ...question, 
-            feedbackId, 
-            visibleAt: visibleAt.toISOString(),
-            ...causalAnalysis,
-          });
-          feedbackIds.push(feedbackId);
-          logger.info(`[Admin] Stored simulated feedback question ${feedbackId} for user ${userId}`);
-        }
-      }
-      
-      logger.info('[Admin] ClickHouse simulation complete', { userId, scenario, anomalies: anomalies.length, questionsGenerated: feedbackQuestions.length });
-      
-      res.json({
-        success: true,
-        scenario,
-        healthId,
-        anomalies,
-        feedbackQuestion: feedbackQuestions[0] || null,
-        feedbackQuestions,
-        feedbackIds,
-        feedbackStored: feedbackIds.length > 0,
-        questionsGenerated: feedbackQuestions.length,
-      });
-    } catch (error) {
-      logger.error('[Admin] ClickHouse simulation error:', error);
-      res.status(500).json({ error: "Failed to simulate anomaly" });
-    }
-  });
-
-  // Admin: Get ML insights for a user
-  app.get("/api/admin/clickhouse/insights/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      const insights = await clickhouseBaselineEngine.getMLInsights(healthId);
-      const learningContext = await clickhouseBaselineEngine.getLearningContext(healthId);
-      
-      res.json({ healthId, ...insights, learningContext });
-    } catch (error) {
-      logger.error('[Admin] ClickHouse insights error:', error);
-      res.status(500).json({ error: "Failed to get ML insights" });
-    }
-  });
-
-  // Admin: Record feedback outcome for ML learning
-  app.post("/api/admin/clickhouse/feedback", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId, anomalyId, userFeeling, wasConfirmed, feedbackText } = req.body;
-      
-      if (!userId || !anomalyId || userFeeling === undefined || wasConfirmed === undefined) {
-        return res.status(400).json({ error: "userId, anomalyId, userFeeling, and wasConfirmed are required" });
-      }
-
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      await clickhouseBaselineEngine.recordFeedbackOutcome(healthId, anomalyId, userFeeling, wasConfirmed, feedbackText);
-      
-      logger.info('[Admin] ClickHouse feedback recorded', { userId, anomalyId, wasConfirmed });
-      
-      res.json({ success: true });
-    } catch (error) {
-      logger.error('[Admin] ClickHouse feedback error:', error);
-      res.status(500).json({ error: "Failed to record feedback" });
-    }
-  });
-
-  // Admin: Full history backfill for pattern memory (syncs ALL user data to ClickHouse)
-  // Includes batching, rate limiting, and async processing for large user sets
-  app.post("/api/admin/clickhouse/backfill-full-history", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId, allUsers, batchSize = 5, delayBetweenBatchesMs = 2000 } = req.body;
-      
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      if (allUsers) {
-        const activeUsers = await db.select({ id: users.id }).from(users).where(eq(users.isActive, true));
-        
-        if (activeUsers.length > 50) {
-          return res.status(400).json({ 
-            error: `Too many users (${activeUsers.length}). Use batchSize parameter or process specific users.`,
-            suggestion: "Set batchSize to a smaller number or process users individually with userId parameter"
-          });
-        }
-        
-        logger.info(`[Admin] Starting FULL HISTORY backfill for ${activeUsers.length} users (batch size: ${batchSize})`);
-        
-        const results: { userId: string; success: boolean; total: number; error?: string }[] = [];
-        
-        const batches: typeof activeUsers[] = [];
-        for (let i = 0; i < activeUsers.length; i += batchSize) {
-          batches.push(activeUsers.slice(i, i + batchSize));
-        }
-        
-        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-          const batch = batches[batchIndex];
-          logger.info(`[Admin] Processing batch ${batchIndex + 1}/${batches.length}`);
-          
-          const { updateClickHouseBackfillMetadata } = await import('./services/supabaseHealthStorage');
-          const batchResults = await Promise.all(
-            batch.map(async (user) => {
-              try {
-                const healthId = await getHealthId(user.id);
-                const summary = await clickhouseBaselineEngine.syncFullHistory(healthId);
-                
-                // Only update metadata if we actually synced records
-                if (summary.total > 0) {
-                  await updateClickHouseBackfillMetadata(healthId, {
-                    total: summary.total,
-                    activity: summary.healthMetrics,
-                    sleep: 0,
-                    weight: summary.bodyComposition,
-                    bodyComp: summary.bodyComposition,
-                    nutrition: summary.nutrition,
-                    heartMetrics: 0,
-                    completedAt: new Date().toISOString(),
-                  });
-                }
-                
-                logger.info(`[Admin] Backfill complete for ${user.id}: ${summary.total} records`);
-                return { userId: user.id, success: true, total: summary.total };
-              } catch (err: any) {
-                logger.error(`[Admin] Backfill failed for ${user.id}:`, err.message);
-                return { userId: user.id, success: false, total: 0, error: err.message };
-              }
-            })
-          );
-          
-          results.push(...batchResults);
-          
-          if (batchIndex < batches.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, Math.min(delayBetweenBatchesMs, 10000)));
-          }
-        }
-        
-        const totalRecords = results.reduce((sum, r) => sum + r.total, 0);
-        const successCount = results.filter(r => r.success).length;
-        
-        res.json({ 
-          message: `Full history backfill complete for ${successCount}/${activeUsers.length} users`,
-          totalRecords,
-          batchesProcessed: batches.length,
-          results
-        });
-      } else if (userId) {
-        const { updateClickHouseBackfillMetadata } = await import('./services/supabaseHealthStorage');
-        const healthId = await getHealthId(userId);
-        const summary = await clickhouseBaselineEngine.syncFullHistory(healthId);
-        
-        // Only update metadata if we actually synced records
-        const metadataUpdated = summary.total > 0;
-        if (metadataUpdated) {
-          await updateClickHouseBackfillMetadata(healthId, {
-            total: summary.total,
-            activity: summary.healthMetrics,
-            sleep: 0,
-            weight: summary.bodyComposition,
-            bodyComp: summary.bodyComposition,
-            nutrition: summary.nutrition,
-            heartMetrics: 0,
-            completedAt: new Date().toISOString(),
-          });
-        }
-        
-        logger.info(`[Admin] FULL HISTORY backfill complete for ${userId}`, summary);
-        
-        res.json({ 
-          message: `Full history synced for user ${userId}`,
-          healthId,
-          metadataUpdated,
-          ...summary
-        });
-      } else {
-        return res.status(400).json({ error: "Either userId or allUsers: true is required" });
-      }
-    } catch (error) {
-      logger.error('[Admin] Full history backfill error:', error);
-      res.status(500).json({ error: "Failed to backfill full history" });
-    }
-  });
-
-  // Admin: Get pattern library for a user (recognized recurring patterns)
-  app.get("/api/admin/clickhouse/patterns/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      
-      const { isClickHouseEnabled } = await import('./services/clickhouseService');
-      const { clickhouse } = await import('./services/clickhouseService');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      if (!isClickHouseEnabled()) {
-        return res.status(503).json({ error: "ClickHouse not configured" });
-      }
-      
-      const healthId = await getHealthId(userId);
-      
-      // Get patterns from pattern library
-      const patterns = await clickhouse.query<{
-        pattern_id: string;
-        pattern_fingerprint: string;
-        pattern_name: string;
-        pattern_description: string | null;
-        first_observed: string;
-        last_observed: string;
-        occurrence_count: number;
-        confirmation_count: number;
-        false_positive_count: number;
-        confidence_score: number;
-        typical_outcome: string | null;
-        seasonal_pattern: string | null;
-      }>(`
-        SELECT
-          pattern_id,
-          pattern_fingerprint,
-          pattern_name,
-          pattern_description,
-          first_observed,
-          last_observed,
-          occurrence_count,
-          confirmation_count,
-          false_positive_count,
-          confidence_score,
-          typical_outcome,
-          seasonal_pattern
-        FROM flo_health.pattern_library
-        WHERE health_id = {healthId:String}
-        ORDER BY last_observed DESC
-        LIMIT 50
-      `, { healthId });
-      
-      res.json({ healthId, patterns });
-    } catch (error) {
-      logger.error('[Admin] Pattern library fetch error:', error);
-      res.status(500).json({ error: "Failed to fetch pattern library" });
-    }
-  });
-
-  app.post("/api/admin/clickhouse/synthetic-cgm/generate", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { numPatients = 5, daysPerPatient = 7, targetHealthId } = req.body;
-      
-      const { syntheticCgmService } = await import('./services/syntheticCgmService');
-      
-      logger.info('[Admin] Generating synthetic CGM training data', { 
-        numPatients, 
-        daysPerPatient, 
-        targetHealthId,
-        adminId: req.user.claims.sub 
-      });
-      
-      const result = await syntheticCgmService.generateAndInjectData({
-        numPatients,
-        daysPerPatient,
-        targetHealthId,
-      });
-      
-      res.json({
-        success: result.success,
-        readingsInjected: result.readingsInjected,
-        patientsSimulated: result.patientsSimulated,
-        anomalyPatterns: result.anomalyPatterns,
-        message: result.success 
-          ? `Generated ${result.readingsInjected} synthetic CGM readings from ${result.patientsSimulated} virtual patients`
-          : result.error,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] Synthetic CGM generation error:', error);
-      res.status(500).json({ error: error.message || "Failed to generate synthetic CGM data" });
-    }
-  });
-
-  app.get("/api/admin/clickhouse/synthetic-cgm/stats", isAuthenticated, requireAdmin, async (req, res) => {
-    try {
-      const { syntheticCgmService } = await import('./services/syntheticCgmService');
-      
-      const stats = await syntheticCgmService.getSyntheticDataStats();
-      
-      res.json(stats);
-    } catch (error) {
-      logger.error('[Admin] Synthetic CGM stats error:', error);
-      res.status(500).json({ error: "Failed to fetch synthetic CGM stats" });
-    }
-  });
-
-  app.delete("/api/admin/clickhouse/synthetic-cgm/clear", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { syntheticCgmService } = await import('./services/syntheticCgmService');
-      
-      logger.info('[Admin] Clearing synthetic CGM training data', { adminId: req.user.claims.sub });
-      
-      await syntheticCgmService.clearSyntheticData();
-      
-      res.json({ success: true, message: "Synthetic CGM training data cleared" });
-    } catch (error) {
-      logger.error('[Admin] Synthetic CGM clear error:', error);
-      res.status(500).json({ error: "Failed to clear synthetic CGM data" });
-    }
-  });
-
-  app.post("/api/admin/clickhouse/cgm-model/train", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { numPatients = 10, daysPerPatient = 14, regenerateData = false } = req.body;
-      
-      const { cgmPatternLearner } = await import('./services/cgmPatternLearner');
-      
-      logger.info('[Admin] Training CGM pattern model', { 
-        numPatients, 
-        daysPerPatient, 
-        regenerateData,
-        adminId: req.user.claims.sub 
-      });
-      
-      const result = await cgmPatternLearner.trainOnSyntheticData({
-        numPatients,
-        daysPerPatient,
-        regenerateData,
-      });
-      
-      res.json({
-        success: result.success,
-        patternsLearned: result.patternsLearned,
-        hourlyBaselines: result.hourlyBaselines,
-        syntheticReadingsUsed: result.syntheticReadingsUsed,
-        message: result.success 
-          ? `Trained model on ${result.syntheticReadingsUsed} readings: ${result.hourlyBaselines} hourly baselines, ${result.patternsLearned} patterns`
-          : result.error,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] CGM model training error:', error);
-      res.status(500).json({ error: error.message || "Failed to train CGM model" });
-    }
-  });
-
-  app.get("/api/admin/clickhouse/cgm-model/baselines", isAuthenticated, requireAdmin, async (req, res) => {
-    try {
-      const { cgmPatternLearner } = await import('./services/cgmPatternLearner');
-      
-      const baselines = await cgmPatternLearner.getLearnedBaselines();
-      
-      res.json({
-        hasLearnedBaselines: baselines.hourly.length > 0 || baselines.global !== null,
-        hourlyBaselinesCount: baselines.hourly.length,
-        scenariosCount: Object.keys(baselines.scenarios).length,
-        hasGlobalBaseline: baselines.global !== null,
-        hasVariabilityPatterns: baselines.variability !== null,
-        baselines,
-      });
-    } catch (error) {
-      logger.error('[Admin] CGM baselines fetch error:', error);
-      res.status(500).json({ error: "Failed to fetch CGM baselines" });
-    }
-  });
 
   // ===== Biomarker Pattern Learner Endpoints =====
-  app.post("/api/admin/clickhouse/biomarker-model/train", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { regenerateData = false } = req.body;
-      
-      const { biomarkerPatternLearner } = await import('./services/biomarkerPatternLearner');
-      
-      logger.info('[Admin] Training biomarker pattern model', { 
-        regenerateData,
-        adminId: req.user.claims.sub 
-      });
-      
-      const result = await biomarkerPatternLearner.trainOnNhanesData({
-        regenerateData,
-      });
-      
-      res.json({
-        success: result.success,
-        biomarkersLearned: result.biomarkersLearned,
-        totalBaselines: result.totalBaselines,
-        dataSource: result.dataSource,
-        message: result.success 
-          ? `Trained on NHANES data: ${result.biomarkersLearned} biomarkers, ${result.totalBaselines} baselines`
-          : result.error,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] Biomarker model training error:', error);
-      res.status(500).json({ error: error.message || "Failed to train biomarker model" });
-    }
-  });
 
-  app.get("/api/admin/clickhouse/biomarker-model/baselines", isAuthenticated, requireAdmin, async (req, res) => {
-    try {
-      const { biomarkerPatternLearner } = await import('./services/biomarkerPatternLearner');
-      
-      const stats = await biomarkerPatternLearner.getBaselineStats();
-      
-      res.json(stats);
-    } catch (error) {
-      logger.error('[Admin] Biomarker baselines fetch error:', error);
-      res.status(500).json({ error: "Failed to fetch biomarker baselines" });
-    }
-  });
 
   // ===== HealthKit Pattern Learner Endpoints =====
-  app.post("/api/admin/clickhouse/healthkit-model/train", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { numPeople = 100, daysPerPerson = 30, regenerateData = false } = req.body;
-      
-      const { healthkitPatternLearner } = await import('./services/healthkitPatternLearner');
-      
-      logger.info('[Admin] Training HealthKit pattern model', { 
-        numPeople,
-        daysPerPerson,
-        regenerateData,
-        adminId: req.user.claims.sub 
-      });
-      
-      const result = await healthkitPatternLearner.trainOnSyntheticData({
-        numPeople,
-        daysPerPerson,
-        regenerateData,
-      });
-      
-      res.json({
-        success: result.success,
-        metricsLearned: result.metricsLearned,
-        totalBaselines: result.totalBaselines,
-        syntheticRecordsUsed: result.syntheticRecordsUsed,
-        message: result.success 
-          ? `Trained on ${result.syntheticRecordsUsed} synthetic records: ${result.metricsLearned} metrics, ${result.totalBaselines} baselines`
-          : result.error,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] HealthKit model training error:', error);
-      res.status(500).json({ error: error.message || "Failed to train HealthKit model" });
-    }
-  });
 
-  app.get("/api/admin/clickhouse/healthkit-model/baselines", isAuthenticated, requireAdmin, async (req, res) => {
-    try {
-      const { healthkitPatternLearner } = await import('./services/healthkitPatternLearner');
-      
-      const stats = await healthkitPatternLearner.getBaselineStats();
-      
-      res.json(stats);
-    } catch (error) {
-      logger.error('[Admin] HealthKit baselines fetch error:', error);
-      res.status(500).json({ error: "Failed to fetch HealthKit baselines" });
-    }
-  });
 
-  app.post("/api/admin/clickhouse/ml-tables/recreate", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const clickhouse = await import('./services/clickhouseService');
-      const ch = clickhouse.getClickHouseClient();
-      
-      if (!ch) {
-        return res.status(503).json({ error: "ClickHouse not available" });
-      }
-      
-      logger.info('[Admin] Recreating ML learned baselines tables', { 
-        adminId: req.user.claims.sub 
-      });
-      
-      await ch.command({ query: `DROP TABLE IF EXISTS flo_health.cgm_learned_baselines` });
-      await ch.command({ query: `DROP TABLE IF EXISTS flo_health.biomarker_learned_baselines` });
-      await ch.command({ query: `DROP TABLE IF EXISTS flo_health.healthkit_learned_baselines` });
-      
-      await clickhouse.initializeClickHouse();
-      
-      res.json({
-        success: true,
-        message: 'ML learned baselines tables dropped and recreated successfully',
-        tablesRecreated: ['cgm_learned_baselines', 'biomarker_learned_baselines', 'healthkit_learned_baselines'],
-      });
-    } catch (error: any) {
-      logger.error('[Admin] ML tables recreation error:', error);
-      res.status(500).json({ error: error.message || "Failed to recreate ML tables" });
-    }
-  });
 
   // Debug endpoint to view suppressed topics for a user (for anti-repetition debugging)
   app.get("/api/admin/user/:userId/suppressions", isAuthenticated, requireAdmin, async (req: any, res) => {
@@ -6809,400 +5932,16 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
-  app.post("/api/admin/clickhouse/cgm-anomalies/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      const { lookbackHours = 24 } = req.body;
-      
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      const anomalies = await clickhouseBaselineEngine.detectCgmAnomalies(healthId, { lookbackHours });
-      
-      res.json({
-        healthId,
-        lookbackHours,
-        anomalyCount: anomalies.length,
-        anomalies,
-      });
-    } catch (error) {
-      logger.error('[Admin] CGM anomaly detection error:', error);
-      res.status(500).json({ error: "Failed to detect CGM anomalies" });
-    }
-  });
 
   // Admin: Run full long-horizon correlation analysis for a user
-  app.post("/api/admin/clickhouse/correlation/analyze/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      const { lookbackMonths = 6 } = req.body;
-      
-      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      
-      logger.info('[Admin] Running correlation analysis', { userId, healthId, lookbackMonths });
-      
-      const results = await correlationEngine.runFullAnalysis(healthId, lookbackMonths);
-      
-      res.json({
-        healthId,
-        lookbackMonths,
-        ...results,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] Correlation analysis error:', error);
-      res.status(500).json({ error: error.message || "Failed to run correlation analysis" });
-    }
-  });
 
   // Admin: Get long-term insights for a user
-  app.get("/api/admin/clickhouse/correlation/insights/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      const limit = parseInt(req.query.limit || '10');
-      
-      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      const insights = await correlationEngine.getLongTermInsights(healthId, limit);
-      
-      res.json({
-        healthId,
-        insightCount: insights.length,
-        insights,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] Get correlation insights error:', error);
-      res.status(500).json({ error: error.message || "Failed to get correlation insights" });
-    }
-  });
 
   // Admin: Get pending AI feedback questions for a user
-  app.get("/api/admin/clickhouse/correlation/questions/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      
-      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      const questions = await correlationEngine.getPendingFeedbackQuestions(healthId);
-      
-      res.json({
-        healthId,
-        questionCount: questions.length,
-        questions,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] Get feedback questions error:', error);
-      res.status(500).json({ error: error.message || "Failed to get feedback questions" });
-    }
-  });
 
   // Admin: Manually generate a feedback question based on current anomalies
-  app.post("/api/admin/clickhouse/correlation/generate-question/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      const { patterns = [], metrics = {} } = req.body;
-      
-      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      
-      const question = await correlationEngine.generateFeedbackQuestion(
-        healthId,
-        'pattern',
-        [],
-        patterns,
-        metrics
-      );
-      
-      res.json({
-        healthId,
-        generated: !!question,
-        question,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] Generate feedback question error:', error);
-      res.status(500).json({ error: error.message || "Failed to generate feedback question" });
-    }
-  });
 
   // Admin: Comprehensive integration test for Long-Horizon Correlation Engine
-  app.post("/api/admin/clickhouse/correlation/integration-test/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
-    const testResults: {
-      stage: string;
-      status: 'pass' | 'fail' | 'skip';
-      message: string;
-      data?: any;
-      durationMs: number;
-    }[] = [];
-    
-    const runTest = async (stage: string, testFn: () => Promise<{ pass: boolean; message: string; data?: any }>) => {
-      const startTime = Date.now();
-      try {
-        const result = await testFn();
-        testResults.push({
-          stage,
-          status: result.pass ? 'pass' : 'fail',
-          message: result.message,
-          data: result.data,
-          durationMs: Date.now() - startTime,
-        });
-        return result.pass;
-      } catch (error: any) {
-        testResults.push({
-          stage,
-          status: 'fail',
-          message: `Exception: ${error.message}`,
-          durationMs: Date.now() - startTime,
-        });
-        return false;
-      }
-    };
-    
-    try {
-      const { userId } = req.params;
-      const { lookbackMonths = 6 } = req.body;
-      
-      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
-      const { isClickHouseEnabled, clickhouse } = await import('./services/clickhouseService');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      const { floOracleContextBuilder } = await import('./services/floOracleContextBuilder');
-      
-      logger.info('[Admin] Starting correlation engine integration test', { userId, lookbackMonths });
-      
-      // Stage 1: ClickHouse connectivity
-      await runTest('clickhouse_connectivity', async () => {
-        if (!isClickHouseEnabled()) {
-          return { pass: false, message: 'ClickHouse not configured' };
-        }
-        const result = await clickhouse.query<{ count: number }>('SELECT 1 as count', {});
-        return { 
-          pass: result.length === 1 && result[0].count === 1, 
-          message: 'ClickHouse connection successful',
-          data: { connected: true }
-        };
-      });
-      
-      // Stage 2: Health ID resolution
-      let healthId: string | null = null;
-      await runTest('health_id_resolution', async () => {
-        healthId = await getHealthId(userId);
-        if (!healthId) {
-          return { pass: false, message: 'Could not resolve health_id for user' };
-        }
-        return { 
-          pass: true, 
-          message: `Resolved health_id: ${healthId.substring(0, 8)}...`,
-          data: { healthId: healthId.substring(0, 8) + '...' }
-        };
-      });
-      
-      if (!healthId) {
-        return res.json({ 
-          success: false, 
-          message: 'Cannot proceed without health_id',
-          testResults 
-        });
-      }
-      
-      // Stage 3: Check health_metrics data exists
-      await runTest('health_metrics_data', async () => {
-        const metrics = await clickhouse.query<{ count: number }>(`
-          SELECT count() as count FROM flo_health.health_metrics 
-          WHERE health_id = {healthId:String}
-        `, { healthId });
-        const count = metrics[0]?.count || 0;
-        return { 
-          pass: count > 0, 
-          message: count > 0 ? `Found ${count} health metric records` : 'No health metrics found - sync data first',
-          data: { metricCount: count }
-        };
-      });
-      
-      // Stage 4: Extract behavior events
-      let behaviorEventCount = 0;
-      await runTest('behavior_event_extraction', async () => {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - lookbackMonths);
-        
-        behaviorEventCount = await correlationEngine.extractBehaviorEvents(
-          healthId!,
-          startDate.toISOString().split('T')[0],
-          endDate.toISOString().split('T')[0]
-        );
-        
-        return { 
-          pass: true, 
-          message: `Extracted ${behaviorEventCount} behavior events`,
-          data: { behaviorEventCount }
-        };
-      });
-      
-      // Stage 5: Build weekly cohorts
-      let cohortCount = 0;
-      await runTest('weekly_cohort_building', async () => {
-        cohortCount = await correlationEngine.buildWeeklyCohorts(healthId!, lookbackMonths);
-        return { 
-          pass: true, 
-          message: `Built ${cohortCount} weekly cohort records`,
-          data: { cohortCount }
-        };
-      });
-      
-      // Stage 6: Build outcome rollups
-      let outcomeCount = 0;
-      await runTest('outcome_rollup_building', async () => {
-        outcomeCount = await correlationEngine.buildWeeklyOutcomes(healthId!, lookbackMonths);
-        return { 
-          pass: true, 
-          message: `Built ${outcomeCount} weekly outcome rollups`,
-          data: { outcomeCount }
-        };
-      });
-      
-      // Stage 7: Run correlation discovery
-      let correlations: any[] = [];
-      await runTest('correlation_discovery', async () => {
-        correlations = await correlationEngine.discoverCorrelations(healthId!);
-        return { 
-          pass: true, 
-          message: correlations.length > 0 
-            ? `Discovered ${correlations.length} significant correlations`
-            : 'No significant correlations found (may need more data)',
-          data: { 
-            correlationCount: correlations.length,
-            correlations: correlations.map(c => ({
-              behavior: c.behaviorType,
-              outcome: c.outcomeType,
-              effectPct: c.effectSizePct.toFixed(1) + '%',
-              pValue: c.pValue.toFixed(4),
-              insight: c.naturalLanguageInsight?.substring(0, 100) + '...'
-            }))
-          }
-        };
-      });
-      
-      // Stage 8: Verify deduplication (run again, should find same or fewer)
-      await runTest('correlation_deduplication', async () => {
-        const secondRun = await correlationEngine.discoverCorrelations(healthId!);
-        return { 
-          pass: secondRun.length <= correlations.length, 
-          message: `Deduplication working: second run found ${secondRun.length} correlations (first: ${correlations.length})`,
-          data: { firstRun: correlations.length, secondRun: secondRun.length }
-        };
-      });
-      
-      // Stage 9: Get stored insights
-      await runTest('long_term_insights_retrieval', async () => {
-        const insights = await correlationEngine.getLongTermInsights(healthId!, 10);
-        return { 
-          pass: true, 
-          message: `Retrieved ${insights.length} stored long-term insights`,
-          data: { insightCount: insights.length }
-        };
-      });
-      
-      // Stage 10: Feedback question generation with deduplication
-      await runTest('feedback_question_generation', async () => {
-        const q1 = await correlationEngine.generateFeedbackQuestion(
-          healthId!,
-          'pattern',
-          [],
-          ['illness_precursor'],
-          { wrist_temperature_deviation: 0.5, respiratory_rate: 18 }
-        );
-        
-        const q2 = await correlationEngine.generateFeedbackQuestion(
-          healthId!,
-          'pattern',
-          [],
-          ['illness_precursor'],
-          { wrist_temperature_deviation: 0.5, respiratory_rate: 18 }
-        );
-        
-        return { 
-          pass: true, 
-          message: q1 
-            ? (q2 ? 'Generated 2 questions (under limit)' : 'Generated 1 question, second blocked by cooldown')
-            : 'Question generation skipped (max pending reached or no matching pattern)',
-          data: { q1Generated: !!q1, q2Generated: !!q2 }
-        };
-      });
-      
-      // Stage 11: Get pending feedback questions
-      await runTest('pending_questions_retrieval', async () => {
-        const questions = await correlationEngine.getPendingFeedbackQuestions(healthId!);
-        return { 
-          pass: questions.length <= 2, 
-          message: `Found ${questions.length} pending feedback questions (max 2 enforced)`,
-          data: { pendingCount: questions.length }
-        };
-      });
-      
-      // Stage 12: Verify Flō Oracle context integration
-      await runTest('flo_oracle_context_integration', async () => {
-        const context = await floOracleContextBuilder.buildContext(userId);
-        const hasCorrelations = context.includes('Long-term correlation') || 
-                               context.includes('correlation') ||
-                               context.includes('pattern');
-        return { 
-          pass: true, 
-          message: hasCorrelations 
-            ? 'Correlation insights included in Flō Oracle context'
-            : 'No correlation insights in context yet (expected if no significant correlations)',
-          data: { contextLength: context.length, hasCorrelationMentions: hasCorrelations }
-        };
-      });
-      
-      // Stage 13: Check ClickHouse table row counts
-      await runTest('clickhouse_table_verification', async () => {
-        const tables = ['behavior_events', 'weekly_behavior_cohorts', 'weekly_outcome_rollups', 'long_term_correlations', 'ai_feedback_questions'];
-        const counts: Record<string, number> = {};
-        
-        for (const table of tables) {
-          const result = await clickhouse.query<{ count: number }>(`
-            SELECT count() as count FROM flo_health.${table}
-            WHERE health_id = {healthId:String}
-          `, { healthId: healthId! });
-          counts[table] = result[0]?.count || 0;
-        }
-        
-        return { 
-          pass: true, 
-          message: 'Table row counts retrieved',
-          data: counts
-        };
-      });
-      
-      const passCount = testResults.filter(t => t.status === 'pass').length;
-      const failCount = testResults.filter(t => t.status === 'fail').length;
-      const totalMs = testResults.reduce((sum, t) => sum + t.durationMs, 0);
-      
-      res.json({
-        success: failCount === 0,
-        summary: `${passCount}/${testResults.length} tests passed in ${totalMs}ms`,
-        healthId: healthId?.substring(0, 8) + '...',
-        lookbackMonths,
-        testResults,
-      });
-      
-    } catch (error: any) {
-      logger.error('[Admin] Integration test error:', error);
-      res.status(500).json({ 
-        success: false,
-        error: error.message || "Integration test failed",
-        testResults 
-      });
-    }
-  });
 
   // ==================== ENVIRONMENTAL DATA BACKFILL ADMIN ENDPOINTS ====================
 
@@ -7389,98 +6128,7 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
-  // Admin: Get ML Usage metrics from ClickHouse Orchestrator
-  app.get("/api/admin/ml-usage/metrics", isAuthenticated, requireAdmin, async (req, res) => {
-    try {
-      const { clickhouseOrchestrator } = await import('./services/clickhouseOrchestrator');
-      
-      const metrics = clickhouseOrchestrator.getUsageMetrics();
-      const windows = clickhouseOrchestrator.getProcessingWindows();
-      const nextWindow = clickhouseOrchestrator.getNextWindowInfo();
-      
-      res.json({
-        metrics,
-        windows,
-        nextWindow: nextWindow ? {
-          name: nextWindow.window.name,
-          description: nextWindow.window.description,
-          scheduledFor: nextWindow.scheduledFor.toISOString(),
-          includesBaselineUpdate: nextWindow.window.includesBaselineUpdate,
-        } : null,
-      });
-    } catch (error) {
-      logger.error('[Admin] ML usage metrics error:', error);
-      res.status(500).json({ error: "Failed to fetch ML usage metrics" });
-    }
-  });
-
-  // Admin: Trigger manual ClickHouse processing window
-  app.post("/api/admin/ml-usage/trigger-window", isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { windowName } = req.body;
-      
-      const { clickhouseOrchestrator } = await import('./services/clickhouseOrchestrator');
-      
-      logger.info('[Admin] Manual ML processing window triggered', { windowName, adminId: req.user.claims.sub });
-      
-      const stats = await clickhouseOrchestrator.triggerManualWindow(windowName);
-      
-      res.json({
-        success: true,
-        stats,
-        message: `Window ${stats.windowName} completed in ${stats.durationMs}ms`,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] ML processing window error:', error);
-      res.status(500).json({ error: error.message || "Failed to trigger processing window" });
-    }
-  });
-
-  // Admin: Get ClickHouse query usage statistics
-  app.get("/api/admin/ml-usage/query-stats", isAuthenticated, requireAdmin, async (req, res) => {
-    try {
-      const { isClickHouseEnabled, clickhouse } = await import('./services/clickhouseService');
-      
-      if (!isClickHouseEnabled()) {
-        return res.status(503).json({ error: "ClickHouse not configured" });
-      }
-      
-      const queryStats = await clickhouse.query<{
-        table_name: string;
-        row_count: number;
-        data_size_bytes: number;
-      }>(`
-        SELECT 
-          table AS table_name,
-          sum(rows) AS row_count,
-          sum(data_uncompressed_bytes) AS data_size_bytes
-        FROM system.parts
-        WHERE database = 'flo_health' AND active = 1
-        GROUP BY table
-        ORDER BY data_size_bytes DESC
-      `, {});
-      
-      const totalRows = queryStats.reduce((acc, t) => acc + Number(t.row_count), 0);
-      const totalSizeBytes = queryStats.reduce((acc, t) => acc + Number(t.data_size_bytes), 0);
-      
-      res.json({
-        tables: queryStats.map(t => ({
-          name: t.table_name,
-          rowCount: Number(t.row_count),
-          dataSizeMB: Math.round(Number(t.data_size_bytes) / 1024 / 1024 * 100) / 100,
-        })),
-        totals: {
-          totalRows,
-          totalSizeMB: Math.round(totalSizeBytes / 1024 / 1024 * 100) / 100,
-        },
-      });
-    } catch (error) {
-      logger.error('[Admin] ClickHouse query stats error:', error);
-      res.status(500).json({ error: "Failed to fetch query stats" });
-    }
-  });
-
-  // Admin: Get ML processing costs (AI + ClickHouse estimates)
+  // Admin: Get ML processing costs
   app.get("/api/admin/ml-usage/costs", isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const now = new Date();
@@ -7519,47 +6167,6 @@ Important: This is for educational purposes. Include a brief note that users sho
         .from(openaiUsageEvents)
         .where(sql`${openaiUsageEvents.createdAt} >= ${monthStart}`);
       
-      let clickhouseCostEstimate = { 
-        storageCostMonthly: 0, 
-        computeCostDaily: 0, 
-        totalSizeGB: 0,
-        windowsRunToday: 0,
-        estimatedComputeCredits: 0,
-      };
-      
-      try {
-        const { isClickHouseEnabled, clickhouse } = await import('./services/clickhouseService');
-        const { clickhouseOrchestrator } = await import('./services/clickhouseOrchestrator');
-        
-        if (isClickHouseEnabled()) {
-          const storageStats = await clickhouse.query<{
-            total_bytes: number;
-          }>(`
-            SELECT sum(data_uncompressed_bytes) AS total_bytes
-            FROM system.parts
-            WHERE database = 'flo_health' AND active = 1
-          `, {});
-          
-          const totalBytes = Number(storageStats[0]?.total_bytes || 0);
-          const totalGB = totalBytes / (1024 * 1024 * 1024);
-          
-          const metrics = clickhouseOrchestrator.getUsageMetrics();
-          const windowsToday = metrics.totalWindowsToday || 0;
-          const avgDurationMs = metrics.dailyStats.totalDurationMs / Math.max(windowsToday, 1);
-          const estimatedCreditsPerWindow = (avgDurationMs / 1000 / 60) * 0.10;
-          
-          clickhouseCostEstimate = {
-            totalSizeGB: Math.round(totalGB * 100) / 100,
-            storageCostMonthly: Math.round(totalGB * 0.025 * 100) / 100,
-            computeCostDaily: Math.round(estimatedCreditsPerWindow * 4 * 100) / 100,
-            windowsRunToday: windowsToday,
-            estimatedComputeCredits: Math.round(estimatedCreditsPerWindow * 1000) / 1000,
-          };
-        }
-      } catch (e) {
-        logger.debug('[Admin] ClickHouse cost estimate unavailable');
-      }
-      
       const todayAITotal = todayAICosts.reduce((acc, c) => acc + Number(c.totalCost), 0);
       const monthAITotal = Number(monthAICosts[0]?.totalCost || 0);
       
@@ -7572,17 +6179,14 @@ Important: This is for educational purposes. Include a brief note that users sho
             queries: Number(c.queryCount),
           })),
           totalAICost: Math.round(todayAITotal * 10000) / 10000,
-          clickhouseComputeEstimate: clickhouseCostEstimate.computeCostDaily,
-          totalEstimate: Math.round((todayAITotal + clickhouseCostEstimate.computeCostDaily) * 10000) / 10000,
+          totalEstimate: Math.round(todayAITotal * 10000) / 10000,
         },
         month: {
           totalAICost: Math.round(monthAITotal * 10000) / 10000,
           aiQueries: Number(monthAICosts[0]?.queryCount || 0),
           aiTokens: Number(monthAICosts[0]?.totalTokens || 0),
-          clickhouseStorageEstimate: clickhouseCostEstimate.storageCostMonthly,
-          totalEstimate: Math.round((monthAITotal + clickhouseCostEstimate.storageCostMonthly + clickhouseCostEstimate.computeCostDaily * 30) * 100) / 100,
+          totalEstimate: Math.round(monthAITotal * 100) / 100,
         },
-        clickhouse: clickhouseCostEstimate,
       });
     } catch (error) {
       logger.error('[Admin] ML usage costs error:', error);
@@ -7654,47 +6258,6 @@ Important: This is for educational purposes. Include a brief note that users sho
         name: 'Supabase (Health DB)',
         status: isNotConfigured ? 'not_configured' : 'down',
         details: isNotConfigured ? 'Not configured' : e.message?.substring(0, 50),
-      });
-    }
-
-    // Check ClickHouse
-    try {
-      const { isClickHouseEnabled, clickhouse } = await import('./services/clickhouseService');
-      
-      if (!isClickHouseEnabled()) {
-        services.push({
-          id: 'clickhouse',
-          name: 'ClickHouse (ML Engine)',
-          status: 'not_configured',
-          details: 'Not configured',
-        });
-      } else {
-        const startCh = Date.now();
-        const result = await clickhouse.query<{ cnt: number }>(`
-          SELECT count() as cnt FROM flo_health.health_metrics
-        `, {});
-        const chLatency = Date.now() - startCh;
-        
-        const { clickhouseOrchestrator } = await import('./services/clickhouseOrchestrator');
-        const metrics = clickhouseOrchestrator.getUsageMetrics();
-        const lastWindow = metrics.lastWindowStats;
-        
-        services.push({
-          id: 'clickhouse',
-          name: 'ClickHouse (ML Engine)',
-          status: 'operational',
-          latencyMs: chLatency,
-          details: `${(result[0]?.cnt || 0).toLocaleString()} metrics`,
-          rowCount: Number(result[0]?.cnt || 0),
-          lastSync: lastWindow?.completedAt?.toISOString() || lastWindow?.startedAt?.toISOString(),
-        });
-      }
-    } catch (e: any) {
-      services.push({
-        id: 'clickhouse',
-        name: 'ClickHouse (ML Engine)',
-        status: 'down',
-        details: e.message?.substring(0, 50),
       });
     }
 
@@ -9302,111 +7865,6 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
-  // CLI: ClickHouse data coverage check (uses API key auth)
-  app.get("/api/cli/clickhouse/coverage/:userId", async (req: any, res) => {
-    try {
-      const apiKey = req.headers['x-admin-key'];
-      const expectedKey = process.env.ADMIN_CLI_KEY;
-      
-      if (!expectedKey || apiKey !== expectedKey) {
-        return res.status(401).json({ error: "Unauthorized - invalid API key" });
-      }
-
-      const { userId } = req.params;
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      const coverage = await clickhouseBaselineEngine.getDataCoverageSummary(healthId);
-      
-      res.json({ 
-        userId,
-        healthId, 
-        coverage,
-        summary: {
-          totalRecords: Object.values(coverage).reduce((acc: number, c: any) => acc + c.count, 0),
-          dataSources: Object.fromEntries(
-            Object.entries(coverage).map(([key, val]: [string, any]) => [key, val.count > 0])
-          ),
-        }
-      });
-    } catch (error: any) {
-      logger.error('[CLI] ClickHouse coverage error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // CLI: Full history backfill from Supabase to ClickHouse (uses API key auth)
-  app.post("/api/cli/clickhouse/backfill/:userId", async (req: any, res) => {
-    try {
-      const apiKey = req.headers['x-admin-key'];
-      const expectedKey = process.env.ADMIN_CLI_KEY;
-      
-      if (!expectedKey || apiKey !== expectedKey) {
-        return res.status(401).json({ error: "Unauthorized - invalid API key" });
-      }
-
-      const { userId } = req.params;
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      
-      logger.info(`[CLI] Starting FULL HISTORY backfill for ${userId} (healthId: ${healthId})`);
-      
-      const summary = await clickhouseBaselineEngine.syncFullHistory(healthId);
-      
-      logger.info(`[CLI] FULL HISTORY backfill complete for ${userId}`, summary);
-      
-      res.json({ 
-        success: true,
-        message: `Full history synced for user ${userId}`,
-        userId,
-        healthId,
-        ...summary
-      });
-    } catch (error: any) {
-      logger.error('[CLI] ClickHouse backfill error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // CLI: Recalculate baselines after backfill (uses API key auth)
-  app.post("/api/cli/clickhouse/recalculate-baselines/:userId", async (req: any, res) => {
-    try {
-      const apiKey = req.headers['x-admin-key'];
-      const expectedKey = process.env.ADMIN_CLI_KEY;
-      
-      if (!expectedKey || apiKey !== expectedKey) {
-        return res.status(401).json({ error: "Unauthorized - invalid API key" });
-      }
-
-      const { userId } = req.params;
-      const windowDays = parseInt(req.body.windowDays || '28');
-      
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      
-      const healthId = await getHealthId(userId);
-      
-      logger.info(`[CLI] Recalculating baselines for ${userId} (window: ${windowDays} days)`);
-      
-      const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);
-      
-      res.json({ 
-        success: true,
-        userId,
-        healthId,
-        windowDays,
-        baselinesCalculated: baselines.length,
-        baselines: baselines.slice(0, 10), // First 10 for preview
-      });
-    } catch (error: any) {
-      logger.error('[CLI] Baseline recalculation error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // CLI: Trigger correlation analysis for a user (for testing causal analysis)
   app.post("/api/cli/correlation-analysis/:userId", async (req: any, res) => {
     try {
@@ -9848,22 +8306,6 @@ Important: This is for educational purposes. Include a brief note that users sho
               logger.warn(`[Location] Failed to update timezone for user ${userId}:`, tzError.message);
             }
             
-            // Trigger ClickHouse environmental data sync (non-blocking background task)
-            (async () => {
-              try {
-                const { isClickHouseEnabled } = await import('./services/clickhouseService');
-                if (isClickHouseEnabled()) {
-                  const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-                  const { getHealthId } = await import('./services/supabaseHealthStorage');
-                  const healthId = await getHealthId(userId);
-                  
-                  const syncedCount = await clickhouseBaselineEngine.syncEnvironmentalData(healthId, 7);
-                  logger.info(`[ClickHouseML] Auto-synced ${syncedCount} environmental records for ${userId}`);
-                }
-              } catch (clickhouseError: any) {
-                logger.warn(`[ClickHouseML] Environmental sync failed for ${userId}:`, clickhouseError.message);
-              }
-            })();
           } else {
             logger.warn(`[Location] Weather fetch skipped for user ${userId} (quota exhausted)`);
           }
@@ -10159,10 +8601,8 @@ Important: This is for educational purposes. Include a brief note that users sho
    * 
    * Response: {
    *   healthkitSyncing: boolean,
-   *   clickhouseSyncing: boolean,
    *   isReady: boolean,
    *   healthkitRecords: number,
-   *   clickhouseRecords: number,
    *   message: string
    * }
    */
@@ -10180,10 +8620,10 @@ Important: This is for educational purposes. Include a brief note that users sho
       // Get Supabase client
       const supabase = getSupabaseClient();
       
-      // Get profile with ClickHouse backfill status
+      // Get profile with HealthKit backfill status
       const { data: profile } = await supabase
         .from('profiles')
-        .select('healthkit_backfill_complete, healthkit_backfill_metadata, clickhouse_backfill_complete, clickhouse_backfill_metadata')
+        .select('healthkit_backfill_complete, healthkit_backfill_metadata')
         .eq('health_id', healthId)
         .single();
       
@@ -10195,19 +8635,10 @@ Important: This is for educational purposes. Include a brief note that users sho
       
       const healthkitRecords = supabaseRecords || 0;
       const healthkitComplete = profile?.healthkit_backfill_complete || false;
-      const clickhouseComplete = profile?.clickhouse_backfill_complete || false;
-      const clickhouseTotal = profile?.clickhouse_backfill_metadata?.total || 0;
       
-      // Determine sync state with strict requirements:
-      // - healthkitSyncing: HealthKit backfill not yet marked complete
-      // - clickhouseSyncing: HealthKit is complete with data, but ClickHouse doesn't have data yet
-      // - isReady: BOTH have data (healthkitRecords > 0 AND clickhouseTotal > 0)
+      // Determine sync state based on Supabase data only
       const healthkitSyncing = !healthkitComplete;
-      // ClickHouse is syncing if we have HealthKit data but ClickHouse has no records yet
-      // This catches the race condition where backfill ran before data arrived
-      const clickhouseSyncing = healthkitComplete && healthkitRecords > 0 && clickhouseTotal === 0;
-      // Only ready when we have actual data in BOTH systems
-      const isReady = healthkitRecords > 0 && clickhouseTotal > 0;
+      const isReady = healthkitRecords > 0;
       
       // INSTANT TILE POPULATION: Check if we have recent daily metrics even if full sync isn't done
       // This enables "competitors have data almost instantly" UX
@@ -10242,36 +8673,21 @@ Important: This is for educational purposes. Include a brief note that users sho
         logger.debug('[Dashboard] Error checking recent metrics:', e);
       }
       
-      // PROACTIVE TRIGGER: If we have HealthKit data but no ClickHouse data, trigger backfill
-      // This catches cases where mark-backfill-complete was never called or sync failed
-      if (healthkitRecords > 0 && clickhouseTotal === 0) {
-        const { triggerBackfillIfNeeded } = await import('./services/clickhouseBackfillService');
-        const userId = req.user.claims.sub;
-        logger.info(`[Dashboard] Proactively triggering ClickHouse backfill for ${userId} (has ${healthkitRecords} HealthKit records, 0 ClickHouse)`);
-        triggerBackfillIfNeeded(userId);
-      }
-      
       // Generate user-friendly message
       let message = '';
       if (healthkitSyncing) {
         message = recentMetricsReady ? 'Your data is ready! Syncing more history...' : 'Syncing your health data...';
-      } else if (clickhouseSyncing) {
-        message = recentMetricsReady ? 'Your data is ready! Processing insights...' : 'Processing your data for insights...';
       } else if (healthkitRecords === 0) {
         message = 'No health data yet. Open the app on your iPhone to sync.';
-      } else if (!isReady) {
-        message = recentMetricsReady ? 'Your data is ready!' : 'Preparing your dashboard...';
       } else {
-        message = 'Your dashboard is ready!';
+        message = recentMetricsReady ? 'Your data is ready!' : 'Preparing your dashboard...';
       }
       
       res.json({
         healthkitSyncing,
-        clickhouseSyncing,
         isReady,
-        recentMetricsReady, // NEW: Tiles can display when this is true
+        recentMetricsReady,
         healthkitRecords,
-        clickhouseRecords: clickhouseTotal,
         message,
       });
     } catch (error: any) {
@@ -10279,11 +8695,9 @@ Important: This is for educational purposes. Include a brief note that users sho
       // Return a safe default on error - recentMetricsReady=false so sync banner shows
       res.json({
         healthkitSyncing: false,
-        clickhouseSyncing: false,
         isReady: false,
         recentMetricsReady: false,
         healthkitRecords: 0,
-        clickhouseRecords: 0,
         message: 'Unable to check sync status',
       });
     }
@@ -10356,40 +8770,6 @@ Important: This is for educational purposes. Include a brief note that users sho
       res.json({
         success: true,
         backfillDate: new Date().toISOString(),
-      });
-      
-      // Trigger full history sync to ClickHouse asynchronously (non-blocking)
-      // This syncs ALL the historical data that was just uploaded AND updates the backfill metadata
-      setImmediate(async () => {
-        try {
-          const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-          const { updateClickHouseBackfillMetadata } = await import('./services/supabaseHealthStorage');
-          const healthId = await getHealthId(userId);
-          
-          logger.info(`[ClickHouseML] Starting full history sync after HealthKit backfill complete for user ${userId}`);
-          const result = await clickhouseBaselineEngine.syncFullHistory(healthId);
-          logger.info(`[ClickHouseML] Full history sync complete for ${userId}: ${result.total} records synced to ClickHouse`);
-          
-          // Only update metadata if we actually synced records
-          // This prevents marking ClickHouse as "complete" with 0 records (race condition fix)
-          if (result.total > 0) {
-            await updateClickHouseBackfillMetadata(healthId, {
-              total: result.total,
-              activity: result.healthMetrics,
-              sleep: 0, // Sleep is counted in healthMetrics
-              weight: result.bodyComposition,
-              bodyComp: result.bodyComposition,
-              nutrition: result.nutrition,
-              heartMetrics: 0, // Counted in healthMetrics
-              completedAt: new Date().toISOString(),
-            });
-            logger.info(`[ClickHouseML] Updated backfill metadata for ${userId} with ${result.total} total records`);
-          } else {
-            logger.warn(`[ClickHouseML] Sync returned 0 records for ${userId} - NOT marking ClickHouse backfill complete`);
-          }
-        } catch (syncError) {
-          logger.error(`[ClickHouseML] Async full history sync failed for ${userId}:`, syncError);
-        }
       });
     } catch (error: any) {
       logger.error(`[HealthKit] Error marking backfill complete:`, error);
@@ -10519,99 +8899,10 @@ Important: This is for educational purposes. Include a brief note that users sho
         logger.info(`[HealthKit] Processed ${mindfulnessSamples.length} mindfulness sessions into dedicated tables`);
       }
 
-      // Trigger ClickHouse ML Correlation Engine sync (non-blocking background task)
-      if (inserted > 0) {
-        (async () => {
-          try {
-            const { isClickHouseEnabled } = await import('./services/clickhouseService');
-            if (isClickHouseEnabled()) {
-              const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-              const { getHealthId } = await import('./services/supabaseHealthStorage');
-              const healthId = await getHealthId(userId);
-              
-              // Sync recent health data to ClickHouse for ML analysis
-              const syncedCount = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 7);
-              logger.info(`[ClickHouseML] Auto-synced ${syncedCount} metrics for ${userId} after samples ingestion`);
-            }
-          } catch (clickhouseError: any) {
-            logger.warn(`[ClickHouseML] Background sync failed for ${userId}:`, clickhouseError.message);
-          }
-        })();
-      }
-
-      // Sync weight and body composition samples to ClickHouse Weight Forecast Engine (non-blocking)
-      if (inserted > 0) {
-        (async () => {
-          try {
-            const { isClickHouseEnabled } = await import('./services/clickhouseService');
-            if (isClickHouseEnabled()) {
-              const { syncHealthKitWeightSamples } = await import('./services/weightForecast');
-              const { getHealthId } = await import('./services/supabaseHealthStorage');
-              const healthId = await getHealthId(userId);
-              
-              // Guard against null healthId - use userId as fallback
-              const effectiveUserId = healthId || userId;
-              if (!healthId) {
-                logger.debug(`[WeightForecast] No healthId for ${userId}, using userId as identifier`);
-              }
-              
-              const user = await storage.getUser(userId);
-              const timezone = user?.timezone || 'Australia/Perth';
-              
-              // Format samples for weight forecast ingestion
-              const formattedForWeight = samples.map((s: any) => ({
-                data_type: s.dataType,
-                value: s.value,
-                unit: s.unit,
-                start_date: new Date(s.startDate).toISOString(),
-                end_date: new Date(s.endDate).toISOString(),
-                source_name: s.sourceName || null,
-                source_bundle_id: s.sourceBundleId || null,
-                device_name: s.deviceName || null,
-                uuid: s.uuid || null,
-              }));
-              
-              const result = await syncHealthKitWeightSamples(effectiveUserId, formattedForWeight, timezone);
-              if (result.weightEvents > 0 || result.bodyCompEvents > 0) {
-                logger.info(`[WeightForecast] Synced ${result.weightEvents} weight, ${result.bodyCompEvents} body-comp events for ${userId}`);
-              }
-            }
-          } catch (weightError: any) {
-            logger.warn(`[WeightForecast] Background sync failed for ${userId}:`, weightError.message);
-          }
-        })();
-      }
-
       // Process meal-glucose correlations when glucose samples arrive (non-blocking)
       const glucoseTypes = ['HKQuantityTypeIdentifierBloodGlucose', 'bloodGlucose', 'BloodGlucose'];
       const hasGlucoseSamples = samples.some((s: any) => glucoseTypes.includes(s.dataType));
       
-      if (hasGlucoseSamples && inserted > 0) {
-        setImmediate(async () => {
-          try {
-            const { isClickHouseEnabled } = await import('./services/clickhouseService');
-            if (isClickHouseEnabled()) {
-              const { processMealGlucoseCorrelations } = await import('./services/mealGlucoseCorrelator');
-              const { getHealthId } = await import('./services/supabaseHealthStorage');
-              const healthId = await getHealthId(userId);
-              
-              // Process correlations for the window of samples received
-              const sampleTimes = samples.filter((s: any) => glucoseTypes.includes(s.dataType))
-                .map((s: any) => new Date(s.startDate).getTime());
-              const startDate = new Date(Math.min(...sampleTimes) - 3 * 60 * 60 * 1000); // Look back 3hrs for meals
-              const endDate = new Date(Math.max(...sampleTimes));
-              
-              const result = await processMealGlucoseCorrelations(healthId, startDate, endDate);
-              if (result.stored > 0) {
-                logger.info(`[MealGlucose] Processed ${result.processed} meals, stored ${result.stored} responses for ${userId}`);
-              }
-            }
-          } catch (mealGlucoseError: any) {
-            logger.warn(`[MealGlucose] Background correlation failed for ${userId}:`, mealGlucoseError.message);
-          }
-        });
-      }
-
       res.json({ 
         inserted,
         duplicates,
@@ -10920,40 +9211,6 @@ Important: This is for educational purposes. Include a brief note that users sho
       await upsertSupabaseDailyMetrics(userId, supabaseMetrics);
       logger.info(`[HealthKit] Stored daily metrics in Supabase for ${userId}, ${metrics.localDate}`);
 
-      // Trigger ClickHouse ML Correlation Engine sync (non-blocking background task)
-      (async () => {
-        try {
-          const { isClickHouseEnabled } = await import('./services/clickhouseService');
-          if (isClickHouseEnabled()) {
-            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-            const { getHealthId } = await import('./services/supabaseHealthStorage');
-            const healthId = await getHealthId(userId);
-            
-            // Get user's timezone for timezone-aware anomaly detection
-            const [userRecord] = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
-            const userTimezone = userRecord?.timezone || 'America/Los_Angeles';
-            
-            // Sync recent health data to ClickHouse for ML analysis (last 7 days for real-time patterns)
-            const syncedCount = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 7);
-            logger.info(`[ClickHouseML] Auto-synced ${syncedCount} metrics for ${userId} after HealthKit ingestion`);
-            
-            // Only run anomaly detection once per 6 hours per user to prevent spam
-            // CRITICAL: Pass user timezone for correct local-time-based anomaly detection
-            if (shouldRunAnomalyDetection(userId)) {
-              clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays: 7, timezone: userTimezone }).then(anomalies => {
-                if (anomalies.length > 0) {
-                  logger.info(`[ClickHouseML] Detected ${anomalies.length} anomalies for ${userId}:`, 
-                    anomalies.map(a => `${a.metricType}: ${a.severity}`).join(', '));
-                }
-              }).catch(err => {
-                logger.warn(`[ClickHouseML] Anomaly detection failed for ${userId}:`, err.message);
-              });
-            }
-          }
-        } catch (clickhouseError: any) {
-          logger.warn(`[ClickHouseML] Background sync failed for ${userId}:`, clickhouseError.message);
-        }
-      })();
 
       // Calculate Flōmentum score after storing metrics
       try {
@@ -11205,26 +9462,6 @@ Important: This is for educational purposes. Include a brief note that users sho
         logger.info(`[Readiness] Computed and stored new readiness for user ${userId}, ${today}: ${readiness.readinessScore}`);
       }
 
-      // Trigger ClickHouse readiness + training load sync (non-blocking background task)
-      (async () => {
-        try {
-          const { isClickHouseEnabled } = await import('./services/clickhouseService');
-          if (isClickHouseEnabled()) {
-            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-            const { getHealthId } = await import('./services/supabaseHealthStorage');
-            const healthId = await getHealthId(userId);
-            
-            // Sync readiness and training load together
-            const [readinessCount, loadCount] = await Promise.all([
-              clickhouseBaselineEngine.syncReadinessScores(healthId, 7),
-              clickhouseBaselineEngine.syncTrainingLoad(healthId, 7),
-            ]);
-            logger.info(`[ClickHouseML] Auto-synced ${readinessCount} readiness, ${loadCount} training load for ${userId}`);
-          }
-        } catch (clickhouseError: any) {
-          logger.warn(`[ClickHouseML] Readiness sync failed for ${userId}:`, clickhouseError.message);
-        }
-      })();
 
       res.json(readiness);
     } catch (error: any) {
@@ -11612,23 +9849,6 @@ Important: This is for educational purposes. Include a brief note that users sho
       
       logger.info(`[Nutrition] Aggregation completed for ${userId} on ${localDate}`);
 
-      // Trigger ClickHouse nutrition sync (non-blocking background task)
-      (async () => {
-        try {
-          const { isClickHouseEnabled } = await import('./services/clickhouseService');
-          if (isClickHouseEnabled()) {
-            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-            const { getHealthId } = await import('./services/supabaseHealthStorage');
-            const healthId = await getHealthId(userId);
-            
-            // Sync nutrition data to ClickHouse for ML analysis
-            const syncedCount = await clickhouseBaselineEngine.syncNutritionData(healthId, 7);
-            logger.info(`[ClickHouseML] Auto-synced ${syncedCount} nutrition records for ${userId}`);
-          }
-        } catch (clickhouseError: any) {
-          logger.warn(`[ClickHouseML] Nutrition sync failed for ${userId}:`, clickhouseError.message);
-        }
-      })();
 
       return res.json({ status: "ok", localDate });
     } catch (error: any) {
@@ -14025,22 +12245,6 @@ Important: This is for educational purposes. Include a brief note that users sho
         await storage.createDiagnosticMetrics(metrics);
       }
 
-      // Trigger ClickHouse body composition sync (non-blocking background task)
-      (async () => {
-        try {
-          const { isClickHouseEnabled } = await import('./services/clickhouseService');
-          if (isClickHouseEnabled()) {
-            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-            const { getHealthId } = await import('./services/supabaseHealthStorage');
-            const healthId = await getHealthId(userId);
-            
-            const syncedCount = await clickhouseBaselineEngine.syncBodyCompositionData(healthId, 365);
-            logger.info(`[ClickHouseML] Auto-synced ${syncedCount} body composition records for ${userId} after DEXA upload`);
-          }
-        } catch (clickhouseError: any) {
-          logger.warn(`[ClickHouseML] Body composition sync failed for ${userId}:`, clickhouseError.message);
-        }
-      })();
 
       res.json({
         success: true,
@@ -16950,28 +15154,6 @@ If there's nothing worth remembering, just respond with "No brain updates needed
 
       logger.info(`[DailyInsightsV2] Feedback submitted for insight ${insightId} by user ${userId}: helpful=${isHelpful}`);
 
-      // ML FEEDBACK LOOP: Update personalized thresholds based on user feedback
-      // Thumbs down (isHelpful=false) = false positive → increase thresholds (less sensitive)
-      // Thumbs up (isHelpful=true) = confirmed useful → maintain/decrease thresholds
-      try {
-        const healthId = await healthRouter.getHealthId(userId);
-        if (healthId) {
-          const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-          
-          // Use insight category as metric type for threshold adjustment
-          // Categories like 'sleep', 'activity', 'nutrition' map to metric domains
-          const metricType = insight.category || patternSignature?.split('_')[0] || 'general';
-          const wasConfirmed = isHelpful === true;
-          
-          await clickhouseBaselineEngine.updatePersonalizedThreshold(healthId, metricType, wasConfirmed);
-          
-          logger.info(`[DailyInsightsV2] ML threshold updated for ${metricType}: confirmed=${wasConfirmed}`);
-        }
-      } catch (mlError: any) {
-        // Don't fail the request if ML update fails - feedback is already stored
-        logger.warn(`[DailyInsightsV2] ML threshold update failed (non-critical): ${mlError.message}`);
-      }
-
       res.json({ success: true });
     } catch (error: any) {
       logger.error('[DailyInsightsV2] Feedback error:', error);
@@ -17726,24 +15908,21 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
 
     try {
-      const { isClickHouseEnabled } = await import('./services/clickhouseService');
-      if (!isClickHouseEnabled()) {
+      const { getMealGlucoseInsights, formatGlucoseResponseInsight } = await import('./services/mealGlucoseCorrelator');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const healthId = await getHealthId(userId);
+      const days = parseInt(req.query.days as string) || 7;
+      const insights = await getMealGlucoseInsights(healthId, days);
+
+      if (!insights.recentResponses || insights.recentResponses.length === 0) {
         return res.json({ 
           recentResponses: [], 
           topSpikers: [], 
           avgMetrics: null,
-          message: "Meal-glucose analysis not available" 
+          message: `No meal-glucose correlation data found for the past ${days} days.`,
         });
       }
 
-      const { getMealGlucoseInsights, formatGlucoseResponseInsight } = await import('./services/mealGlucoseCorrelator');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      const healthId = await getHealthId(userId);
-      
-      const days = parseInt(req.query.days as string) || 7;
-      const insights = await getMealGlucoseInsights(healthId, days);
-      
-      // Format recent responses with human-readable insights
       const formattedResponses = insights.recentResponses.map((r: any) => ({
         ...r,
         insightText: formatGlucoseResponseInsight(r),

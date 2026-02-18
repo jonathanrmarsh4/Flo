@@ -772,194 +772,31 @@ export function registerAdminRoutes(app: Express) {
 
   /**
    * ============================================================================
-   * ML BASELINE VALIDATION ENDPOINTS
+   * ML STATUS ENDPOINT
    * ============================================================================
-   * 
-   * Step 1 of ML Architecture Refactor:
-   * These endpoints allow validation of ClickHouse as the single source of truth
-   * by comparing results against shadow math implementations.
+   * Returns current AI/ML architecture status. ClickHouse has been removed;
+   * baselines are now computed directly from Supabase.
    */
-  
-  app.get('/api/admin/ml/unified-analysis/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      const windowDays = parseInt(req.query.windowDays as string) || 90;
-      const lookbackHours = parseInt(req.query.lookbackHours as string) || 48;
-
-      const { getHealthId } = await import('../services/supabaseHealthStorage');
-      const healthId = await getHealthId(userId);
-      
-      if (!healthId) {
-        return res.status(404).json({ error: "Health ID not found for user" });
-      }
-
-      const { clickhouseBaselineEngine } = await import('../services/clickhouseBaselineEngine');
-      const result = await clickhouseBaselineEngine.getMetricsForAnalysis(healthId, {
-        windowDays,
-        lookbackHours,
-      });
-
-      logger.info(`[Admin] Unified ML analysis for ${userId}: ${result.metrics.length} metrics, ${result.anomalies.length} anomalies`);
-      res.json(result);
-    } catch (error: any) {
-      logger.error('[Admin] Unified ML analysis failed:', error);
-      res.status(500).json({ error: error.message || "Failed to run unified analysis" });
-    }
-  });
-
-  // NOTE: /api/admin/ml/baseline-comparison/:userId endpoint REMOVED in Stage 3
-  // Shadow math comparison is no longer needed - ClickHouse is the single source of truth
 
   app.get('/api/admin/ml/source-of-truth-status', isAuthenticated, requireAdmin, async (_req, res) => {
-    try {
-      const { clickhouseBaselineEngine } = await import('../services/clickhouseBaselineEngine');
-      const isInitialized = await clickhouseBaselineEngine.ensureInitialized();
-
-      res.json({
-        status: isInitialized ? 'operational' : 'unavailable',
-        sourceOfTruth: 'ClickHouseBaselineEngine',
-        removedSystems: [
-          'anomalyDetectionEngine.calculateBaseline() - REMOVED',
-          'baselineComparisonLogger - REMOVED',
-          'Shadow math comparison endpoints - REMOVED',
-        ],
-        unifiedApi: 'clickhouseBaselineEngine.getMetricsForAnalysis()',
-        refactorStep: 3,
-        description: 'Stage 3 Complete - ClickHouse is the single source of truth. Shadow math removed.',
-      });
-    } catch (error: any) {
-      logger.error('[Admin] ML status check failed:', error);
-      res.status(500).json({ error: error.message || "Failed to check ML status" });
-    }
+    res.json({
+      status: 'operational',
+      sourceOfTruth: 'Supabase + AI (Gemini/OpenAI)',
+      architecture: 'RAG-based insights with rolling Supabase baselines',
+      removedSystems: ['ClickHouse ML pipeline - REMOVED'],
+      description: 'Baselines computed from Supabase sleep_nights and user_daily_metrics tables.',
+    });
   });
 
-  // NOTE: The following endpoints were REMOVED in Stage 3 (shadow math removal):
-  // - /api/admin/ml/rag-comparison/:userId
-  // - /api/admin/ml/neon-comparison/:userId  
-  // - /api/admin/ml/full-comparison/:userId
-  // ClickHouse is now the single source of truth - no comparison needed.
-
-  /**
-   * ============================================================================
-   * CLICKHOUSE FULL HISTORY SYNC
-   * ============================================================================
-   * 
-   * Triggers a full history sync from Supabase to ClickHouse for a specific user.
-   * Use this when a user has no ClickHouse data and baselines are falling back to
-   * population defaults. This syncs ALL historical data instead of just the last day.
-   * 
-   * Supports both session-based admin auth and CLI key auth (X-Admin-CLI-Key header).
-   */
-  app.post('/api/admin/ml/full-sync/:userId', async (req: any, res) => {
-    try {
-      // Check for CLI key auth first
-      const cliKey = req.headers['x-admin-cli-key'];
-      const expectedKey = process.env.ADMIN_CLI_KEY;
-      
-      const isCliAuth = cliKey && expectedKey && cliKey === expectedKey;
-      
-      // If not CLI auth, require session-based admin auth
-      if (!isCliAuth) {
-        // Check session auth
-        if (!req.user?.claims?.sub) {
-          return res.status(401).json({ message: "Unauthorized" });
-        }
-        const user = await storage.getUser(req.user.claims.sub);
-        if (!user || user.role !== 'admin') {
-          return res.status(403).json({ message: "Forbidden - Admin access required" });
-        }
-      }
-      
-      const { userId } = req.params;
-      
-      const { getHealthId } = await import('../services/supabaseHealthStorage');
-      const { clickhouseBaselineEngine } = await import('../services/clickhouseBaselineEngine');
-      
-      const healthId = await getHealthId(userId);
-      if (!healthId) {
-        return res.status(404).json({ error: "Health ID not found for user" });
-      }
-
-      logger.info(`[Admin] Starting full ClickHouse sync for user ${userId} (healthId: ${healthId})`);
-      
-      // Run comprehensive sync with null daysBack to get full history
-      const syncResult = await clickhouseBaselineEngine.syncAllHealthData(healthId, null);
-      
-      logger.info(`[Admin] Full sync complete for ${userId}:`, syncResult);
-      
-      res.json({
-        success: true,
-        userId,
-        healthId,
-        syncResult,
-        message: `Synced ${syncResult.total} total records to ClickHouse`,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] Full sync failed:', error);
-      res.status(500).json({ error: error.message || "Failed to run full sync" });
-    }
-  });
-
-  /**
-   * ============================================================================
-   * CLICKHOUSE FULL HISTORY SYNC BY HEALTH_ID
-   * ============================================================================
-   * 
-   * Same as above but accepts health_id directly (for production use when you
-   * have health_ids but not user_ids in Neon).
-   */
-  app.post('/api/admin/ml/full-sync-by-health-id/:healthId', async (req: any, res) => {
-    try {
-      // Check for CLI key auth first
-      const cliKey = req.headers['x-admin-cli-key'];
-      const expectedKey = process.env.ADMIN_CLI_KEY;
-      
-      const isCliAuth = cliKey && expectedKey && cliKey === expectedKey;
-      
-      // If not CLI auth, require session-based admin auth
-      if (!isCliAuth) {
-        if (!req.user?.claims?.sub) {
-          return res.status(401).json({ message: "Unauthorized" });
-        }
-        const user = await storage.getUser(req.user.claims.sub);
-        if (!user || user.role !== 'admin') {
-          return res.status(403).json({ message: "Forbidden - Admin access required" });
-        }
-      }
-      
-      const { healthId } = req.params;
-      
-      if (!healthId || healthId.length < 10) {
-        return res.status(400).json({ error: "Invalid health_id" });
-      }
-
-      const { clickhouseBaselineEngine } = await import('../services/clickhouseBaselineEngine');
-
-      logger.info(`[Admin] Starting full ClickHouse sync for health_id: ${healthId}`);
-      
-      // Run comprehensive sync with null daysBack to get full history
-      const syncResult = await clickhouseBaselineEngine.syncAllHealthData(healthId, null);
-      
-      logger.info(`[Admin] Full sync complete for health_id ${healthId}:`, syncResult);
-      
-      res.json({
-        success: true,
-        healthId,
-        syncResult,
-        message: `Synced ${syncResult.total} total records to ClickHouse`,
-      });
-    } catch (error: any) {
-      logger.error('[Admin] Full sync by health_id failed:', error);
-      res.status(500).json({ error: error.message || "Failed to run full sync" });
-    }
-  });
+  // NOTE: ClickHouse full-sync endpoints have been removed.
+  // Baselines are now computed on-demand from Supabase data.
 
   /**
    * ============================================================================
    * REGENERATE MORNING BRIEFING
    * ============================================================================
    * 
-   * Force regenerate a user's morning briefing after ClickHouse data sync.
+   * Force regenerate a user's morning briefing.
    * Supports CLI key authentication for programmatic access.
    */
   app.post('/api/admin/briefing/regenerate/:userId', async (req: any, res) => {
@@ -1003,7 +840,7 @@ export function registerAdminRoutes(app: Express) {
       await deleteTodaysBriefing(userId, today);
       logger.info(`[Admin] Deleted existing briefing for ${userId} on ${today}`);
       
-      // Aggregate insights with fresh ClickHouse data
+      // Aggregate insights with fresh data
       const insights = await morningBriefingOrchestrator.aggregateDailyInsights(healthId, today, userId, userTimezone);
       
       // Generate new briefing
@@ -1055,7 +892,7 @@ export function registerAdminRoutes(app: Express) {
         userId,
         briefingId,
         date: today,
-        message: "Briefing regenerated successfully with fresh ClickHouse data",
+        message: "Briefing regenerated successfully",
       });
     } catch (error: any) {
       logger.error('[Admin] Briefing regeneration failed:', error);
@@ -1065,405 +902,64 @@ export function registerAdminRoutes(app: Express) {
 
   /**
    * ============================================================================
-   * DATA PARITY REPORT - ClickHouse vs Supabase Comparison
+   * DATA SUMMARY REPORT
    * ============================================================================
-   * 
-   * Compares activity metrics (steps, active_energy) between ClickHouse and Supabase
-   * to identify any discrepancies, particularly Oura + HealthKit duplicate issues.
+   * Summarises health data coverage in Supabase for a given user.
    */
   app.get('/api/admin/data-parity/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId } = req.params;
       const days = parseInt(req.query.days as string) || 14;
-      
+
       const { getHealthId } = await import('../services/supabaseHealthStorage');
-      const { getClickHouseClient, isClickHouseEnabled } = await import('../services/clickhouseService');
       const { getSupabaseClient } = await import('../services/supabaseClient');
-      
+
       const healthId = await getHealthId(userId);
       if (!healthId) {
         return res.status(404).json({ error: "Health ID not found for user" });
       }
-      
-      const errors: string[] = [];
-      const report: any = {
+
+      const supabase = getSupabaseClient();
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffStr = cutoff.toISOString().split('T')[0];
+
+      const { data: sleepRows } = await supabase
+        .from('sleep_nights')
+        .select('sleep_date, total_sleep_min, hrv_ms, resting_hr_bpm')
+        .eq('health_id', healthId)
+        .gte('sleep_date', cutoffStr)
+        .order('sleep_date', { ascending: false });
+
+      const { data: activityRows } = await supabase
+        .from('user_daily_metrics')
+        .select('local_date, steps_raw_sum, active_energy_kcal')
+        .eq('health_id', healthId)
+        .gte('local_date', cutoffStr)
+        .order('local_date', { ascending: false });
+
+      res.json({
         userId,
         healthId,
         generatedAt: new Date().toISOString(),
         daysAnalyzed: days,
-        clickhouse: { available: false, metrics: {}, error: null },
-        supabase: { available: false, metrics: {}, error: null },
-        discrepancies: [],
-        summary: {},
-        errors: [],
-      };
-      
-      // Query ClickHouse for activity metrics - keep per-source breakdown
-      if (isClickHouseEnabled()) {
-        const ch = getClickHouseClient();
-        if (ch) {
-          try {
-            // Query returns per-source values so we can detect duplicates
-            const chResult = await ch.query({
-              query: `
-                SELECT 
-                  local_date,
-                  metric_type,
-                  source,
-                  sum(value) as total_value,
-                  count() as sample_count
-                FROM flo_health.health_metrics FINAL
-                WHERE health_id = {healthId:String}
-                  AND local_date >= today() - {days:UInt32}
-                  AND metric_type IN ('steps', 'active_energy')
-                GROUP BY local_date, metric_type, source
-                ORDER BY local_date DESC, metric_type, source
-              `,
-              query_params: { healthId, days },
-              format: 'JSONEachRow',
-            });
-            
-            const chRows = await chResult.json() as any[];
-            report.clickhouse.available = true;
-            
-            // Group by date and metric, keeping all sources
-            const chMetrics: Record<string, Record<string, { total: number; bySource: Record<string, number> }>> = {};
-            for (const row of chRows) {
-              const dateKey = row.local_date;
-              if (!chMetrics[dateKey]) chMetrics[dateKey] = {};
-              if (!chMetrics[dateKey][row.metric_type]) {
-                chMetrics[dateKey][row.metric_type] = { total: 0, bySource: {} };
-              }
-              chMetrics[dateKey][row.metric_type].bySource[row.source] = row.total_value;
-              chMetrics[dateKey][row.metric_type].total += row.total_value;
-            }
-            report.clickhouse.metrics = chMetrics;
-          } catch (chError: any) {
-            report.clickhouse.error = chError.message;
-            errors.push(`ClickHouse: ${chError.message}`);
-            logger.error(`[DataParity] ClickHouse query error: ${chError.message}`);
-          }
-        }
-      } else {
-        report.clickhouse.error = 'ClickHouse not enabled';
-      }
-      
-      // Query Supabase for activity metrics (user_daily_metrics table)
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        try {
-          const startDate = new Date();
-          startDate.setDate(startDate.getDate() - days);
-          const startDateStr = startDate.toISOString().split('T')[0];
-          
-          const { data: sbRows, error: sbError } = await supabase
-            .from('user_daily_metrics')
-            .select('local_date, steps, active_energy, steps_sources, active_energy_sources')
-            .eq('health_id', healthId)
-            .gte('local_date', startDateStr)
-            .order('local_date', { ascending: false });
-          
-          if (sbError) {
-            report.supabase.error = sbError.message;
-            errors.push(`Supabase: ${sbError.message}`);
-            logger.error(`[DataParity] Supabase query error: ${sbError.message}`);
-          } else if (sbRows) {
-            report.supabase.available = true;
-            const sbMetrics: Record<string, { steps?: number; active_energy?: number; sources?: any }> = {};
-            for (const row of sbRows) {
-              // sources are already arrays from Supabase, no JSON.parse needed
-              const stepsSources = Array.isArray(row.steps_sources) ? row.steps_sources : [];
-              const energySources = Array.isArray(row.active_energy_sources) ? row.active_energy_sources : [];
-              
-              sbMetrics[row.local_date] = {
-                steps: row.steps,
-                active_energy: row.active_energy,
-                sources: {
-                  steps: stepsSources,
-                  active_energy: energySources,
-                },
-              };
-            }
-            report.supabase.metrics = sbMetrics;
-          }
-        } catch (sbError: any) {
-          report.supabase.error = sbError.message;
-          errors.push(`Supabase: ${sbError.message}`);
-          logger.error(`[DataParity] Supabase query exception: ${sbError.message}`);
-        }
-      } else {
-        report.supabase.error = 'Supabase client not available';
-      }
-      
-      // If both databases failed, return error
-      if (!report.clickhouse.available && !report.supabase.available) {
-        return res.status(502).json({ 
-          error: "Could not query either database", 
-          details: errors 
-        });
-      }
-      
-      // Compare and find discrepancies
-      const chDates = Object.keys(report.clickhouse.metrics);
-      const sbDates = Object.keys(report.supabase.metrics);
-      const allDates = Array.from(new Set([...chDates, ...sbDates])).sort().reverse();
-      
-      for (const date of allDates) {
-        const chData = report.clickhouse.metrics[date] || {};
-        const sbData = report.supabase.metrics[date] || {};
-        
-        // Check steps discrepancy
-        const chSteps = chData.steps?.total;
-        const sbSteps = sbData.steps;
-        if (chSteps !== undefined && sbSteps !== undefined) {
-          const diff = Math.abs(chSteps - sbSteps);
-          const diffPct = sbSteps > 0 ? (diff / sbSteps) * 100 : 0;
-          if (diffPct > 5) {
-            report.discrepancies.push({
-              date,
-              metric: 'steps',
-              clickhouse: chSteps,
-              clickhouseSources: chData.steps?.bySource,
-              supabase: sbSteps,
-              supabaseSources: sbData.sources?.steps,
-              difference: diff,
-              diffPercent: diffPct.toFixed(1) + '%',
-            });
-          }
-        }
-        
-        // Check active_energy discrepancy
-        const chEnergy = chData.active_energy?.total;
-        const sbEnergy = sbData.active_energy;
-        if (chEnergy !== undefined && sbEnergy !== undefined) {
-          const diff = Math.abs(chEnergy - sbEnergy);
-          const diffPct = sbEnergy > 0 ? (diff / sbEnergy) * 100 : 0;
-          if (diffPct > 5) {
-            report.discrepancies.push({
-              date,
-              metric: 'active_energy',
-              clickhouse: chEnergy,
-              clickhouseSources: chData.active_energy?.bySource,
-              supabase: sbEnergy,
-              supabaseSources: sbData.sources?.active_energy,
-              difference: diff,
-              diffPercent: diffPct.toFixed(1) + '%',
-            });
-          }
-        }
-      }
-      
-      // Check for Oura sources in both ClickHouse and Supabase data
-      const ouraPatterns = ['oura', 'ouraring', 'com.ouraring'];
-      const ouraSourceWarnings: any[] = [];
-      
-      // Check ClickHouse sources
-      for (const [date, metrics] of Object.entries(report.clickhouse.metrics) as [string, any][]) {
-        for (const [metricType, data] of Object.entries(metrics) as [string, any][]) {
-          const sources = Object.keys(data.bySource || {});
-          const ouraSources = sources.filter((s: string) => 
-            ouraPatterns.some(p => s?.toLowerCase().includes(p))
-          );
-          if (ouraSources.length > 0) {
-            ouraSourceWarnings.push({
-              date,
-              metric: metricType,
-              database: 'clickhouse',
-              ouraSources,
-              ouraValue: ouraSources.reduce((sum, src) => sum + (data.bySource[src] || 0), 0),
-              allSources: sources,
-            });
-          }
-        }
-      }
-      
-      // Check Supabase sources
-      for (const [date, data] of Object.entries(report.supabase.metrics) as [string, any][]) {
-        const stepsSources: string[] = data.sources?.steps || [];
-        const energySources: string[] = data.sources?.active_energy || [];
-        
-        const ouraStepsSources = stepsSources.filter((s: string) => 
-          ouraPatterns.some(p => s?.toLowerCase().includes(p))
-        );
-        const ouraEnergySources = energySources.filter((s: string) => 
-          ouraPatterns.some(p => s?.toLowerCase().includes(p))
-        );
-        
-        if (ouraStepsSources.length > 0) {
-          ouraSourceWarnings.push({
-            date,
-            metric: 'steps',
-            database: 'supabase',
-            ouraSources: ouraStepsSources,
-            allSources: stepsSources,
-          });
-        }
-        if (ouraEnergySources.length > 0) {
-          ouraSourceWarnings.push({
-            date,
-            metric: 'active_energy',
-            database: 'supabase',
-            ouraSources: ouraEnergySources,
-            allSources: energySources,
-          });
-        }
-      }
-      
-      report.summary = {
-        datesWithClickHouseData: chDates.length,
-        datesWithSupabaseData: sbDates.length,
-        discrepancyCount: report.discrepancies.length,
-        ouraSourceWarnings: ouraSourceWarnings.length,
-      };
-      report.ouraWarnings = ouraSourceWarnings;
-      report.errors = errors;
-      
-      logger.info(`[DataParity] Generated report for ${userId}: ${report.discrepancies.length} discrepancies, ${ouraSourceWarnings.length} Oura source warnings`);
-      res.json(report);
+        supabase: {
+          available: true,
+          sleepNights: sleepRows?.length ?? 0,
+          activityDays: activityRows?.length ?? 0,
+          data: {
+            sleep: sleepRows ?? [],
+            activity: activityRows ?? [],
+          },
+        },
+      });
     } catch (error: any) {
-      logger.error('[Admin] Data parity report failed:', error);
-      res.status(500).json({ error: error.message || "Failed to generate data parity report" });
+      logger.error('[Admin] Data summary report failed:', error);
+      res.status(500).json({ error: error.message || "Failed to generate data summary report" });
     }
   });
 
-  /**
-   * ============================================================================
-   * SLEEP BASELINE DIAGNOSTIC - Debug time_in_bed_min baseline issues
-   * ============================================================================
-   * 
-   * Queries ClickHouse for time_in_bed_min values to identify why baseline might be incorrect
-   * (e.g., naps being included, partial syncs, data corruption).
-   */
-  app.get('/api/admin/sleep-baseline-debug/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      const days = parseInt(req.query.days as string) || 90;
-      
-      const { getHealthId } = await import('../services/supabaseHealthStorage');
-      const { getClickHouseClient, isClickHouseEnabled } = await import('../services/clickhouseService');
-      const { getSupabaseClient } = await import('../services/supabaseClient');
-      
-      const healthId = await getHealthId(userId);
-      if (!healthId) {
-        return res.status(404).json({ error: "Health ID not found for user" });
-      }
-      
-      const report: any = {
-        userId,
-        healthId,
-        generatedAt: new Date().toISOString(),
-        daysAnalyzed: days,
-        clickhouse: { available: false, data: [], baseline: null, error: null },
-        supabase: { available: false, data: [], error: null },
-        analysis: {},
-      };
-      
-      // Query ClickHouse for time_in_bed_min values
-      if (isClickHouseEnabled()) {
-        const ch = getClickHouseClient();
-        if (ch) {
-          try {
-            // Get individual values to find outliers
-            const chResult = await ch.query({
-              query: `
-                SELECT 
-                  local_date,
-                  value,
-                  source,
-                  recorded_at
-                FROM flo_health.health_metrics FINAL
-                WHERE health_id = {healthId:String}
-                  AND metric_type = 'time_in_bed_min'
-                  AND recorded_at >= now() - INTERVAL {days:UInt32} DAY
-                ORDER BY local_date DESC
-                LIMIT 200
-              `,
-              query_params: { healthId, days },
-              format: 'JSONEachRow',
-            });
-            
-            const chRows = await chResult.json() as any[];
-            report.clickhouse.available = true;
-            report.clickhouse.data = chRows;
-            
-            // Calculate baseline stats
-            const values = chRows.map(r => r.value).filter((v): v is number => v != null);
-            if (values.length > 0) {
-              const mean = values.reduce((a, b) => a + b, 0) / values.length;
-              const sorted = [...values].sort((a, b) => a - b);
-              const min = sorted[0];
-              const max = sorted[sorted.length - 1];
-              const median = sorted[Math.floor(sorted.length / 2)];
-              
-              // Find suspect values (potential naps or partial sleeps < 4 hours = 240 min)
-              const suspectValues = chRows.filter(r => r.value < 240);
-              
-              report.clickhouse.baseline = {
-                mean: Math.round(mean),
-                min,
-                max,
-                median,
-                count: values.length,
-                suspectCount: suspectValues.length,
-                suspectValues: suspectValues.slice(0, 10), // First 10 suspect values
-              };
-              
-              report.analysis.issue = mean < 360 
-                ? `ISSUE DETECTED: Mean time_in_bed is only ${Math.round(mean)} minutes (${(mean/60).toFixed(1)} hours). This suggests naps or partial sleep sessions are polluting the baseline.`
-                : `Baseline looks reasonable: ${Math.round(mean)} minutes (${(mean/60).toFixed(1)} hours)`;
-            }
-          } catch (chError: any) {
-            report.clickhouse.error = chError.message;
-            logger.error(`[SleepDebug] ClickHouse query error: ${chError.message}`);
-          }
-        }
-      } else {
-        report.clickhouse.error = 'ClickHouse not enabled';
-      }
-      
-      // Query Supabase sleep_nights for comparison
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        try {
-          const startDate = new Date();
-          startDate.setDate(startDate.getDate() - days);
-          const startDateStr = startDate.toISOString().split('T')[0];
-          
-          const { data: sbRows, error: sbError } = await supabase
-            .from('sleep_nights')
-            .select('sleep_date, time_in_bed_min, total_sleep_min, source')
-            .eq('health_id', healthId)
-            .gte('sleep_date', startDateStr)
-            .order('sleep_date', { ascending: false })
-            .limit(200);
-          
-          if (sbError) {
-            report.supabase.error = sbError.message;
-            logger.error(`[SleepDebug] Supabase query error: ${sbError.message}`);
-          } else if (sbRows) {
-            report.supabase.available = true;
-            report.supabase.data = sbRows;
-            
-            // Find suspect values in Supabase too
-            const suspectRows = sbRows.filter(r => r.time_in_bed_min != null && r.time_in_bed_min < 240);
-            report.supabase.suspectCount = suspectRows.length;
-            report.supabase.suspectValues = suspectRows.slice(0, 10);
-          }
-        } catch (sbError: any) {
-          report.supabase.error = sbError.message;
-          logger.error(`[SleepDebug] Supabase query exception: ${sbError.message}`);
-        }
-      }
-      
-      logger.info(`[SleepDebug] Generated report for ${userId}: ClickHouse mean=${report.clickhouse.baseline?.mean}, suspect=${report.clickhouse.baseline?.suspectCount}`);
-      res.json(report);
-    } catch (error: any) {
-      logger.error('[Admin] Sleep baseline debug failed:', error);
-      res.status(500).json({ error: error.message || "Failed to generate sleep baseline debug report" });
-    }
-  });
-
-  // ==================== CENTRALIZED NOTIFICATION QUEUE ADMIN ====================
+    // ==================== CENTRALIZED NOTIFICATION QUEUE ADMIN ====================
 
   app.get('/api/admin/notifications/queue-stats', isAuthenticated, requireAdmin, async (req, res) => {
     try {

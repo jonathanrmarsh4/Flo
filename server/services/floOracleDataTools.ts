@@ -877,15 +877,7 @@ async function executeMealGlucoseInsights(userId: string, args: Record<string, a
   const days = Math.min(args.days || 7, 30);
   
   try {
-    const { isClickHouseEnabled } = await import('./clickhouseService');
-    if (!isClickHouseEnabled()) {
-      return {
-        success: true,
-        data: null,
-        summary: 'Meal-glucose correlation analysis is not currently available.',
-      };
-    }
-
+    // mealGlucoseCorrelator no longer depends on ClickHouse
     const { getMealGlucoseInsights, formatGlucoseResponseInsight } = await import('./mealGlucoseCorrelator');
     const { getHealthId } = await import('./supabaseHealthStorage');
     const healthId = await getHealthId(userId);

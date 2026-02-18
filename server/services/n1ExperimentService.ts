@@ -1,6 +1,5 @@
 import { getSupabaseClient } from './supabaseClient';
 import { getHealthId } from './supabaseHealthStorage';
-import { ClickHouseBaselineEngine } from './clickhouseBaselineEngine';
 import { createLogger } from '../utils/logger';
 import { 
   SUPPLEMENT_CONFIGURATIONS, 
@@ -12,8 +11,6 @@ import {
   type SupplementSubjectiveMetric,
 } from '../../shared/supplementConfig';
 
-// Initialize ClickHouse baseline engine instance
-const clickhouseEngine = new ClickHouseBaselineEngine();
 
 // Initialize Supabase client for health data storage
 const supabase = getSupabaseClient();
@@ -369,28 +366,28 @@ class N1ExperimentService {
 
     const metricsResults: { metric: string; daysAvailable: number; daysRequired: number; sufficient: boolean }[] = [];
 
-    // Check objective metrics using ClickHouse - get all baselines at once
+    // Check objective metrics using Supabase data count
     try {
-      const baselines = await clickhouseEngine.calculateBaselines(healthId, 30);
-      const baselineMap = new Map(baselines.map(b => [b.metricType, b]));
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      const { data: sleepRows } = await supabase.from('sleep_nights')
+        .select('sleep_date', { count: 'exact', head: false })
+        .eq('health_id', healthId)
+        .gte('sleep_date', cutoff.toISOString().split('T')[0]);
+      const daysAvailable = sleepRows?.length ?? 0;
 
       for (const metric of supplementConfig.objectiveMetrics) {
         if (metric.clickhouseMetric) {
-          const baseline = baselineMap.get(metric.clickhouseMetric);
-          const daysAvailable = baseline?.sampleCount || 0;
-          const daysRequired = metric.baselineDuration;
-          
           metricsResults.push({
             metric: metric.metric,
             daysAvailable,
-            daysRequired,
-            sufficient: daysAvailable >= daysRequired,
+            daysRequired: metric.baselineDuration,
+            sufficient: daysAvailable >= metric.baselineDuration,
           });
         }
       }
     } catch (error) {
-      logger.warn('Failed to get baselines from ClickHouse', { error });
-      // Add all objective metrics as insufficient
+      logger.warn('Failed to get baseline data from Supabase', { error });
       for (const metric of supplementConfig.objectiveMetrics) {
         metricsResults.push({
           metric: metric.metric,
@@ -529,24 +526,40 @@ class N1ExperimentService {
     let experimentMap = new Map<string, { mean: number; stdDev: number | null; sampleCount: number }>();
     
     try {
-      // Get baseline period data (use baseline_days for window)
-      const baselines = await clickhouseEngine.calculateBaselines(healthId, experiment.baseline_days);
-      baselineMap = new Map(baselines.map(b => [b.metricType, { 
-        mean: b.meanValue, 
-        stdDev: b.stdDev, 
-        sampleCount: b.sampleCount 
-      }]));
-      
-      // For experiment period, we use the same calculation but for the most recent days
-      // This is a simplified approach - ideally we'd query a specific date range
-      const experimentBaselines = await clickhouseEngine.calculateBaselines(healthId, experiment.experiment_days);
-      experimentMap = new Map(experimentBaselines.map(b => [b.metricType, { 
-        mean: b.meanValue, 
-        stdDev: b.stdDev, 
-        sampleCount: b.sampleCount 
-      }]));
+      // Compute baselines from Supabase sleep_nights for baseline and experiment windows
+      const computeSupabaseBaselines = async (daysBack: number) => {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - daysBack);
+        const cutoffStr = cutoff.toISOString().split('T')[0];
+        const { data: rows } = await supabase.from('sleep_nights')
+          .select('hrv_ms, resting_hr_bpm, total_sleep_min, deep_sleep_min, rem_sleep_min')
+          .eq('health_id', healthId).gte('sleep_date', cutoffStr).gt('total_sleep_min', 180);
+        const avg = (vals: (number | null | undefined)[]) => {
+          const v = vals.filter((x): x is number => x != null);
+          return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+        };
+        const sdFn = (vals: (number | null | undefined)[], m: number | null) => {
+          if (!m) return null;
+          const v = vals.filter((x): x is number => x != null);
+          return v.length > 1 ? Math.sqrt(v.reduce((a, x) => a + (x - m) ** 2, 0) / v.length) : null;
+        };
+        const mk = (vals: (number | null | undefined)[]) => {
+          const m = avg(vals);
+          return { mean: m ?? 0, stdDev: sdFn(vals, m), sampleCount: vals.filter(x => x != null).length };
+        };
+        return new Map([
+          ['hrv_ms', mk((rows ?? []).map(r => r.hrv_ms))],
+          ['deep_sleep_min', mk((rows ?? []).map(r => r.deep_sleep_min))],
+          ['rem_sleep_min', mk((rows ?? []).map(r => r.rem_sleep_min))],
+          ['total_sleep_min', mk((rows ?? []).map(r => r.total_sleep_min))],
+          ['resting_heart_rate_bpm', mk((rows ?? []).map(r => r.resting_hr_bpm))],
+        ]);
+      };
+
+      baselineMap = await computeSupabaseBaselines(experiment.baseline_days);
+      experimentMap = await computeSupabaseBaselines(experiment.experiment_days);
     } catch (error) {
-      logger.warn('Failed to get baselines from ClickHouse', { error });
+      logger.warn('Failed to get baselines from Supabase', { error });
     }
 
     // Calculate effect size for each objective metric
