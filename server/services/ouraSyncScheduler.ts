@@ -11,7 +11,7 @@ import { userIntegrations } from '@shared/schema';
 import { eq, and, lt, or, isNull } from 'drizzle-orm';
 import { syncOuraData, fetchDailySpO2 } from './ouraApiClient';
 import { getHealthId, upsertSleepNight, upsertOuraSpo2 } from './supabaseHealthStorage';
-import { syncSleepMetricsToClickHouse, syncOuraSpO2ToClickHouse } from './clickhouseHealthSync';
+// ClickHouse removed - Oura sleep/SpO2 stored in Supabase only
 import { updateSyncStatus } from './integrationsService';
 import { logger } from '../logger';
 
@@ -110,8 +110,7 @@ async function syncUserOuraData(userId: string): Promise<void> {
             oura_session_id: night.ouraSessionId,
           });
           
-          // Sync to ClickHouse for ML analysis
-          await syncSleepMetricsToClickHouse(healthId, night, 'oura');
+          // ClickHouse removed - data stored in Supabase
         } catch (err) {
           logger.error(`[OuraSyncScheduler] Failed to store sleep night:`, err);
         }
@@ -141,8 +140,7 @@ async function syncUserOuraData(userId: string): Promise<void> {
             });
           }
           
-          // Sync to ClickHouse for ML analysis
-          await syncOuraSpO2ToClickHouse(healthId, spo2Data);
+          // ClickHouse removed - data stored in Supabase
           
           logger.info(`[OuraSyncScheduler] Synced ${spo2Data.length} SpO2 records for user ${userId}`);
         }

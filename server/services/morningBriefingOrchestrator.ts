@@ -1,5 +1,9 @@
 import { createLogger } from '../utils/logger';
-import { clickhouse } from './clickhouseService'; // stub - all calls are no-ops
+// ClickHouse removed - morning briefing no-op stubs replaced
+const clickhouse = {
+  insert: async (_t: string, _rows: any[]): Promise<void> => {},
+  query: async <T>(_q: string, _p?: any): Promise<T[]> => [],
+};
 import { getSupabaseClient } from './supabaseClient';
 import { getHealthId } from './supabaseHealthStorage';
 import { apnsService } from './apnsService';

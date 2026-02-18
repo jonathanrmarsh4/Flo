@@ -1,5 +1,8 @@
 import { getSupabaseClient } from './supabaseClient';
-import { getClickHouseClient, insert as clickhouseInsert, query as clickhouseQuery } from './clickhouseService';
+// ClickHouse removed - survey data stored in Supabase only
+const getClickHouseClient = () => null;
+const clickhouseInsert = async (_t: string, _rows: any[]): Promise<void> => {};
+const clickhouseQuery = async <T>(_q: string, _p?: any): Promise<T[]> => [];
 import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 

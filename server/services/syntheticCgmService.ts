@@ -1,6 +1,10 @@
 import { spawn } from 'child_process';
 import { randomUUID } from 'crypto';
-import { clickhouse } from './clickhouseService';
+// ClickHouse removed
+const clickhouse = {
+  insert: async (_t: string, _rows: any[]): Promise<void> => {},
+  query: async <T>(_q: string, _p?: any): Promise<T[]> => [],
+};
 import { logger } from '../logger';
 
 interface SyntheticCgmReading {

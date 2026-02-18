@@ -6,7 +6,9 @@
  */
 
 import { createLogger } from '../utils/logger';
-import { getClickHouseClient, isClickHouseEnabled } from './clickhouseService';
+// ClickHouse removed
+const getClickHouseClient = () => null;
+const isClickHouseEnabled = () => false;
 import * as supabaseHealth from './supabaseHealthStorage';
 import {
   getProfile as getHealthRouterProfile,

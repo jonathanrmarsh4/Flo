@@ -1,4 +1,4 @@
-import { clickhouseBaselineEngine, AnomalyResult } from './clickhouseBaselineEngine';
+import { supabaseBaselineEngine as clickhouseBaselineEngine, AnomalyResult } from './supabaseBaselineEngine';
 import { dynamicFeedbackGenerator, GeneratedQuestion } from './dynamicFeedbackGenerator';
 import { getHealthId } from './supabaseHealthStorage';
 import { writeInsightToBrain, checkDuplicateInsight, getRecentInsights as getBrainInsights } from './brainService';
@@ -87,7 +87,7 @@ class CorrelationInsightService {
 
     // Bypass rate limit for scheduled analysis jobs
     // CRITICAL: Pass user timezone for correct local-time-based anomaly detection
-    const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { bypassRateLimit: true, timezone: userTimezone });
+    const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, 90);
     logger.info(`[CorrelationInsight] Detected ${anomalies.length} anomalies`);
 
     const recentlyAnswered = await this.getRecentlyAnsweredPatterns(userId, alertCooldownHours);
@@ -669,7 +669,7 @@ class CorrelationInsightService {
   private async checkBaselineEstablished(healthId: string): Promise<{ isEstablished: boolean; daysOfData: number }> {
     try {
       // Query ClickHouse to get data coverage summary
-      const coverage = await clickhouseBaselineEngine.getDataCoverageSummary(healthId);
+      const coverage = null; // ClickHouse removed - data coverage summary unavailable
       
       // Check health metrics coverage (the primary data source for anomaly detection)
       if (!coverage.healthMetrics.earliestDate || !coverage.healthMetrics.latestDate) {

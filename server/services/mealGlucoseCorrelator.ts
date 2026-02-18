@@ -13,7 +13,8 @@
  */
 
 import { logger } from '../utils/logger';
-import { getClickHouseClient } from './clickhouseService';
+// ClickHouse removed
+const getClickHouseClient = () => null;
 import { v4 as uuidv4 } from 'uuid';
 
 interface NutritionSample {
