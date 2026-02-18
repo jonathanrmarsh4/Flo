@@ -1223,17 +1223,22 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     
     // Step 6: Generate RAG-based holistic insights
     logger.info('[InsightsEngineV2] Generating RAG-based insights using vector search + GPT-4o');
-    const ragInsights: RAGInsight[] = await generateRAGInsights(
-      userId,
-      dataChanges,
-      healthData.biomarkers,
-      userContext,
-      availableBiomarkers,
-      healthData.dailyMetrics,
-      healthData.workouts,
-      activeExperiments
-    );
-    logger.info(`[InsightsEngineV2] Generated ${ragInsights.length} RAG insights`);
+    let ragInsights: RAGInsight[] = [];
+    try {
+      ragInsights = await generateRAGInsights(
+        userId,
+        dataChanges,
+        healthData.biomarkers,
+        userContext,
+        availableBiomarkers,
+        healthData.dailyMetrics,
+        healthData.workouts,
+        activeExperiments
+      );
+      logger.info(`[InsightsEngineV2] Generated ${ragInsights.length} RAG insights`);
+    } catch (ragError: any) {
+      logger.error(`[InsightsEngineV2] RAG insights failed, continuing without them: ${ragError?.message}`);
+    }
     
     // Step 6: Store RAG insights directly (they're already in final form)
     if (ragInsights.length > 0) {

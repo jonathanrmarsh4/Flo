@@ -556,11 +556,16 @@ export async function generateRAGInsights(
   logger.info(`[RAG] Searching for similar patterns: ${changeSummary}`);
   
   // Search for similar patterns in user's historical data
-  const similarPatterns = await searchSimilarContent(
-    userId,
-    changeSummary,
-    10 // Get top 10 similar patterns
-  );
+  let similarPatterns: Awaited<ReturnType<typeof searchSimilarContent>> = [];
+  try {
+    similarPatterns = await searchSimilarContent(
+      userId,
+      changeSummary,
+      10 // Get top 10 similar patterns
+    );
+  } catch (embedError: any) {
+    logger.warn(`[RAG] Vector search unavailable (embedding service error), proceeding without historical patterns: ${embedError?.message}`);
+  }
   
   logger.info(`[RAG] Found ${similarPatterns.length} similar historical patterns`);
   
