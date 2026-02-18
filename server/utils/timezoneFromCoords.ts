@@ -4,6 +4,7 @@
  */
 
 import { find as geoTzFind } from 'geo-tz';
+import { logger } from '../logger';
 
 /**
  * Validate if a string is a valid IANA timezone
@@ -38,7 +39,7 @@ export function deriveTimezoneFromCoords(latitude: number, longitude: number): s
     
     return null;
   } catch (error) {
-    console.error('[TimezoneFromCoords] Error deriving timezone:', error);
+    logger.error('[TimezoneFromCoords] Error deriving timezone:', error);
     return null;
   }
 }

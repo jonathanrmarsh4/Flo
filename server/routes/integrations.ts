@@ -15,6 +15,7 @@ import { isAuthenticated } from '../replitAuth';
 import * as integrationsService from '../services/integrationsService';
 import * as ouraApiClient from '../services/ouraApiClient';
 import { getHealthId, upsertSleepNight } from '../services/supabaseHealthStorage';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.get('/', isAuthenticated, async (req: Request, res: Response) => {
     
     res.json(safeIntegrations);
   } catch (error: any) {
-    console.error('[IntegrationsAPI] Failed to get integrations:', error);
+    logger.error('[IntegrationsAPI] Failed to get integrations:', error);
     res.status(500).json({ error: 'Failed to load integrations' });
   }
 });
@@ -86,7 +87,7 @@ router.post('/:provider/connect', isAuthenticated, async (req: Request, res: Res
     
     res.json({ authUrl });
   } catch (error: any) {
-    console.error('[IntegrationsAPI] Failed to initiate OAuth:', error);
+    logger.error('[IntegrationsAPI] Failed to initiate OAuth:', error);
     res.status(500).json({ error: error.message || 'Failed to initiate connection' });
   }
 });
@@ -102,7 +103,7 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
     
     // Handle OAuth errors
     if (oauthError) {
-      console.error(`[IntegrationsAPI] OAuth error for ${provider}:`, oauthError);
+      logger.error(`[IntegrationsAPI] OAuth error for ${provider}:`, oauthError);
       return res.redirect(`/profile?integration_error=${encodeURIComponent(String(oauthError))}`);
     }
     
@@ -117,7 +118,7 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
     );
     
     if (!stateData) {
-      console.warn(`[IntegrationsAPI] Invalid or expired OAuth state for ${provider}`);
+      logger.warn(`[IntegrationsAPI] Invalid or expired OAuth state for ${provider}`);
       return res.redirect('/profile?integration_error=invalid_state');
     }
     
@@ -134,12 +135,12 @@ router.get('/:provider/callback', async (req: Request, res: Response) => {
       tokens
     );
     
-    console.log(`[IntegrationsAPI] Successfully connected ${provider} for user ${stateData.userId}`);
+    logger.info(`[IntegrationsAPI] Successfully connected ${provider} for user ${stateData.userId}`);
     
     // Redirect to profile with success message
     res.redirect('/profile?integration_success=' + provider);
   } catch (error: any) {
-    console.error('[IntegrationsAPI] OAuth callback failed:', error);
+    logger.error('[IntegrationsAPI] OAuth callback failed:', error);
     res.redirect(`/profile?integration_error=${encodeURIComponent(error.message || 'callback_failed')}`);
   }
 });
@@ -164,11 +165,11 @@ router.delete('/:provider', isAuthenticated, async (req: Request, res: Response)
     
     await integrationsService.deleteIntegration(userId, provider as 'oura' | 'dexcom');
     
-    console.log(`[IntegrationsAPI] Disconnected ${provider} for user ${userId}`);
+    logger.info(`[IntegrationsAPI] Disconnected ${provider} for user ${userId}`);
     
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[IntegrationsAPI] Failed to disconnect:', error);
+    logger.error('[IntegrationsAPI] Failed to disconnect:', error);
     res.status(500).json({ error: 'Failed to disconnect integration' });
   }
 });
@@ -183,16 +184,16 @@ router.post('/:provider/sync', isAuthenticated, async (req: Request, res: Respon
     const userId = user?.id;
     const { provider } = req.params;
     
-    console.log(`[IntegrationsAPI] Manual sync triggered for provider: ${provider}, userId: ${userId}`);
+    logger.info(`[IntegrationsAPI] Manual sync triggered for provider: ${provider}, userId: ${userId}`);
     
     if (!userId) {
-      console.log('[IntegrationsAPI] Sync rejected - no userId');
+      logger.info('[IntegrationsAPI] Sync rejected - no userId');
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
     // Get healthId from Supabase mapping
     const healthId = await getHealthId(userId);
-    console.log(`[IntegrationsAPI] Got healthId: ${healthId} for userId: ${userId}`);
+    logger.info(`[IntegrationsAPI] Got healthId: ${healthId} for userId: ${userId}`);
     
     if (provider !== 'oura' && provider !== 'dexcom') {
       return res.status(400).json({ error: 'Invalid provider' });
@@ -200,28 +201,28 @@ router.post('/:provider/sync', isAuthenticated, async (req: Request, res: Respon
     
     // Check if integration exists and is connected
     const integration = await integrationsService.getUserIntegration(userId, provider as 'oura' | 'dexcom');
-    console.log(`[IntegrationsAPI] Integration status: ${integration?.status}, tokenExpiry: ${integration?.tokenExpiresAt}`);
+    logger.info(`[IntegrationsAPI] Integration status: ${integration?.status}, tokenExpiry: ${integration?.tokenExpiresAt}`);
     
     if (!integration || integration.status === 'not_connected') {
-      console.log(`[IntegrationsAPI] Integration not connected for ${provider}`);
+      logger.info(`[IntegrationsAPI] Integration not connected for ${provider}`);
       return res.status(400).json({ error: 'Integration not connected' });
     }
     
     if (provider === 'oura') {
-      console.log(`[IntegrationsAPI] Starting Oura sync for user ${userId}...`);
+      logger.info(`[IntegrationsAPI] Starting Oura sync for user ${userId}...`);
       // Sync Oura data
       const result = await ouraApiClient.syncOuraData(userId, healthId, 7);
       
       if (!result.success) {
-        console.log(`[IntegrationsAPI] Oura sync failed: ${result.error}`);
+        logger.info(`[IntegrationsAPI] Oura sync failed: ${result.error}`);
         return res.status(500).json({ error: result.error || 'Sync failed' });
       }
       
-      console.log(`[IntegrationsAPI] Oura API returned ${result.sleepNights.length} sleep nights`);
+      logger.info(`[IntegrationsAPI] Oura API returned ${result.sleepNights.length} sleep nights`);
       
       // Store sleep nights in Supabase
       for (const night of result.sleepNights) {
-        console.log(`[IntegrationsAPI] Storing sleep night for date: ${night.sleepDate}, totalSleep: ${night.totalSleepMin}min`);
+        logger.info(`[IntegrationsAPI] Storing sleep night for date: ${night.sleepDate}, totalSleep: ${night.totalSleepMin}min`);
         try {
           await upsertSleepNight(userId, {
             sleep_date: night.sleepDate,
@@ -245,11 +246,11 @@ router.post('/:provider/sync', isAuthenticated, async (req: Request, res: Respon
             oura_session_id: night.ouraSessionId,
           });
         } catch (err) {
-          console.error('[IntegrationsAPI] Failed to store sleep night:', err);
+          logger.error('[IntegrationsAPI] Failed to store sleep night:', err);
         }
       }
       
-      console.log(`[IntegrationsAPI] Synced ${result.sleepNights.length} sleep nights from Oura for user ${userId}`);
+      logger.info(`[IntegrationsAPI] Synced ${result.sleepNights.length} sleep nights from Oura for user ${userId}`);
       
       res.json({ 
         success: true, 
@@ -261,7 +262,7 @@ router.post('/:provider/sync', isAuthenticated, async (req: Request, res: Respon
       res.status(501).json({ error: 'Dexcom sync not yet implemented' });
     }
   } catch (error: any) {
-    console.error('[IntegrationsAPI] Sync failed:', error);
+    logger.error('[IntegrationsAPI] Sync failed:', error);
     res.status(500).json({ error: error.message || 'Sync failed' });
   }
 });
@@ -308,7 +309,7 @@ router.get('/:provider/status', isAuthenticated, async (req: Request, res: Respo
       } : null,
     });
   } catch (error: any) {
-    console.error('[IntegrationsAPI] Failed to get status:', error);
+    logger.error('[IntegrationsAPI] Failed to get status:', error);
     res.status(500).json({ error: 'Failed to get integration status' });
   }
 });

@@ -13,6 +13,7 @@ import { syncOuraData, fetchDailySpO2 } from './ouraApiClient';
 import { getHealthId, upsertSleepNight, upsertOuraSpo2 } from './supabaseHealthStorage';
 import { syncSleepMetricsToClickHouse, syncOuraSpO2ToClickHouse } from './clickhouseHealthSync';
 import { updateSyncStatus } from './integrationsService';
+import { logger } from '../logger';
 
 // Rate limiting: 5000 requests per 5 minutes = ~16 requests/second max
 // Being conservative: 1 user sync = ~4 API calls (sleep, readiness, heart_rate, spo2)
@@ -62,11 +63,11 @@ async function syncUserOuraData(userId: string): Promise<void> {
   inFlightUsers.add(userId);
   
   try {
-    console.log(`[OuraSyncScheduler] Starting sync for user ${userId}`);
+    logger.info(`[OuraSyncScheduler] Starting sync for user ${userId}`);
     
     const healthId = await getHealthId(userId);
     if (!healthId) {
-      console.warn(`[OuraSyncScheduler] No healthId for user ${userId}, skipping`);
+      logger.warn(`[OuraSyncScheduler] No healthId for user ${userId}, skipping`);
       // Still update lastSyncAt to prevent re-queue
       await updateSyncStatus(userId, 'oura', true);
       return;
@@ -112,11 +113,11 @@ async function syncUserOuraData(userId: string): Promise<void> {
           // Sync to ClickHouse for ML analysis
           await syncSleepMetricsToClickHouse(healthId, night, 'oura');
         } catch (err) {
-          console.error(`[OuraSyncScheduler] Failed to store sleep night:`, err);
+          logger.error(`[OuraSyncScheduler] Failed to store sleep night:`, err);
         }
       }
       
-      console.log(`[OuraSyncScheduler] Synced ${result.sleepNights.length} nights for user ${userId}`);
+      logger.info(`[OuraSyncScheduler] Synced ${result.sleepNights.length} nights for user ${userId}`);
       
       // Sync SpO2 data (Blood Oxygen) - available for Gen 3 Oura Ring
       try {
@@ -143,17 +144,17 @@ async function syncUserOuraData(userId: string): Promise<void> {
           // Sync to ClickHouse for ML analysis
           await syncOuraSpO2ToClickHouse(healthId, spo2Data);
           
-          console.log(`[OuraSyncScheduler] Synced ${spo2Data.length} SpO2 records for user ${userId}`);
+          logger.info(`[OuraSyncScheduler] Synced ${spo2Data.length} SpO2 records for user ${userId}`);
         }
       } catch (spo2Error) {
         // SpO2 requires Gen 3 Oura Ring - log but don't fail the entire sync
-        console.warn(`[OuraSyncScheduler] SpO2 sync skipped for user ${userId}:`, spo2Error);
+        logger.warn(`[OuraSyncScheduler] SpO2 sync skipped for user ${userId}:`, spo2Error);
       }
     } else {
-      console.warn(`[OuraSyncScheduler] Sync failed for user ${userId}: ${result.error}`);
+      logger.warn(`[OuraSyncScheduler] Sync failed for user ${userId}: ${result.error}`);
     }
   } catch (error) {
-    console.error(`[OuraSyncScheduler] Error syncing user ${userId}:`, error);
+    logger.error(`[OuraSyncScheduler] Error syncing user ${userId}:`, error);
     // Update status to error to prevent endless retries
     await updateSyncStatus(userId, 'oura', false, String(error));
   } finally {
@@ -175,7 +176,7 @@ function startQueueProcessing(): void {
       if (syncQueue.length === 0 && activeSyncs === 0 && processingInterval) {
         clearInterval(processingInterval);
         processingInterval = null;
-        console.log('[OuraSyncScheduler] Queue empty, stopping processor');
+        logger.info('[OuraSyncScheduler] Queue empty, stopping processor');
       }
       return;
     }
@@ -192,7 +193,7 @@ function startQueueProcessing(): void {
       });
   }, MIN_SYNC_INTERVAL_MS);
   
-  console.log(`[OuraSyncScheduler] Queue processor started (${MIN_SYNC_INTERVAL_MS}ms interval)`);
+  logger.info(`[OuraSyncScheduler] Queue processor started (${MIN_SYNC_INTERVAL_MS}ms interval)`);
 }
 
 /**
@@ -211,7 +212,7 @@ function enqueueUsers(userIds: string[]): void {
   }
   
   if (added > 0) {
-    console.log(`[OuraSyncScheduler] Enqueued ${added} users (${userIds.length - added} skipped)`);
+    logger.info(`[OuraSyncScheduler] Enqueued ${added} users (${userIds.length - added} skipped)`);
     // Start processing if not already running
     startQueueProcessing();
   }
@@ -221,11 +222,11 @@ function enqueueUsers(userIds: string[]): void {
  * Run a sync cycle for all users needing sync
  */
 async function runSyncCycle(): Promise<void> {
-  console.log('[OuraSyncScheduler] Starting sync cycle');
+  logger.info('[OuraSyncScheduler] Starting sync cycle');
   
   try {
     const users = await getUsersNeedingSync();
-    console.log(`[OuraSyncScheduler] Found ${users.length} users needing sync`);
+    logger.info(`[OuraSyncScheduler] Found ${users.length} users needing sync`);
     
     if (users.length === 0) {
       return;
@@ -234,7 +235,7 @@ async function runSyncCycle(): Promise<void> {
     // Enqueue users and start processing
     enqueueUsers(users.map(u => u.userId));
   } catch (error) {
-    console.error('[OuraSyncScheduler] Error in sync cycle:', error);
+    logger.error('[OuraSyncScheduler] Error in sync cycle:', error);
   }
 }
 
@@ -246,11 +247,11 @@ let scheduledTask: cron.ScheduledTask | null = null;
 
 export function startOuraSyncScheduler(cronExpression: string = '0 * * * *'): void {
   if (scheduledTask) {
-    console.warn('[OuraSyncScheduler] Scheduler already running');
+    logger.warn('[OuraSyncScheduler] Scheduler already running');
     return;
   }
   
-  console.log(`[OuraSyncScheduler] Starting scheduler with cron: ${cronExpression}`);
+  logger.info(`[OuraSyncScheduler] Starting scheduler with cron: ${cronExpression}`);
   
   scheduledTask = cron.schedule(cronExpression, () => {
     runSyncCycle();
@@ -258,7 +259,7 @@ export function startOuraSyncScheduler(cronExpression: string = '0 * * * *'): vo
   
   // Run initial sync after 30 seconds
   setTimeout(() => {
-    console.log('[OuraSyncScheduler] Running initial sync cycle');
+    logger.info('[OuraSyncScheduler] Running initial sync cycle');
     runSyncCycle();
   }, 30000);
 }
@@ -267,7 +268,7 @@ export function stopOuraSyncScheduler(): void {
   if (scheduledTask) {
     scheduledTask.stop();
     scheduledTask = null;
-    console.log('[OuraSyncScheduler] Scheduler stopped');
+    logger.info('[OuraSyncScheduler] Scheduler stopped');
   }
 }
 
@@ -277,7 +278,7 @@ export function stopOuraSyncScheduler(): void {
 export async function triggerUserSync(userId: string): Promise<void> {
   // Skip if already queued or in-flight
   if (syncQueue.includes(userId) || inFlightUsers.has(userId)) {
-    console.log(`[OuraSyncScheduler] User ${userId} already in queue or syncing`);
+    logger.info(`[OuraSyncScheduler] User ${userId} already in queue or syncing`);
     return;
   }
   syncQueue.unshift(userId); // Add to front of queue

@@ -92,6 +92,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, or, ilike, and, sql, lt, gt, gte, inArray } from "drizzle-orm";
+import { logger } from './logger';
 
 // Interface for storage operations
 export interface IStorage {
@@ -652,7 +653,7 @@ export class DatabaseStorage implements IStorage {
         total: Number(countResult?.count || 0) 
       };
     } catch (queryError) {
-      console.error('[Admin] Error in listUsers query:', queryError);
+      logger.error('[Admin] Error in listUsers query:', queryError);
       throw queryError;
     }
   }

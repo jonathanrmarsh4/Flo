@@ -199,215 +199,6 @@ export default function AdminDashboard() {
     },
   });
 
-  const { data: cgmBaselinesData, refetch: refetchCgmBaselines } = useQuery({
-    queryKey: ['/api/admin/clickhouse/cgm-model/baselines'],
-    refetchInterval: false,
-  });
-
-  const trainCgmModelMutation = useMutation({
-    mutationFn: async ({ numPatients, daysPerPatient, regenerateData }: { numPatients: number; daysPerPatient: number; regenerateData: boolean }) => {
-      return await apiRequest('POST', '/api/admin/clickhouse/cgm-model/train', { numPatients, daysPerPatient, regenerateData });
-    },
-    onSuccess: (data: any) => {
-      refetchCgmBaselines();
-      toast({
-        title: 'CGM Model Trained',
-        description: data.message || `Trained on ${data.syntheticReadingsUsed} readings`,
-      });
-    },
-    onError: (error: any) => {
-      console.error('CGM model training error:', error);
-      toast({
-        title: 'Training Failed',
-        description: error.message || 'Failed to train CGM model',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const { data: biomarkerBaselinesData, refetch: refetchBiomarkerBaselines } = useQuery({
-    queryKey: ['/api/admin/clickhouse/biomarker-model/baselines'],
-    refetchInterval: false,
-  });
-
-  const trainBiomarkerModelMutation = useMutation({
-    mutationFn: async ({ regenerateData }: { regenerateData: boolean }) => {
-      return await apiRequest('POST', '/api/admin/clickhouse/biomarker-model/train', { regenerateData });
-    },
-    onSuccess: (data: any) => {
-      refetchBiomarkerBaselines();
-      toast({
-        title: 'Biomarker Model Trained',
-        description: data.message || `Trained ${data.biomarkersLearned} biomarkers`,
-      });
-    },
-    onError: (error: any) => {
-      console.error('Biomarker model training error:', error);
-      toast({
-        title: 'Training Failed',
-        description: error.message || 'Failed to train biomarker model',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const { data: healthkitBaselinesData, refetch: refetchHealthkitBaselines } = useQuery({
-    queryKey: ['/api/admin/clickhouse/healthkit-model/baselines'],
-    refetchInterval: false,
-  });
-
-  const trainHealthkitModelMutation = useMutation({
-    mutationFn: async ({ numPeople, daysPerPerson, regenerateData }: { numPeople: number; daysPerPerson: number; regenerateData: boolean }) => {
-      return await apiRequest('POST', '/api/admin/clickhouse/healthkit-model/train', { numPeople, daysPerPerson, regenerateData });
-    },
-    onSuccess: (data: any) => {
-      refetchHealthkitBaselines();
-      toast({
-        title: 'HealthKit Model Trained',
-        description: data.message || `Trained ${data.metricsLearned} metrics`,
-      });
-    },
-    onError: (error: any) => {
-      console.error('HealthKit model training error:', error);
-      toast({
-        title: 'Training Failed',
-        description: error.message || 'Failed to train HealthKit model',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const clickhouseInitMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest('POST', '/api/admin/clickhouse/init', {});
-      return await res.json();
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: 'ClickHouse Initialized',
-        description: data.message || 'Tables created successfully',
-      });
-    },
-    onError: (error: any) => {
-      console.error('ClickHouse init error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to initialize ClickHouse',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const recreateMlTablesMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/admin/clickhouse/ml-tables/recreate', {});
-    },
-    onSuccess: (data: any) => {
-      refetchCgmBaselines();
-      refetchBiomarkerBaselines();
-      refetchHealthkitBaselines();
-      toast({
-        title: 'ML Tables Recreated',
-        description: data.message || 'Tables dropped and recreated successfully',
-      });
-    },
-    onError: (error: any) => {
-      console.error('ML tables recreate error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to recreate ML tables',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const clickhouseHealthMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest('GET', '/api/admin/clickhouse/health');
-      return await res.json();
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: data.connected ? 'ClickHouse Connected' : 'ClickHouse Disconnected',
-        description: data.connected ? `Version: ${data.version}` : data.error,
-        variant: data.connected ? 'default' : 'destructive',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to check ClickHouse health',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const clickhouseSyncMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await apiRequest('POST', '/api/admin/clickhouse/sync', { userId, daysBack: 30 });
-      return await res.json();
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: 'Data Synced to ClickHouse',
-        description: `Synced ${data.rowsSynced} metric rows`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to sync data',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const correlationAnalysisMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await apiRequest('POST', '/api/admin/clickhouse/analyze', { userId });
-      return await res.json();
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: 'ClickHouse ML Analysis Complete',
-        description: `Baselines: ${data.baselines?.length || 0}, Anomalies: ${data.anomalies?.length || 0}${data.feedbackQuestion ? ', Question generated' : ''}`,
-      });
-      console.log('[ClickHouse] Full analysis result:', data);
-    },
-    onError: (error: any) => {
-      console.error('ClickHouse analysis error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to run ClickHouse analysis',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const simulateAnomalyMutation = useMutation({
-    mutationFn: async ({ userId, scenario }: { userId: string; scenario: string }) => {
-      const res = await apiRequest('POST', '/api/admin/clickhouse/simulate', { userId, scenario });
-      return await res.json();
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: 'ClickHouse Simulation Complete',
-        description: data.feedbackQuestion?.questionText 
-          ? `Generated: "${data.feedbackQuestion.questionText.substring(0, 50)}..."` 
-          : `Simulated ${data.scenario} with ${data.anomalies?.length || 0} anomalies`,
-      });
-      console.log('[ClickHouse] Simulation result:', data);
-    },
-    onError: (error: any) => {
-      console.error('ClickHouse simulation error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to simulate anomaly',
-        variant: 'destructive',
-      });
-    },
-  });
-
   const [testPushUserId, setTestPushUserId] = useState<string>('');
   const testPushMutation = useMutation({
     mutationFn: async ({ userId, title, body }: { userId: string; title: string; body: string }) => {
@@ -636,7 +427,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="text-xs mt-2 text-white/40">
                   {mlCostsData ? (
-                    <>AI: ${((mlCostsData as any).month?.totalAICost || 0).toFixed(2)} | ClickHouse: ${((mlCostsData as any).month?.clickhouseStorageEstimate || 0).toFixed(2)}</>
+                    <>AI Processing (MTD): ${((mlCostsData as any).month?.totalAICost || 0).toFixed(2)}</>
                   ) : (
                     <span className="animate-pulse">Loading costs...</span>
                   )}
@@ -669,7 +460,7 @@ export default function AdminDashboard() {
                       switch (id) {
                         case 'postgresql': return <Database className="w-4 h-4 text-green-400" />;
                         case 'supabase': return <Database className="w-4 h-4 text-purple-400" />;
-                        case 'clickhouse': return <Activity className="w-4 h-4 text-orange-400" />;
+
                         case 'stripe': return <CreditCard className="w-4 h-4 text-blue-400" />;
                         case 'openai': return <Zap className="w-4 h-4 text-cyan-400" />;
                         case 'gemini': return <Zap className="w-4 h-4 text-yellow-400" />;
@@ -740,7 +531,7 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {systemHealthData?.services?.filter(s => 
-                      s.status !== 'not_configured' && ['postgresql', 'supabase', 'clickhouse'].includes(s.id)
+                      s.status !== 'not_configured' && ['postgresql', 'supabase'].includes(s.id)
                     ).map((db) => (
                       <div key={db.id} className="flex flex-col gap-1 p-2 rounded-lg bg-white/5">
                         <div className="flex items-center justify-between">
@@ -1068,75 +859,7 @@ export default function AdminDashboard() {
 
         {activeTab === 'ml-usage' && (
           <div className="space-y-6">
-            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
-              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
-                <Database className="w-5 h-5" />
-                ClickHouse ML Usage
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
-                  <div className="text-xs text-white/50">Windows Today</div>
-                  <div className="text-2xl text-white mt-1">
-                    {mlUsageData ? (mlUsageData as any).metrics?.totalWindowsToday || '0' : '0'}
-                  </div>
-                </div>
-                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
-                  <div className="text-xs text-white/50">Users Processed</div>
-                  <div className="text-2xl text-white mt-1">
-                    {mlUsageData ? (mlUsageData as any).metrics?.dailyStats?.usersProcessed?.toLocaleString() || '0' : '0'}
-                  </div>
-                </div>
-                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
-                  <div className="text-xs text-white/50">Anomalies Detected</div>
-                  <div className="text-2xl text-purple-400 mt-1">
-                    {mlUsageData ? (mlUsageData as any).metrics?.dailyStats?.anomaliesDetected?.toLocaleString() || '0' : '0'}
-                  </div>
-                </div>
-                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
-                  <div className="text-xs text-white/50">Questions Generated</div>
-                  <div className="text-2xl text-green-400 mt-1">
-                    {mlUsageData ? (mlUsageData as any).metrics?.dailyStats?.questionsGenerated?.toLocaleString() || '0' : '0'}
-                  </div>
-                </div>
-              </div>
-
-              {mlUsageData && (mlUsageData as any).nextWindow && (
-                <div className="p-4 rounded-xl border bg-blue-500/10 border-blue-500/20 mb-6">
-                  <div className="text-xs text-blue-400 mb-1">Next Processing Window</div>
-                  <div className="text-sm text-white">
-                    {(mlUsageData as any).nextWindow.name} - {new Date((mlUsageData as any).nextWindow.scheduledFor).toLocaleString()}
-                  </div>
-                  <div className="text-xs text-white/50 mt-1">
-                    {(mlUsageData as any).nextWindow.description}
-                    {(mlUsageData as any).nextWindow.includesBaselineUpdate && ' (includes baseline update)'}
-                  </div>
-                </div>
-              )}
-
-              <h4 className="text-sm text-white/70 mb-3">Processing Windows (4x daily)</h4>
-              {mlUsageData && (mlUsageData as any).windows?.length > 0 ? (
-                <div className="space-y-2 mb-6">
-                  {(mlUsageData as any).windows.map((window: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl border bg-white/5 border-white/10">
-                      <div>
-                        <span className="text-sm text-white">{window.name}</span>
-                        <span className="text-xs text-white/50 ml-2">({window.utcHour}:00 UTC)</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {window.includesBaselineUpdate && (
-                          <span className="text-xs px-2 py-1 rounded bg-purple-500/20 text-purple-300">Baseline</span>
-                        )}
-                        <span className="text-xs text-white/50">{window.description}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4 text-white/50 text-sm">No windows configured</div>
-              )}
-            </div>
-
-            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+                        <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
               <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
                 <DollarSign className="w-5 h-5 text-green-400" />
                 ML Processing Costs
@@ -1152,10 +875,7 @@ export default function AdminDashboard() {
                       <span className="text-white/50">AI Processing</span>
                       <span className="text-white">${mlCostsData ? ((mlCostsData as any).today?.totalAICost || 0).toFixed(4) : '0.00'}</span>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-white/50">ClickHouse Compute (est.)</span>
-                      <span className="text-white">${mlCostsData ? ((mlCostsData as any).today?.clickhouseComputeEstimate || 0).toFixed(4) : '0.00'}</span>
-                    </div>
+
                   </div>
                   {mlCostsData && (mlCostsData as any).today?.aiCosts?.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-white/10">
@@ -1179,10 +899,7 @@ export default function AdminDashboard() {
                       <span className="text-white/50">AI Processing (MTD)</span>
                       <span className="text-white">${mlCostsData ? ((mlCostsData as any).month?.totalAICost || 0).toFixed(2) : '0.00'}</span>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-white/50">ClickHouse Storage (est.)</span>
-                      <span className="text-white">${mlCostsData ? ((mlCostsData as any).month?.clickhouseStorageEstimate || 0).toFixed(2) : '0.00'}</span>
-                    </div>
+
                     <div className="flex justify-between text-xs">
                       <span className="text-white/50">Total AI Queries</span>
                       <span className="text-white">{mlCostsData ? ((mlCostsData as any).month?.aiQueries || 0).toLocaleString() : '0'}</span>
@@ -1194,60 +911,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-              {mlCostsData && (mlCostsData as any).clickhouse && (
-                <div className="p-3 rounded-lg bg-white/5 text-xs text-white/50">
-                  ClickHouse: {(mlCostsData as any).clickhouse.totalSizeGB} GB stored | 
-                  Storage: ~${(mlCostsData as any).clickhouse.storageCostMonthly}/mo | 
-                  Compute: ~${(mlCostsData as any).clickhouse.computeCostDaily}/day (4 windows)
-                </div>
-              )}
-            </div>
 
-            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
-              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
-                <BarChart3 className="w-5 h-5" />
-                ClickHouse Data Storage
-              </h3>
-              {mlQueryStatsData && (mlQueryStatsData as any).tables?.length > 0 ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="p-4 rounded-xl border bg-white/5 border-white/10">
-                      <div className="text-xs text-white/50">Total Rows</div>
-                      <div className="text-2xl text-white mt-1">
-                        {(mlQueryStatsData as any).totals?.totalRows?.toLocaleString() || '0'}
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-xl border bg-white/5 border-white/10">
-                      <div className="text-xs text-white/50">Total Size</div>
-                      <div className="text-2xl text-white mt-1">
-                        {(mlQueryStatsData as any).totals?.totalSizeMB?.toFixed(2) || '0'} MB
-                      </div>
-                    </div>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="border-b border-white/10">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs text-white/70">Table</th>
-                          <th className="px-4 py-3 text-right text-xs text-white/70">Rows</th>
-                          <th className="px-4 py-3 text-right text-xs text-white/70">Size (MB)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(mlQueryStatsData as any).tables.map((table: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-white/5">
-                            <td className="px-4 py-3 text-sm text-white">{table.name}</td>
-                            <td className="px-4 py-3 text-sm text-purple-400 text-right">{table.rowCount?.toLocaleString()}</td>
-                            <td className="px-4 py-3 text-sm text-white/70 text-right">{table.dataSizeMB?.toFixed(2)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-white/50">No ClickHouse data available</div>
-              )}
             </div>
 
             <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
@@ -1681,24 +1345,15 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-xl border bg-white/5 border-white/10">
                   <div className="flex items-center gap-3">
-                    <Database className="w-5 h-5 text-blue-400" />
+                    <Zap className="w-5 h-5 text-purple-400" />
                     <div>
-                      <div className="text-sm text-white">ClickHouse ML Engine</div>
-                      <div className="text-xs text-white/50">Pattern Detection & Anomaly Analysis</div>
+                      <div className="text-sm text-white">AI Insights Engine</div>
+                      <div className="text-xs text-white/50">RAG Baselines via Supabase + Gemini/OpenAI</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {mlQueryStatsData && (mlQueryStatsData as any).totals ? (
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-400" data-testid="status-clickhouse-operational" />
-                        <span className="text-sm text-green-400">Operational</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-white/50 animate-pulse" />
-                        <span className="text-sm text-white/50">Checking...</span>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-400" data-testid="status-ai-insights-operational" />
+                    <span className="text-sm text-green-400">Operational</span>
                   </div>
                 </div>
 
@@ -2005,138 +1660,16 @@ export default function AdminDashboard() {
 
             <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
               <h4 className="text-base text-white mb-2 flex items-center gap-2">
-                <Database className="w-5 h-5 text-orange-400" />
-                ClickHouse ML Correlation Engine
+                <Zap className="w-5 h-5 text-purple-400" />
+                AI Baseline Engine
               </h4>
               <div className="text-xs text-white/50 mb-4">
-                True ML-powered anomaly detection using ClickHouse. Analyzes health baselines, detects patterns (illness precursor, recovery deficit), generates dynamic feedback questions via Gemini, and learns from feedback to improve accuracy over time.
+                Baselines are computed on-demand from Supabase (sleep_nights + user_daily_metrics) using rolling 90-day windows. 
+                Anomaly detection and pattern insights are powered by Gemini and OpenAI via the RAG insight pipeline.
               </div>
-              
-              <div className="flex flex-col gap-3">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => clickhouseHealthMutation.mutate()}
-                    disabled={clickhouseHealthMutation.isPending}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 text-white transition-all disabled:opacity-50"
-                    data-testid="button-clickhouse-health"
-                  >
-                    {clickhouseHealthMutation.isPending ? (
-                      <Activity className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Activity className="w-3 h-3" />
-                    )}
-                    <span className="text-xs">Health Check</span>
-                  </button>
-                  <button
-                    onClick={() => clickhouseInitMutation.mutate()}
-                    disabled={clickhouseInitMutation.isPending}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-orange-500/20 border border-orange-500/30 hover:bg-orange-500/30 text-orange-400 transition-all disabled:opacity-50"
-                    data-testid="button-clickhouse-init"
-                  >
-                    {clickhouseInitMutation.isPending ? (
-                      <Activity className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Database className="w-3 h-3" />
-                    )}
-                    <span className="text-xs">Initialize Tables</span>
-                  </button>
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={correlationUserId}
-                    onChange={(e) => setCorrelationUserId(e.target.value)}
-                    placeholder="Enter User ID (e.g., 34226453)"
-                    className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-orange-500"
-                    data-testid="input-correlation-user-id"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      if (correlationUserId.trim()) {
-                        clickhouseSyncMutation.mutate(correlationUserId.trim());
-                      } else {
-                        toast({ title: 'Error', description: 'Please enter a User ID', variant: 'destructive' });
-                      }
-                    }}
-                    disabled={clickhouseSyncMutation.isPending || !correlationUserId.trim()}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 hover:bg-blue-500/30 text-blue-400 transition-all disabled:opacity-50"
-                    data-testid="button-clickhouse-sync"
-                  >
-                    {clickhouseSyncMutation.isPending ? (
-                      <Activity className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-3 h-3" />
-                    )}
-                    <span className="text-xs">Sync Data (30 days)</span>
-                  </button>
-                </div>
-                
-                <button
-                  onClick={() => {
-                    if (correlationUserId.trim()) {
-                      correlationAnalysisMutation.mutate(correlationUserId.trim());
-                    } else {
-                      toast({ title: 'Error', description: 'Please enter a User ID', variant: 'destructive' });
-                    }
-                  }}
-                  disabled={correlationAnalysisMutation.isPending || !correlationUserId.trim()}
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  data-testid="button-correlation-analyze"
-                >
-                  {correlationAnalysisMutation.isPending ? (
-                    <>
-                      <Activity className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Analyzing with ML...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Database className="w-4 h-4" />
-                      <span className="text-sm">Run ML Correlation Analysis</span>
-                    </>
-                  )}
-                </button>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      if (correlationUserId.trim()) {
-                        simulateAnomalyMutation.mutate({ userId: correlationUserId.trim(), scenario: 'illness' });
-                      } else {
-                        toast({ title: 'Error', description: 'Please enter a User ID', variant: 'destructive' });
-                      }
-                    }}
-                    disabled={simulateAnomalyMutation.isPending || !correlationUserId.trim()}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 text-red-400 transition-all disabled:opacity-50"
-                    data-testid="button-simulate-illness"
-                  >
-                    <AlertCircle className="w-3 h-3" />
-                    <span className="text-xs">Simulate Illness</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (correlationUserId.trim()) {
-                        simulateAnomalyMutation.mutate({ userId: correlationUserId.trim(), scenario: 'recovery' });
-                      } else {
-                        toast({ title: 'Error', description: 'Please enter a User ID', variant: 'destructive' });
-                      }
-                    }}
-                    disabled={simulateAnomalyMutation.isPending || !correlationUserId.trim()}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 hover:bg-yellow-500/30 text-yellow-400 transition-all disabled:opacity-50"
-                    data-testid="button-simulate-recovery"
-                  >
-                    <Activity className="w-3 h-3" />
-                    <span className="text-xs">Simulate Recovery</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-4 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                <div className="text-xs text-orange-400">
-                  <strong>How it works:</strong> Syncs health data to ClickHouse, calculates baselines with statistical functions, detects anomalies using z-scores and pattern matching, generates ML-powered questions via Gemini, and stores feedback to improve model accuracy over time.
+              <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                <div className="text-xs text-purple-400">
+                  <strong>Architecture:</strong> Supabase health data → rolling baseline calculation → RAG semantic search → Gemini/OpenAI insight generation → APNS delivery. No external ML database required.
                 </div>
               </div>
             </div>

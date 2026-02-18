@@ -6,6 +6,7 @@
  */
 
 import crypto from 'crypto';
+import { logger } from '../logger';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // GCM standard IV length
@@ -46,12 +47,12 @@ export function assertEncryptionConfigured(): void {
                  process.env.REPL_SLUG !== undefined; // Running on Replit
   
   if (isProd && !isEncryptionConfigured()) {
-    console.warn('[TokenEncryption] WARNING: TOKEN_ENCRYPTION_KEY not configured');
-    console.warn('[TokenEncryption] OAuth tokens will be stored in PLAINTEXT');
-    console.warn('[TokenEncryption] Set TOKEN_ENCRYPTION_KEY (64 hex chars) for production use');
+    logger.warn('[TokenEncryption] WARNING: TOKEN_ENCRYPTION_KEY not configured');
+    logger.warn('[TokenEncryption] OAuth tokens will be stored in PLAINTEXT');
+    logger.warn('[TokenEncryption] Set TOKEN_ENCRYPTION_KEY (64 hex chars) for production use');
     // Don't throw - allow startup but warn loudly
   } else if (isEncryptionConfigured()) {
-    console.log('[TokenEncryption] Token encryption is enabled');
+    logger.info('[TokenEncryption] Token encryption is enabled');
   }
 }
 
@@ -89,7 +90,7 @@ export function decryptToken(encrypted: string): string {
   
   const parts = encrypted.split(':');
   if (parts.length !== 3) {
-    console.error('[TokenEncryption] Invalid encrypted format - missing parts');
+    logger.error('[TokenEncryption] Invalid encrypted format - missing parts');
     throw new Error('Invalid encrypted token format');
   }
   

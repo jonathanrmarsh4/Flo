@@ -103,7 +103,7 @@ function prioritizeSources(segments: SleepSegment[]): SleepSegment[] {
   // Log what we filtered for debugging
   const ouraCount = segments.length - filtered.length;
   if (ouraCount > 0) {
-    console.log(`[SleepProcessor] Filtered out ${ouraCount} Oura-sourced samples to prevent double-counting`);
+    logger.info(`[SleepProcessor] Filtered out ${ouraCount} Oura-sourced samples to prevent double-counting`);
   }
   
   // If all segments were Oura-sourced, return empty (Oura sync will handle it directly)

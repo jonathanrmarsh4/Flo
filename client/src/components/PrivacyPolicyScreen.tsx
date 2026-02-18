@@ -418,8 +418,7 @@ export function PrivacyPolicyScreen({ isDark, onClose }: PrivacyPolicyScreenProp
                   <p className="font-medium mb-2">Our core providers include:</p>
                   <ul className="list-disc pl-6 space-y-1 text-sm">
                     <li><strong>Neon</strong> – account/profile and subscription information storage</li>
-                    <li><strong>Supabase</strong> – storage of pseudonymous health data</li>
-                    <li><strong>ClickHouse</strong> – mirrored copy of pseudonymous health data for analytics/machine learning</li>
+                    <li><strong>Supabase</strong> – storage of pseudonymous health data and ML baseline computation</li>
                     <li><strong>Resend</strong> – email delivery (service and account communications)</li>
                     <li><strong>Google (Gemini) &amp; OpenAI</strong> – AI processing when AI features are enabled</li>
                   </ul>

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { logger } from '../logger';
 
 // ==================== USER PROFILE TYPES ====================
 
@@ -225,7 +226,7 @@ export function validateAIResponse(response: unknown): AIResponsePayload | null 
   try {
     return AIResponsePayloadSchema.parse(response);
   } catch (error) {
-    console.error('[MorningBriefing] Invalid AI response:', error);
+    logger.error('[MorningBriefing] Invalid AI response:', error);
     return null;
   }
 }
@@ -234,7 +235,7 @@ export function validateAIRequest(request: unknown): AIRequestPayload | null {
   try {
     return AIRequestPayloadSchema.parse(request);
   } catch (error) {
-    console.error('[MorningBriefing] Invalid AI request:', error);
+    logger.error('[MorningBriefing] Invalid AI request:', error);
     return null;
   }
 }

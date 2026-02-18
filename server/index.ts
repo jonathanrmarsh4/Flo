@@ -13,6 +13,7 @@ import { startMorningBriefingScheduler } from "./services/morningBriefingSchedul
 import { startCGMSyncScheduler } from "./services/cgmSyncScheduler";
 import { startOuraSyncScheduler } from "./services/ouraSyncScheduler";
 import { centralizedNotificationService } from "./services/centralizedNotificationService";
+import { logger } from './logger';
 
 const app = express();
 
@@ -200,18 +201,18 @@ app.use((req, res, next) => {
       // Start the centralized notification service (queue-based, timezone-aware notifications)
       centralizedNotificationService.start().then(result => {
         if (result.success) {
-          console.log('[CentralizedNotifications] Service auto-started successfully');
+          logger.info('[CentralizedNotifications] Service auto-started successfully');
         }
       }).catch(err => {
-        console.error('[CentralizedNotifications] Failed to auto-start:', err);
+        logger.error('[CentralizedNotifications] Failed to auto-start:', err);
       });
       
       log(`Background schedulers started successfully`);
     } catch (err) {
-      console.error('[Server] Failed to start background schedulers:', err);
+      logger.error('[Server] Failed to start background schedulers:', err);
     }
   });
 })().catch(err => {
-  console.error('[Server] Fatal startup error:', err);
+  logger.error('[Server] Fatal startup error:', err);
   process.exit(1);
 });

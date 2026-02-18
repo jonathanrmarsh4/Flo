@@ -7,6 +7,7 @@
 
 import { getValidAccessToken, updateSyncStatus } from './integrationsService';
 import { OURA_UNIT_CONVERSIONS, OURA_TO_INTERNAL_FIELD_MAP } from '@shared/dataSource';
+import { logger } from '../logger';
 
 const OURA_API_BASE = 'https://api.ouraring.com/v2';
 
@@ -213,7 +214,7 @@ async function ouraFetch<T>(
   const accessToken = await getValidAccessToken(userId, 'oura');
   
   if (!accessToken) {
-    console.error('[OuraAPI] No valid access token for user:', userId);
+    logger.error('[OuraAPI] No valid access token for user:', userId);
     throw new OuraApiAuthError('No valid access token - please reconnect Oura');
   }
   
@@ -234,7 +235,7 @@ async function ouraFetch<T>(
     
     if (!response.ok) {
       const error = await response.text();
-      console.error(`[OuraAPI] Request failed: ${response.status} - ${error}`);
+      logger.error(`[OuraAPI] Request failed: ${response.status} - ${error}`);
       
       // 401/403 indicate auth issues - token expired or revoked
       if (response.status === 401 || response.status === 403) {
@@ -246,7 +247,7 @@ async function ouraFetch<T>(
     
     return await response.json();
   } catch (error) {
-    console.error('[OuraAPI] Fetch error:', error);
+    logger.error('[OuraAPI] Fetch error:', error);
     throw error;
   }
 }
@@ -417,13 +418,13 @@ export async function fetchPersonalInfo(userId: string): Promise<OuraPersonalInf
     });
     
     if (!response.ok) {
-      console.error(`[OuraAPI] Personal info request failed: ${response.status}`);
+      logger.error(`[OuraAPI] Personal info request failed: ${response.status}`);
       return null;
     }
     
     return await response.json();
   } catch (error) {
-    console.error('[OuraAPI] Failed to fetch personal info:', error);
+    logger.error('[OuraAPI] Failed to fetch personal info:', error);
     return null;
   }
 }
@@ -448,7 +449,7 @@ export function convertSleepPeriodToFloFormat(
   const totalSleepMin = period.total_sleep_duration ? OURA_UNIT_CONVERSIONS.sleepDurationSecToMin(period.total_sleep_duration) : null;
   const timeInBedMin = period.time_in_bed ? OURA_UNIT_CONVERSIONS.sleepDurationSecToMin(period.time_in_bed) : null;
   
-  console.log(`[OuraAPI] Converting sleep period for ${period.day}:`, {
+  logger.info(`[OuraAPI] Converting sleep period for ${period.day}:`, {
     sessionId: period.id,
     type: period.type,
     bedtimeStart: period.bedtime_start,
@@ -503,7 +504,7 @@ export async function syncOuraData(
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
     
-    console.log(`[OuraAPI] Syncing data for user ${userId} from ${startStr} to ${endStr}`);
+    logger.info(`[OuraAPI] Syncing data for user ${userId} from ${startStr} to ${endStr}`);
     
     // Fetch sleep periods and readiness in parallel
     const [sleepPeriods, readinessData] = await Promise.all([
@@ -519,14 +520,14 @@ export async function syncOuraData(
       .filter(p => p.type === 'long_sleep' || p.type === 'sleep')
       .map(period => convertSleepPeriodToFloFormat(period, readinessMap.get(period.day)));
     
-    console.log(`[OuraAPI] Converted ${sleepNights.length} sleep nights`);
+    logger.info(`[OuraAPI] Converted ${sleepNights.length} sleep nights`);
     
     // Update sync status - only mark success if we got this far
     await updateSyncStatus(userId, 'oura', true);
     
     return { success: true, sleepNights };
   } catch (error: any) {
-    console.error('[OuraAPI] Sync failed:', error);
+    logger.error('[OuraAPI] Sync failed:', error);
     
     // Handle auth errors specifically - downgrade to expired status
     const isAuthError = error instanceof OuraApiAuthError || 
@@ -574,7 +575,7 @@ export async function getOuraUserInfo(userId: string): Promise<any | null> {
     
     return await response.json();
   } catch (error) {
-    console.error('[OuraAPI] Failed to fetch user info:', error);
+    logger.error('[OuraAPI] Failed to fetch user info:', error);
     return null;
   }
 }

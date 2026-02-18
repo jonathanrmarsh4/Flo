@@ -679,7 +679,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
 
             {/* AnomalyAlertTile removed - using ML Feedback Banner above instead */}
 
-            {/* Sync Progress Indicator - Shows when HealthKit/ClickHouse is syncing */}
+            {/* Sync Progress Indicator - Shows when HealthKit is syncing */}
             <SyncProgressIndicator 
               isDark={isDark} 
               hasDashboardData={dashboardData?.floScore != null || dashboardData?.componentScores?.readiness != null}

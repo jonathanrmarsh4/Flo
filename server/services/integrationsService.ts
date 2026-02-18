@@ -17,6 +17,7 @@ import { AVAILABLE_INTEGRATIONS } from '@shared/dataSource';
 import type { UserIntegration, InsertUserIntegration } from '@shared/schema';
 import { encryptToken, decryptToken, isEncryptionConfigured } from '../utils/tokenEncryption';
 import crypto from 'crypto';
+import { logger } from '../logger';
 
 type IntegrationProvider = 'oura' | 'dexcom';
 
@@ -171,7 +172,7 @@ export async function exchangeCodeForTokens(
   
   if (!response.ok) {
     const error = await response.text();
-    console.error(`[IntegrationsService] Token exchange failed for ${provider}:`, error);
+    logger.error(`[IntegrationsService] Token exchange failed for ${provider}:`, error);
     throw new Error(`Failed to exchange authorization code: ${error}`);
   }
   
@@ -211,7 +212,7 @@ export async function refreshAccessToken(
   
   if (!response.ok) {
     const error = await response.text();
-    console.error(`[IntegrationsService] Token refresh failed for ${provider}:`, error);
+    logger.error(`[IntegrationsService] Token refresh failed for ${provider}:`, error);
     throw new Error(`Failed to refresh token: ${error}`);
   }
   
@@ -236,9 +237,9 @@ export async function storeTokens(
   if (isEncryptionConfigured()) {
     encryptedAccessToken = encryptToken(tokens.access_token);
     encryptedRefreshToken = encryptToken(tokens.refresh_token);
-    console.log(`[IntegrationsService] Tokens encrypted for ${provider}`);
+    logger.info(`[IntegrationsService] Tokens encrypted for ${provider}`);
   } else {
-    console.warn(`[IntegrationsService] TOKEN_ENCRYPTION_KEY not configured - storing tokens in plaintext (not recommended for production)`);
+    logger.warn(`[IntegrationsService] TOKEN_ENCRYPTION_KEY not configured - storing tokens in plaintext (not recommended for production)`);
   }
   
   return upsertIntegration(userId, provider, {
@@ -278,7 +279,7 @@ export async function getValidAccessToken(
       }
       return integration.accessToken;
     } catch (error) {
-      console.error(`[IntegrationsService] Failed to decrypt access token:`, error);
+      logger.error(`[IntegrationsService] Failed to decrypt access token:`, error);
       return null;
     }
   }
@@ -299,7 +300,7 @@ export async function getValidAccessToken(
       try {
         refreshTokenToUse = decryptToken(integration.refreshToken);
       } catch (decryptError) {
-        console.error(`[IntegrationsService] Failed to decrypt refresh token:`, decryptError);
+        logger.error(`[IntegrationsService] Failed to decrypt refresh token:`, decryptError);
         await upsertIntegration(userId, provider, {
           status: 'error',
           lastSyncError: 'Token decryption failed - please reconnect',
@@ -312,7 +313,7 @@ export async function getValidAccessToken(
     await storeTokens(userId, provider, newTokens);
     return newTokens.access_token;
   } catch (error) {
-    console.error(`[IntegrationsService] Failed to refresh token for ${provider}:`, error);
+    logger.error(`[IntegrationsService] Failed to refresh token for ${provider}:`, error);
     await upsertIntegration(userId, provider, {
       status: 'expired',
       lastSyncError: 'Token refresh failed - please reconnect',
@@ -414,7 +415,7 @@ export async function storeOAuthState(
     lastSyncError: `oauth_state:${hashedState}:${expiry}`, // Hash + expiry
   });
   
-  console.log(`[IntegrationsService] Stored hashed OAuth state for ${provider}`);
+  logger.info(`[IntegrationsService] Stored hashed OAuth state for ${provider}`);
 }
 
 /**
@@ -456,19 +457,19 @@ export async function validateAndConsumeOAuthState(
         
         // Check if expired
         if (expiry < now) {
-          console.warn(`[IntegrationsService] OAuth state expired`);
+          logger.warn(`[IntegrationsService] OAuth state expired`);
           return null;
         }
         
-        console.log(`[IntegrationsService] Validated OAuth state from database`);
+        logger.info(`[IntegrationsService] Validated OAuth state from database`);
         return { userId: integration.userId, provider: integration.provider };
       }
     }
     
-    console.warn(`[IntegrationsService] OAuth state not found`);
+    logger.warn(`[IntegrationsService] OAuth state not found`);
     return null;
   } catch (error) {
-    console.error(`[IntegrationsService] Failed to validate state:`, error);
+    logger.error(`[IntegrationsService] Failed to validate state:`, error);
     return null;
   }
 }

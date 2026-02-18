@@ -9044,7 +9044,7 @@ Important: This is for educational purposes. Include a brief note that users sho
       const dailyMetrics = req.body;
 
       // PRODUCTION DEBUG: Log raw request body first
-      console.log('📥 [BODY COMP DEBUG] Raw req.body:', JSON.stringify({
+      logger.info('📥 [BODY COMP DEBUG] Raw req.body:', JSON.stringify({
         weightKg: req.body.weightKg,
         bodyFatPercent: req.body.bodyFatPercent,
         leanBodyMassKg: req.body.leanBodyMassKg,
@@ -9092,7 +9092,7 @@ Important: This is for educational purposes. Include a brief note that users sho
       };
       
       // PRODUCTION DEBUG: Log ALL extended metrics to verify iOS is sending them
-      console.log('📊 [HEALTHKIT DEBUG] Extended metrics from iOS:', JSON.stringify(extendedMetrics, null, 2));
+      logger.info('📊 [HEALTHKIT DEBUG] Extended metrics from iOS:', JSON.stringify(extendedMetrics, null, 2));
 
       // Log extended metrics for debugging
       logger.debug('[HealthKit] Extended metrics received', { extendedMetrics });
@@ -9207,7 +9207,7 @@ Important: This is for educational purposes. Include a brief note that users sho
           `This may indicate combined Apple Watch + Oura data. iOS should filter Oura sources for activity metrics.`);
       }
       
-      console.log('📤 [SUPABASE] Writing daily metrics to Supabase:', JSON.stringify(supabaseMetrics, null, 2));
+      logger.info('📤 [SUPABASE] Writing daily metrics to Supabase:', JSON.stringify(supabaseMetrics, null, 2));
       await upsertSupabaseDailyMetrics(userId, supabaseMetrics);
       logger.info(`[HealthKit] Stored daily metrics in Supabase for ${userId}, ${metrics.localDate}`);
 
