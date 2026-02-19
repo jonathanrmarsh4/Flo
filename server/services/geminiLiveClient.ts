@@ -304,8 +304,14 @@ class GeminiLiveClient {
         let textPartsFound = 0;
         
         for (const part of message.serverContent.modelTurn.parts) {
-          // Handle text response
+          // Handle text response - skip thinking/reasoning parts (part.thought === true)
+          // Gemini 2.5 thinking models return internal reasoning marked with thought:true
+          // These should never be shown to the user
           if (part.text) {
+            if ((part as any).thought === true) {
+              logger.debug('[GeminiLive] Skipping thinking part', { length: part.text.length });
+              continue;
+            }
             textPartsFound++;
             callbacks.onModelText(part.text);
           }
